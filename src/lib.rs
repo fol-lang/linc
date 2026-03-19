@@ -23,9 +23,10 @@ pub use extract::{extract_from_source, extract_from_translation_unit};
 pub use ir::{
     BindingDefine, BindingInputs, BindingItem, BindingLinkSurface, BindingPackage, BindingTarget,
     BindingType, CallingConvention, EnumBinding, EnumVariant, FieldBinding, FunctionBinding,
-    LinkArtifact, LinkArtifactKind, LinkLibrary, LinkLibraryKind, LinkRequirementSource,
-    LinkResolutionMode, MacroBinding, MacroCategory, MacroKind, ParameterBinding, RecordBinding,
-    RecordKind, TypeAliasBinding, TypeLayout, UnsupportedItem, VariableBinding, SCHEMA_VERSION,
+    LinkArtifact, LinkArtifactKind, LinkInput, LinkLibrary, LinkLibraryKind,
+    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroKind,
+    ParameterBinding, RecordBinding, RecordKind, TypeAliasBinding, TypeLayout, UnsupportedItem,
+    VariableBinding, SCHEMA_VERSION,
 };
 pub use line_markers::{FileOriginMap, OriginFilter, SourceOrigin};
 pub use preprocess::PreprocessedInput;

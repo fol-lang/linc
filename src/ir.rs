@@ -112,6 +112,12 @@ pub struct LinkArtifact {
     pub source: LinkRequirementSource,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LinkInput {
+    Library(LinkLibrary),
+    Artifact(LinkArtifact),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BindingLinkSurface {
     #[serde(default)]
@@ -124,6 +130,8 @@ pub struct BindingLinkSurface {
     pub libraries: Vec<LinkLibrary>,
     #[serde(default)]
     pub artifacts: Vec<LinkArtifact>,
+    #[serde(default)]
+    pub ordered_inputs: Vec<LinkInput>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -472,6 +480,18 @@ mod tests {
                 kind: LinkArtifactKind::SharedLibrary,
                 source: LinkRequirementSource::Discovered,
             }],
+            ordered_inputs: vec![
+                LinkInput::Library(LinkLibrary {
+                    name: "z".into(),
+                    kind: LinkLibraryKind::Dynamic,
+                    source: LinkRequirementSource::Declared,
+                }),
+                LinkInput::Artifact(LinkArtifact {
+                    path: "/usr/lib/libz.so".into(),
+                    kind: LinkArtifactKind::SharedLibrary,
+                    source: LinkRequirementSource::Discovered,
+                }),
+            ],
         };
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name: "size_t".into(),
@@ -670,6 +690,28 @@ mod tests {
                     source: LinkRequirementSource::Declared,
                 },
             ],
+            ordered_inputs: vec![
+                LinkInput::Library(LinkLibrary {
+                    name: "ssl".into(),
+                    kind: LinkLibraryKind::Default,
+                    source: LinkRequirementSource::Declared,
+                }),
+                LinkInput::Library(LinkLibrary {
+                    name: "crypto".into(),
+                    kind: LinkLibraryKind::Static,
+                    source: LinkRequirementSource::Inferred,
+                }),
+                LinkInput::Artifact(LinkArtifact {
+                    path: "libssl.a".into(),
+                    kind: LinkArtifactKind::StaticLibrary,
+                    source: LinkRequirementSource::Discovered,
+                }),
+                LinkInput::Artifact(LinkArtifact {
+                    path: "plugin.o".into(),
+                    kind: LinkArtifactKind::Object,
+                    source: LinkRequirementSource::Declared,
+                }),
+            ],
         };
         let json = serde_json::to_string(&link).unwrap();
         let decoded: BindingLinkSurface = serde_json::from_str(&json).unwrap();
@@ -692,5 +734,6 @@ mod tests {
         assert_eq!(decoded.preferred_mode, LinkResolutionMode::Default);
         assert_eq!(decoded.libraries[0].source, LinkRequirementSource::Declared);
         assert_eq!(decoded.artifacts[0].source, LinkRequirementSource::Declared);
+        assert!(decoded.ordered_inputs.is_empty());
     }
 }

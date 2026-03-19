@@ -90,6 +90,10 @@ fn cli_scan_emits_inputs_and_link_metadata() {
     assert_eq!(json["link"]["artifacts"][0]["source"], "Declared");
     assert_eq!(json["link"]["artifacts"][1]["path"], "lib/libcrypto.a");
     assert_eq!(json["link"]["artifacts"][1]["kind"], "StaticLibrary");
+    assert_eq!(json["link"]["ordered_inputs"].as_array().unwrap().len(), 3);
+    assert_eq!(json["link"]["ordered_inputs"][0]["Library"]["name"], "m");
+    assert_eq!(json["link"]["ordered_inputs"][1]["Artifact"]["path"], "build/plugin.o");
+    assert_eq!(json["link"]["ordered_inputs"][2]["Artifact"]["path"], "lib/libcrypto.a");
     assert!(json["macros"]
         .as_array()
         .unwrap()
@@ -406,6 +410,16 @@ fn cli_link_plan_emits_link_surface_json() {
                         "kind": "StaticLibrary",
                         "source": "Discovered"
                     }
+                ],
+                "ordered_inputs": [
+                    { "Library": { "name": "ssl", "kind": "Dynamic", "source": "Inferred" } },
+                    {
+                        "Artifact": {
+                            "path": "native/libcrypto.a",
+                            "kind": "StaticLibrary",
+                            "source": "Discovered"
+                        }
+                    }
                 ]
             },
             "source_path": "api.h",
@@ -434,6 +448,9 @@ fn cli_link_plan_emits_link_surface_json() {
     assert_eq!(json["artifacts"][0]["path"], "native/libcrypto.a");
     assert_eq!(json["artifacts"][0]["kind"], "StaticLibrary");
     assert_eq!(json["artifacts"][0]["source"], "Discovered");
+    assert_eq!(json["ordered_inputs"].as_array().unwrap().len(), 2);
+    assert_eq!(json["ordered_inputs"][0]["Library"]["name"], "ssl");
+    assert_eq!(json["ordered_inputs"][1]["Artifact"]["path"], "native/libcrypto.a");
 
     std::fs::remove_dir_all(&dir).ok();
 }

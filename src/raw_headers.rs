@@ -6,8 +6,8 @@ use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::extract::Extractor;
 use crate::ir::{
     BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
-    LinkArtifactKind, LinkLibrary, LinkLibraryKind, LinkRequirementSource, LinkResolutionMode,
-    MacroBinding, MacroCategory, MacroKind,
+    LinkArtifactKind, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource,
+    LinkResolutionMode, MacroBinding, MacroCategory, MacroKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::probe_type_layouts;
@@ -20,6 +20,7 @@ pub struct HeaderConfig {
     pub defines: Vec<(String, Option<String>)>,
     pub link_libraries: Vec<LinkLibrary>,
     pub link_artifacts: Vec<LinkArtifact>,
+    pub ordered_link_inputs: Vec<LinkInput>,
     pub preferred_link_mode: LinkResolutionMode,
     pub probe_types: Vec<String>,
     pub compiler: Option<String>,
@@ -67,6 +68,7 @@ impl HeaderConfig {
             defines: Vec::new(),
             link_libraries: Vec::new(),
             link_artifacts: Vec::new(),
+            ordered_link_inputs: Vec::new(),
             preferred_link_mode: LinkResolutionMode::Default,
             probe_types: Vec::new(),
             compiler: None,
@@ -96,56 +98,74 @@ impl HeaderConfig {
     }
 
     pub fn link_lib(mut self, name: impl Into<String>) -> Self {
-        self.link_libraries.push(LinkLibrary {
+        let library = LinkLibrary {
             name: name.into(),
             kind: LinkLibraryKind::Default,
             source: LinkRequirementSource::Declared,
-        });
+        };
+        self.ordered_link_inputs
+            .push(LinkInput::Library(library.clone()));
+        self.link_libraries.push(library);
         self
     }
 
     pub fn link_static_lib(mut self, name: impl Into<String>) -> Self {
-        self.link_libraries.push(LinkLibrary {
+        let library = LinkLibrary {
             name: name.into(),
             kind: LinkLibraryKind::Static,
             source: LinkRequirementSource::Declared,
-        });
+        };
+        self.ordered_link_inputs
+            .push(LinkInput::Library(library.clone()));
+        self.link_libraries.push(library);
         self
     }
 
     pub fn link_shared_lib(mut self, name: impl Into<String>) -> Self {
-        self.link_libraries.push(LinkLibrary {
+        let library = LinkLibrary {
             name: name.into(),
             kind: LinkLibraryKind::Dynamic,
             source: LinkRequirementSource::Declared,
-        });
+        };
+        self.ordered_link_inputs
+            .push(LinkInput::Library(library.clone()));
+        self.link_libraries.push(library);
         self
     }
 
     pub fn link_object_file(mut self, path: impl Into<PathBuf>) -> Self {
-        self.link_artifacts.push(LinkArtifact {
+        let artifact = LinkArtifact {
             path: path.into().display().to_string(),
             kind: LinkArtifactKind::Object,
             source: LinkRequirementSource::Declared,
-        });
+        };
+        self.ordered_link_inputs
+            .push(LinkInput::Artifact(artifact.clone()));
+        self.link_artifacts.push(artifact);
         self
     }
 
     pub fn link_static_artifact(mut self, path: impl Into<PathBuf>) -> Self {
-        self.link_artifacts.push(LinkArtifact {
+        let artifact = LinkArtifact {
             path: path.into().display().to_string(),
             kind: LinkArtifactKind::StaticLibrary,
             source: LinkRequirementSource::Declared,
-        });
+        };
+        self.ordered_link_inputs
+            .push(LinkInput::Artifact(artifact.clone()));
+        self.link_artifacts.push(artifact);
         self
     }
 
     pub fn link_shared_artifact(mut self, path: impl Into<PathBuf>) -> Self {
-        self.link_artifacts.push(LinkArtifact {
+        let artifact = LinkArtifact {
             path: path.into().display().to_string(),
             kind: LinkArtifactKind::SharedLibrary,
             source: LinkRequirementSource::Declared,
-        });
+        };
+        self.ordered_link_inputs
+            .push(LinkInput::Artifact(artifact.clone()));
+        self.link_artifacts.push(artifact);
         self
     }
 
@@ -378,6 +398,7 @@ impl HeaderConfig {
                 .collect(),
             libraries: self.link_libraries.clone(),
             artifacts: self.link_artifacts.clone(),
+            ordered_inputs: self.ordered_link_inputs.clone(),
         }
     }
 
@@ -652,6 +673,7 @@ mod tests {
         assert_eq!(cfg2.library_dirs.len(), 1);
         assert_eq!(cfg2.link_libraries.len(), 1);
         assert_eq!(cfg2.link_artifacts.len(), 1);
+        assert_eq!(cfg2.ordered_link_inputs.len(), 2);
         assert_eq!(cfg2.preferred_link_mode, LinkResolutionMode::PreferDynamic);
         assert_eq!(cfg2.probe_types.len(), 1);
     }
@@ -712,6 +734,15 @@ mod tests {
         assert_eq!(link.artifacts[0].path, "lib/libcrypto.a");
         assert_eq!(link.artifacts[0].kind, LinkArtifactKind::StaticLibrary);
         assert_eq!(link.artifacts[0].source, LinkRequirementSource::Declared);
+        assert_eq!(link.ordered_inputs.len(), 2);
+        match &link.ordered_inputs[0] {
+            LinkInput::Library(lib) => assert_eq!(lib.name, "crypto"),
+            other => panic!("expected first ordered input to be library, got {:?}", other),
+        }
+        match &link.ordered_inputs[1] {
+            LinkInput::Artifact(artifact) => assert_eq!(artifact.path, "lib/libcrypto.a"),
+            other => panic!("expected second ordered input to be artifact, got {:?}", other),
+        }
         assert_eq!(cfg.probe_types, vec!["struct widget".to_string()]);
     }
 
