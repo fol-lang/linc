@@ -6,7 +6,7 @@ use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::extract::Extractor;
 use crate::ir::{
     BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
-    LinkArtifactKind, LinkLibrary, LinkLibraryKind,
+    LinkArtifactKind, LinkLibrary, LinkLibraryKind, MacroBinding, MacroKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 
@@ -180,6 +180,7 @@ impl HeaderConfig {
         let (command, args) = self.describe_invocation(&pac_config, &tmp_file);
 
         let parse_result = pac::driver::parse(&pac_config, &tmp_file);
+        let macros = self.capture_macros(&tmp_file);
 
         // Clean up
         std::fs::remove_file(&tmp_file).ok();
@@ -207,6 +208,7 @@ impl HeaderConfig {
                     source_path: Some(source_desc),
                     target: self.binding_target(),
                     inputs: self.binding_inputs(),
+                    macros,
                     link: self.binding_link_surface(),
                     items,
                     diagnostics,
@@ -347,6 +349,37 @@ impl HeaderConfig {
         }
     }
 
+    fn capture_macros(&self, input: &Path) -> Vec<MacroBinding> {
+        let compiler = self.compiler_command();
+        let mut cmd = std::process::Command::new(&compiler);
+        cmd.arg("-dM").arg("-E");
+        for dir in &self.include_dirs {
+            cmd.arg(format!("-I{}", dir.display()));
+        }
+        for (name, value) in &self.defines {
+            match value {
+                Some(v) => {
+                    cmd.arg(format!("-D{}={}", name, v));
+                }
+                None => {
+                    cmd.arg(format!("-D{}", name));
+                }
+            }
+        }
+        cmd.arg(input);
+
+        let Ok(output) = cmd.output() else {
+            return Vec::new();
+        };
+        if !output.status.success() {
+            return Vec::new();
+        }
+        let Ok(stdout) = String::from_utf8(output.stdout) else {
+            return Vec::new();
+        };
+        parse_macro_definitions(&stdout)
+    }
+
     fn describe_invocation(&self, config: &pac::driver::Config, input: &Path) -> (String, Vec<String>) {
         let command = config.cpp_command.clone();
         let mut args = config.cpp_options.clone();
@@ -400,6 +433,64 @@ fn detect_compiler_version(compiler_command: &str) -> Option<String> {
     }
     let stdout = String::from_utf8(output.stdout).ok()?;
     stdout.lines().next().map(str::to_string).filter(|line| !line.is_empty())
+}
+
+fn parse_macro_definitions(source: &str) -> Vec<MacroBinding> {
+    source
+        .lines()
+        .filter_map(parse_macro_definition_line)
+        .collect()
+}
+
+fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
+    let line = line.trim();
+    let rest = line.strip_prefix("#define ")?;
+    let mut parts = rest.splitn(2, char::is_whitespace);
+    let head = parts.next()?.trim();
+    let body = parts.next().unwrap_or("").trim().to_string();
+
+    let function_like = head.contains('(');
+    let name = if function_like {
+        head.split('(').next()?.trim().to_string()
+    } else {
+        head.to_string()
+    };
+
+    if name.is_empty() {
+        return None;
+    }
+
+    Some(MacroBinding {
+        kind: classify_macro_body(&body, function_like),
+        name,
+        body,
+        function_like,
+    })
+}
+
+fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
+    if function_like {
+        return MacroKind::Other;
+    }
+
+    if body.starts_with('"') && body.ends_with('"') && body.len() >= 2 {
+        return MacroKind::String;
+    }
+
+    let trimmed = body.trim();
+    if !trimmed.is_empty()
+        && trimmed
+            .chars()
+            .all(|ch| ch.is_ascii_hexdigit() || matches!(ch, 'x' | 'X' | 'u' | 'U' | 'l' | 'L' | '+' | '-'))
+    {
+        return MacroKind::Integer;
+    }
+
+    if trimmed.chars().any(|ch| "+-*/%<>&|^!()".contains(ch)) {
+        return MacroKind::Expression;
+    }
+
+    MacroKind::Other
 }
 
 impl Default for HeaderConfig {
@@ -531,6 +622,31 @@ mod tests {
         assert_eq!(link.artifacts.len(), 1);
         assert_eq!(link.artifacts[0].path, "lib/libcrypto.a");
         assert_eq!(link.artifacts[0].kind, LinkArtifactKind::StaticLibrary);
+    }
+
+    #[test]
+    fn parse_macro_definitions_captures_object_and_function_like_macros() {
+        let macros = parse_macro_definitions(
+            r#"
+#define API_LEVEL 7
+#define API_NAME "demo"
+#define API_EXPR (1 << 2)
+#define LOG(fmt) fmt
+"#,
+        );
+
+        assert!(macros.iter().any(|m| {
+            m.name == "API_LEVEL" && !m.function_like && m.kind == MacroKind::Integer
+        }));
+        assert!(macros.iter().any(|m| {
+            m.name == "API_NAME" && !m.function_like && m.kind == MacroKind::String
+        }));
+        assert!(macros.iter().any(|m| {
+            m.name == "API_EXPR" && !m.function_like && m.kind == MacroKind::Expression
+        }));
+        assert!(macros.iter().any(|m| {
+            m.name == "LOG" && m.function_like && m.kind == MacroKind::Other
+        }));
     }
 
     #[test]
@@ -681,6 +797,33 @@ int compute(int x);
 
         assert!(result.report.args.iter().any(|a| a.contains("-I/some/path")));
         assert!(result.report.args.iter().any(|a| a.contains("-DFOO=1")));
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    #[ignore] // Requires gcc/clang
+    fn process_captures_header_macros() {
+        let dir = setup_test_dir("t");
+        let header = dir.join("macros.h");
+        std::fs::write(
+            &header,
+            "#define API_LEVEL 7\n#define API_NAME \"demo\"\nint noop(void);\n",
+        )
+        .unwrap();
+
+        let result = HeaderConfig::new().header(&header).process().unwrap();
+
+        assert!(result
+            .package
+            .macros
+            .iter()
+            .any(|m| m.name == "API_LEVEL" && m.kind == MacroKind::Integer));
+        assert!(result
+            .package
+            .macros
+            .iter()
+            .any(|m| m.name == "API_NAME" && m.kind == MacroKind::String));
 
         cleanup(&dir);
     }

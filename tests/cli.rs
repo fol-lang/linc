@@ -44,7 +44,11 @@ fn cli_scan_preprocessed_emits_binding_json() {
 fn cli_scan_emits_inputs_and_link_metadata() {
     let dir = temp_dir("header");
     let header = dir.join("api.h");
-    std::fs::write(&header, "int add(int a, int b);\n").unwrap();
+    std::fs::write(
+        &header,
+        "#define API_LEVEL 1\n#define API_NAME \"demo\"\nint add(int a, int b);\n",
+    )
+    .unwrap();
 
     let output = Command::new(env!("CARGO_BIN_EXE_bic"))
         .args([
@@ -80,6 +84,16 @@ fn cli_scan_emits_inputs_and_link_metadata() {
     assert_eq!(json["link"]["artifacts"][0]["kind"], "Object");
     assert_eq!(json["link"]["artifacts"][1]["path"], "lib/libcrypto.a");
     assert_eq!(json["link"]["artifacts"][1]["kind"], "StaticLibrary");
+    assert!(json["macros"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|m| m["name"] == "API_LEVEL" && m["kind"] == "Integer"));
+    assert!(json["macros"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|m| m["name"] == "API_NAME" && m["kind"] == "String"));
     assert_eq!(json["items"].as_array().unwrap().len(), 1);
 
     std::fs::remove_dir_all(&dir).ok();

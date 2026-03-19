@@ -33,6 +33,22 @@ pub struct BindingInputs {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MacroKind {
+    Integer,
+    String,
+    Expression,
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MacroBinding {
+    pub name: String,
+    pub body: String,
+    pub function_like: bool,
+    pub kind: MacroKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LinkLibraryKind {
     Default,
     Static,
@@ -81,6 +97,8 @@ pub struct BindingPackage {
     #[serde(default)]
     pub inputs: BindingInputs,
     #[serde(default)]
+    pub macros: Vec<MacroBinding>,
+    #[serde(default)]
     pub link: BindingLinkSurface,
     pub source_path: Option<String>,
     pub items: Vec<BindingItem>,
@@ -102,6 +120,7 @@ impl BindingPackage {
             bic_version: env!("CARGO_PKG_VERSION").to_string(),
             target: BindingTarget::default(),
             inputs: BindingInputs::default(),
+            macros: Vec::new(),
             link: BindingLinkSurface::default(),
             source_path: None,
             items: Vec::new(),
@@ -302,6 +321,7 @@ mod tests {
         assert!(pkg.source_path.is_none());
         assert_eq!(pkg.target, BindingTarget::default());
         assert_eq!(pkg.inputs, BindingInputs::default());
+        assert!(pkg.macros.is_empty());
         assert_eq!(pkg.link, BindingLinkSurface::default());
     }
 
@@ -382,6 +402,12 @@ mod tests {
                 value: Some("1".into()),
             }],
         };
+        pkg.macros = vec![MacroBinding {
+            name: "API_LEVEL".into(),
+            body: "7".into(),
+            function_like: false,
+            kind: MacroKind::Integer,
+        }];
         pkg.link = BindingLinkSurface {
             include_paths: vec!["/usr/include".into()],
             library_paths: vec!["/usr/lib".into()],
@@ -428,6 +454,7 @@ mod tests {
         let pkg: BindingPackage = serde_json::from_str(json).unwrap();
         assert_eq!(pkg.target, BindingTarget::default());
         assert_eq!(pkg.inputs, BindingInputs::default());
+        assert!(pkg.macros.is_empty());
         assert_eq!(pkg.link, BindingLinkSurface::default());
     }
 
@@ -446,7 +473,29 @@ mod tests {
         let pkg: BindingPackage = serde_json::from_str(json).unwrap();
         assert_eq!(pkg.target, BindingTarget::default());
         assert_eq!(pkg.inputs, BindingInputs::default());
+        assert!(pkg.macros.is_empty());
         assert_eq!(pkg.link, BindingLinkSurface::default());
+    }
+
+    #[test]
+    fn macro_binding_serialization_roundtrip() {
+        let macros = vec![
+            MacroBinding {
+                name: "API_LEVEL".into(),
+                body: "7".into(),
+                function_like: false,
+                kind: MacroKind::Integer,
+            },
+            MacroBinding {
+                name: "LOG".into(),
+                body: "fmt".into(),
+                function_like: true,
+                kind: MacroKind::Other,
+            },
+        ];
+        let json = serde_json::to_string(&macros).unwrap();
+        let decoded: Vec<MacroBinding> = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, macros);
     }
 
     #[test]
