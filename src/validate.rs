@@ -68,57 +68,37 @@ pub fn validate(package: &BindingPackage, inventory: &SymbolInventory) -> Valida
     let mut matches = Vec::new();
 
     for item in &package.items {
-        match item {
-            BindingItem::Function(f) => {
-                let sym = inventory.symbols.iter().find(|s| s.name == f.name);
-                let (status, visibility) = match sym {
-                    Some(s) => {
-                        let vis = s.visibility.clone();
-                        if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
-                            (MatchStatus::Hidden, Some(vis))
-                        } else if !s.is_function {
-                            (MatchStatus::NotAFunction, Some(vis))
-                        } else if s.binding == SymbolBinding::Weak {
-                            (MatchStatus::WeakMatch, Some(vis))
-                        } else {
-                            (MatchStatus::Matched, Some(vis))
-                        }
-                    }
-                    None => (MatchStatus::Missing, None),
-                };
-                matches.push(SymbolMatch {
-                    name: f.name.clone(),
-                    item_kind: ItemKind::Function,
-                    status,
-                    visibility,
-                });
+        let (name, kind, expect_function) = match item {
+            BindingItem::Function(f) => (&f.name, ItemKind::Function, true),
+            BindingItem::Variable(v) => (&v.name, ItemKind::Variable, false),
+            _ => continue,
+        };
+
+        let sym = inventory.symbols.iter().find(|s| &s.name == name);
+        let (status, visibility) = match sym {
+            Some(s) => {
+                let vis = s.visibility.clone();
+                if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
+                    (MatchStatus::Hidden, Some(vis))
+                } else if expect_function && !s.is_function {
+                    (MatchStatus::NotAFunction, Some(vis))
+                } else if !expect_function && s.is_function {
+                    (MatchStatus::NotAVariable, Some(vis))
+                } else if s.binding == SymbolBinding::Weak {
+                    (MatchStatus::WeakMatch, Some(vis))
+                } else {
+                    (MatchStatus::Matched, Some(vis))
+                }
             }
-            BindingItem::Variable(v) => {
-                let sym = inventory.symbols.iter().find(|s| s.name == v.name);
-                let (status, visibility) = match sym {
-                    Some(s) => {
-                        let vis = s.visibility.clone();
-                        if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
-                            (MatchStatus::Hidden, Some(vis))
-                        } else if s.is_function {
-                            (MatchStatus::NotAVariable, Some(vis))
-                        } else if s.binding == SymbolBinding::Weak {
-                            (MatchStatus::WeakMatch, Some(vis))
-                        } else {
-                            (MatchStatus::Matched, Some(vis))
-                        }
-                    }
-                    None => (MatchStatus::Missing, None),
-                };
-                matches.push(SymbolMatch {
-                    name: v.name.clone(),
-                    item_kind: ItemKind::Variable,
-                    status,
-                    visibility,
-                });
-            }
-            _ => {}
-        }
+            None => (MatchStatus::Missing, None),
+        };
+
+        matches.push(SymbolMatch {
+            name: name.clone(),
+            item_kind: kind,
+            status,
+            visibility,
+        });
     }
 
     ValidationReport { matches }

@@ -140,10 +140,8 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
             _ => continue,
         };
 
-        if !sym.is_definition() && !sym.is_global() {
-            continue;
-        }
-
+        // Keep defined symbols (have a section) or global undefined symbols
+        // that might be relevant for dynamic linking. Skip local undefined symbols.
         if !sym.is_definition() {
             continue;
         }

@@ -112,7 +112,10 @@ impl RustEmitter {
             RecordKind::Union => "#[repr(C)]\npub union",
         };
 
-        let fields = r.fields.as_ref().unwrap();
+        let fields = match r.fields.as_ref() {
+            Some(f) => f,
+            None => return, // shouldn't happen after is_opaque check
+        };
         self.output.push_str(&format!("{} {} {{\n", keyword, name));
         for (i, field) in fields.iter().enumerate() {
             let default_name = format!("__bindgen_anon_{}", i);
@@ -194,8 +197,8 @@ impl RustEmitter {
                 format!("[{}; {}]", self.render_type(inner), size)
             }
             BindingType::Array(inner, None) => {
-                // Unsized array — represent as pointer
-                format!("*mut {}", self.render_type(inner))
+                // Flexible array member — represent as pointer
+                format!("*mut {} /* flexible array */", self.render_type(inner))
             }
             BindingType::FunctionPointer {
                 return_type,
@@ -221,7 +224,7 @@ impl RustEmitter {
             BindingType::TypedefRef(name) => name.clone(),
             BindingType::RecordRef(name) => name.clone(),
             BindingType::EnumRef(name) => name.clone(),
-            BindingType::Opaque(name) => name.clone(),
+            BindingType::Opaque(name) => format!("() /* opaque: {} */", name),
         }
     }
 }
@@ -403,5 +406,43 @@ mod tests {
         assert!(out.contains("dest: *mut ::core::ffi::c_void"));
         assert!(out.contains("src: *const ::core::ffi::c_void"));
         assert!(out.contains("-> *mut ::core::ffi::c_void"));
+    }
+
+    #[test]
+    fn emit_unsized_array_as_flexible_member() {
+        let pkg = crate::ir::BindingPackage {
+            source_path: None,
+            items: vec![crate::ir::BindingItem::Record(crate::ir::RecordBinding {
+                kind: crate::ir::RecordKind::Struct,
+                name: Some("buf".into()),
+                fields: Some(vec![
+                    crate::ir::FieldBinding { name: Some("len".into()), ty: crate::ir::BindingType::Int },
+                    crate::ir::FieldBinding { name: Some("data".into()), ty: crate::ir::BindingType::Array(Box::new(crate::ir::BindingType::UChar), None) },
+                ]),
+                source_offset: None,
+            })],
+            diagnostics: Vec::new(),
+        };
+        let out = emit_rust_ffi(&pkg);
+        assert!(out.contains("flexible array"));
+    }
+
+    #[test]
+    fn emit_opaque_type_valid_rust() {
+        let pkg = crate::ir::BindingPackage {
+            source_path: None,
+            items: vec![crate::ir::BindingItem::Function(crate::ir::FunctionBinding {
+                name: "get".into(),
+                calling_convention: crate::ir::CallingConvention::C,
+                parameters: Vec::new(),
+                return_type: crate::ir::BindingType::Opaque("_Complex".into()),
+                variadic: false,
+                source_offset: None,
+            })],
+            diagnostics: Vec::new(),
+        };
+        let out = emit_rust_ffi(&pkg);
+        assert!(out.contains("opaque: _Complex"));
+        assert!(out.contains("()"));
     }
 }
