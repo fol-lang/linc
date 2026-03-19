@@ -134,6 +134,7 @@ fn probe_subject_report_supports_record_completeness_metadata() {
         fields: vec![ProbedFieldLayout {
             name: "x".into(),
             offset_bytes: Some(0),
+            bit_width: None,
         }],
         layout: TypeLayout {
             name: "struct widget".into(),

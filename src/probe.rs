@@ -47,6 +47,8 @@ pub struct ProbedFieldLayout {
     pub name: String,
     #[serde(default)]
     pub offset_bytes: Option<u64>,
+    #[serde(default)]
+    pub bit_width: Option<u64>,
 }
 
 /// Result of an ABI layout probe run.
@@ -200,7 +202,7 @@ fn compiler_command(config: &HeaderConfig) -> String {
 fn build_probe_source(
     config: &HeaderConfig,
     type_names: &[impl AsRef<str>],
-    field_specs: &std::collections::BTreeMap<String, Vec<String>>,
+    field_specs: &std::collections::BTreeMap<String, Vec<ProbedFieldSpec>>,
 ) -> String {
     let mut source = String::from("#include <stdio.h>\n#include <stddef.h>\n");
     for header in &config.entry_headers {
@@ -221,12 +223,19 @@ fn build_probe_source(
             )),
         }
         if let Some(fields) = field_specs.get(raw) {
-            for field_name in fields {
-                let field_literal = c_string_literal(field_name);
-                source.push_str(&format!(
-                    "    printf(\"F\\t%s\\t%s\\t%zu\\n\", \"{}\", \"{}\", offsetof({}, {}));\n",
-                    literal, field_literal, raw, field_name
-                ));
+            for field in fields {
+                let field_literal = c_string_literal(&field.name);
+                if let Some(bit_width) = field.bit_width {
+                    source.push_str(&format!(
+                        "    printf(\"F\\t%s\\t%s\\t-\\t%zu\\n\", \"{}\", \"{}\", (size_t){});\n",
+                        literal, field_literal, bit_width
+                    ));
+                } else {
+                    source.push_str(&format!(
+                        "    printf(\"F\\t%s\\t%s\\t%zu\\t-\\n\", \"{}\", \"{}\", offsetof({}, {}));\n",
+                        literal, field_literal, raw, field.name
+                    ));
+                }
             }
         }
     }
@@ -244,6 +253,12 @@ struct ParsedProbeLayout {
     enum_underlying_size: Option<u64>,
     enum_is_signed: Option<bool>,
     fields: Vec<ProbedFieldLayout>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProbedFieldSpec {
+    name: String,
+    bit_width: Option<u64>,
 }
 
 fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError> {
@@ -318,15 +333,23 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
                     .ok_or_else(|| BicError::ProbeOutput {
                         reason: format!("invalid field probe output line: {}", line),
                     })?;
-                let offset_bytes = parts
-                    .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
-                        reason: format!("invalid field probe output line: {}", line),
-                    })?
-                    .parse::<u64>()
-                    .map_err(|e| BicError::ProbeOutput {
+                let offset_bytes = match parts.next() {
+                    Some("-") => None,
+                    Some(value) => Some(value.parse::<u64>().map_err(|e| BicError::ProbeOutput {
                         reason: format!("invalid field offset in probe output '{}': {}", line, e),
-                    })?;
+                    })?),
+                    None => {
+                        return Err(BicError::ProbeOutput {
+                            reason: format!("invalid field probe output line: {}", line),
+                        })
+                    }
+                };
+                let bit_width = match parts.next() {
+                    Some("-") | None => None,
+                    Some(value) => Some(value.parse::<u64>().map_err(|e| BicError::ProbeOutput {
+                        reason: format!("invalid bitfield width in probe output '{}': {}", line, e),
+                    })?),
+                };
                 let entry = entry_indexes
                     .get(subject)
                     .copied()
@@ -339,7 +362,8 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
                     })?;
                 entry.fields.push(ProbedFieldLayout {
                     name: field_name.to_string(),
-                    offset_bytes: Some(offset_bytes),
+                    offset_bytes,
+                    bit_width,
                 });
             }
             Some(other) => {
@@ -410,7 +434,7 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
 
 fn collect_record_field_specs(
     config: &HeaderConfig,
-) -> std::collections::BTreeMap<String, Vec<String>> {
+) -> std::collections::BTreeMap<String, Vec<ProbedFieldSpec>> {
     let unit = match parse_probe_translation_unit(config) {
         Some(unit) => unit,
         None => return std::collections::BTreeMap::new(),
@@ -429,8 +453,12 @@ fn collect_record_field_specs(
                 .fields
                 .unwrap_or_default()
                 .into_iter()
-                .filter(|field| field.name.is_some() && field.bit_width.is_none())
-                .filter_map(|field| field.name)
+                .filter_map(|field| {
+                    Some(ProbedFieldSpec {
+                        name: field.name?,
+                        bit_width: field.bit_width,
+                    })
+                })
                 .collect::<Vec<_>>();
             if !named_fields.is_empty() {
                 fields.insert(key, named_fields);
