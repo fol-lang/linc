@@ -354,6 +354,22 @@ fn regression_linux_artifact_fixture_stays_consumable() {
 }
 
 #[test]
+fn regression_linux_elf_mixed_fixture_preserves_versions_and_imports() {
+    let inventory: SymbolInventory = serde_json::from_str(include_str!(
+        "../test/contracts/linux_elf_mixed_inventory_fixture.json"
+    ))
+    .unwrap();
+    assert_eq!(inventory.platform, ArtifactPlatform::Elf);
+    assert_eq!(inventory.format, ArtifactFormat::ElfSharedLibrary);
+    assert_eq!(inventory.dependency_edges, vec!["libc.so.6", "libm.so.6"]);
+    assert_eq!(inventory.symbols.len(), 3);
+    assert_eq!(inventory.symbols[0].version.as_deref(), Some("WIDGET_1.0"));
+    assert_eq!(inventory.symbols[1].direction, bic::SymbolDirection::Imported);
+    assert_eq!(inventory.symbols[1].reexported_via, vec!["libm.so.6"]);
+    assert_eq!(inventory.symbols[2].size, Some(4));
+}
+
+#[test]
 fn regression_macos_artifact_fixture_stays_consumable() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
         "../test/contracts/macos_macho_inventory_fixture.json"
