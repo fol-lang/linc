@@ -102,6 +102,7 @@ If you are new to the repository, read the book in this order:
 7. Validation
 8. API Contract
 9. End-to-End Workflows
+10. JSON Compatibility
 
 If you only want to integrate `bic` into another tool, focus on:
 
@@ -109,4 +110,5 @@ If you only want to integrate `bic` into another tool, focus on:
 - [IR Model](./030_ir.md)
 - [Link Surface](./070_link_surface.md)
 - [API Contract](./100_api_contract.md)
+- [JSON Compatibility](./120_json_compatibility.md)
 - [End-to-End Workflows](./110_workflows.md)

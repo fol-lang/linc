@@ -106,11 +106,24 @@ pub use validate::{
 };
 
 /// Serialize a BindingPackage to a deterministic JSON string.
+///
+/// Compatibility notes:
+///
+/// - the serialized payload includes `schema_version`
+/// - the semantic contract is the data model, not the exact whitespace layout
+/// - additive fields should prefer serde defaults where backward compatibility is intended
 pub fn to_json(package: &BindingPackage) -> Result<String, BicError> {
     serde_json::to_string_pretty(package).map_err(BicError::from)
 }
 
 /// Deserialize a BindingPackage from a JSON string.
+///
+/// Compatibility notes:
+///
+/// - older payloads that omit newer defaultable fields should deserialize successfully
+/// - payloads with a future `schema_version` are rejected
+/// - downstream users should treat `schema_version` as the compatibility gate, not
+///   `bic_version`
 ///
 /// Returns an error if the schema version is newer than what this version of BIC supports.
 pub fn from_json(json: &str) -> Result<BindingPackage, BicError> {

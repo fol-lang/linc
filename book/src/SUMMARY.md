@@ -11,3 +11,4 @@
 - [Validation](./090_validation.md)
 - [API Contract](./100_api_contract.md)
 - [End-To-End Workflows](./110_workflows.md)
+- [JSON Compatibility](./120_json_compatibility.md)
