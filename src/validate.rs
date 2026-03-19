@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ir::{BindingItem, BindingPackage};
-use crate::symbols::{SymbolInventory, SymbolVisibility};
+use crate::symbols::{SymbolBinding, SymbolInventory, SymbolVisibility};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ItemKind {
@@ -16,6 +16,7 @@ pub enum MatchStatus {
     NotAFunction,
     NotAVariable,
     Hidden,
+    WeakMatch,
 }
 
 /// Renamed from FunctionMatch to support both functions and variables.
@@ -75,10 +76,12 @@ pub fn validate(package: &BindingPackage, inventory: &SymbolInventory) -> Valida
                         let vis = s.visibility.clone();
                         if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
                             (MatchStatus::Hidden, Some(vis))
-                        } else if s.is_function {
-                            (MatchStatus::Matched, Some(vis))
-                        } else {
+                        } else if !s.is_function {
                             (MatchStatus::NotAFunction, Some(vis))
+                        } else if s.binding == SymbolBinding::Weak {
+                            (MatchStatus::WeakMatch, Some(vis))
+                        } else {
+                            (MatchStatus::Matched, Some(vis))
                         }
                     }
                     None => (MatchStatus::Missing, None),
@@ -97,10 +100,12 @@ pub fn validate(package: &BindingPackage, inventory: &SymbolInventory) -> Valida
                         let vis = s.visibility.clone();
                         if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
                             (MatchStatus::Hidden, Some(vis))
-                        } else if !s.is_function {
-                            (MatchStatus::Matched, Some(vis))
-                        } else {
+                        } else if s.is_function {
                             (MatchStatus::NotAVariable, Some(vis))
+                        } else if s.binding == SymbolBinding::Weak {
+                            (MatchStatus::WeakMatch, Some(vis))
+                        } else {
+                            (MatchStatus::Matched, Some(vis))
                         }
                     }
                     None => (MatchStatus::Missing, None),
@@ -134,6 +139,9 @@ mod tests {
                 name: name.to_string(),
                 visibility: vis.clone(),
                 is_function: *is_func,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
             })
             .collect();
         SymbolInventory {
@@ -328,6 +336,27 @@ mod tests {
         let report = validate(&pkg, &inv);
         assert!(!report.all_matched());
         assert_eq!(report.hidden().len(), 1);
+    }
+
+    #[test]
+    fn weak_function_match() {
+        let inv = SymbolInventory {
+            artifact_path: "test.o".into(),
+            format: ArtifactFormat::ElfObject,
+            symbols: vec![SymbolEntry {
+                name: "foo".into(),
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Weak,
+                size: None,
+                section: None,
+            }],
+        };
+        let pkg = make_package(&["foo"]);
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches[0].status, MatchStatus::WeakMatch);
+        // WeakMatch is not the same as Matched
+        assert!(!report.all_matched());
     }
 
     #[test]

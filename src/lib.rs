@@ -17,7 +17,9 @@ pub use ir::{
 };
 pub use preprocess::PreprocessedInput;
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};
-pub use symbols::{inspect_file as inspect_symbols, SymbolEntry, SymbolInventory, SymbolVisibility};
+pub use symbols::{
+    inspect_file as inspect_symbols, SymbolBinding, SymbolEntry, SymbolInventory, SymbolVisibility,
+};
 pub use validate::{validate, FunctionMatch, ItemKind, MatchStatus, SymbolMatch, ValidationReport};
 
 /// Serialize a BindingPackage to a deterministic JSON string.
@@ -109,6 +111,9 @@ mod integration_tests {
                 name: "foo".into(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
+                binding: symbols::SymbolBinding::Global,
+                size: None,
+                section: None,
             }],
         };
         let report = validate(&pkg, &inv);

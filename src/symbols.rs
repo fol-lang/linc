@@ -23,10 +23,21 @@ pub enum SymbolVisibility {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SymbolBinding {
+    Local,
+    Global,
+    Weak,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SymbolEntry {
     pub name: String,
     pub visibility: SymbolVisibility,
     pub is_function: bool,
+    pub binding: SymbolBinding,
+    pub size: Option<u64>,
+    pub section: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,6 +127,8 @@ fn classify_format(obj: &object::File<'_>) -> ArtifactFormat {
 }
 
 fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
+    use object::ObjectSection;
+
     let mut symbols = Vec::new();
 
     // Check both regular and dynamic symbol tables
@@ -137,21 +150,43 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
 
         let is_function = sym.kind() == SymbolKind::Text;
 
-        let visibility = match sym.flags() {
-            object::SymbolFlags::Elf { st_info: _, st_other } => match st_other & 0x3 {
-                0 => SymbolVisibility::Default,
-                1 => SymbolVisibility::Internal,
-                2 => SymbolVisibility::Hidden,
-                3 => SymbolVisibility::Protected,
-                _ => SymbolVisibility::Unknown,
-            },
-            _ => SymbolVisibility::Unknown,
+        let (visibility, binding) = match sym.flags() {
+            object::SymbolFlags::Elf { st_info, st_other } => {
+                let vis = match st_other & 0x3 {
+                    0 => SymbolVisibility::Default,
+                    1 => SymbolVisibility::Internal,
+                    2 => SymbolVisibility::Hidden,
+                    3 => SymbolVisibility::Protected,
+                    _ => SymbolVisibility::Unknown,
+                };
+                let bind = match st_info >> 4 {
+                    0 => SymbolBinding::Local,
+                    1 => SymbolBinding::Global,
+                    2 => SymbolBinding::Weak,
+                    _ => SymbolBinding::Unknown,
+                };
+                (vis, bind)
+            }
+            _ => (SymbolVisibility::Unknown, SymbolBinding::Unknown),
         };
+
+        let size = {
+            let s = sym.size();
+            if s > 0 { Some(s) } else { None }
+        };
+
+        let section = sym
+            .section_index()
+            .and_then(|idx| obj.section_by_index(idx).ok())
+            .and_then(|sec| sec.name().ok().map(|n| n.to_string()));
 
         symbols.push(SymbolEntry {
             name,
             visibility,
             is_function,
+            binding,
+            size,
+            section,
         });
     }
 
@@ -172,11 +207,17 @@ mod tests {
                     name: "foo".into(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
                 },
                 SymbolEntry {
                     name: "bar".into(),
                     visibility: SymbolVisibility::Default,
                     is_function: false,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
                 },
             ],
         };
@@ -195,16 +236,25 @@ mod tests {
                     name: "func1".into(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
                 },
                 SymbolEntry {
                     name: "data1".into(),
                     visibility: SymbolVisibility::Default,
                     is_function: false,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
                 },
                 SymbolEntry {
                     name: "func2".into(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
                 },
             ],
         };
@@ -221,6 +271,9 @@ mod tests {
                 name: "foo_init".into(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
             }],
         };
         let json = serde_json::to_string(&inv).unwrap();
