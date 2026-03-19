@@ -62,6 +62,18 @@ fn run_scan(args: &[String]) -> Result<(), String> {
                 i += 1;
                 cfg = cfg.link_shared_lib(required_value(args, i, "--link-shared-lib")?);
             }
+            "--link-object" => {
+                i += 1;
+                cfg = cfg.link_object_file(required_value(args, i, "--link-object")?);
+            }
+            "--link-static-artifact" => {
+                i += 1;
+                cfg = cfg.link_static_artifact(required_value(args, i, "--link-static-artifact")?);
+            }
+            "--link-shared-artifact" => {
+                i += 1;
+                cfg = cfg.link_shared_artifact(required_value(args, i, "--link-shared-artifact")?);
+            }
             "--compiler" => {
                 i += 1;
                 cfg = cfg.compiler(required_value(args, i, "--compiler")?);
@@ -244,6 +256,9 @@ fn usage() -> String {
         "  --link-lib <name>",
         "  --link-static-lib <name>",
         "  --link-shared-lib <name>",
+        "  --link-object <path>",
+        "  --link-static-artifact <path>",
+        "  --link-shared-artifact <path>",
         "  --compiler <cmd>",
         "  --flavor <gnu|clang|std>",
         "  --no-origin-filter",

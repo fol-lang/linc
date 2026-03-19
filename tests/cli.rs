@@ -59,6 +59,10 @@ fn cli_scan_emits_inputs_and_link_metadata() {
             "API_LEVEL=1",
             "--link-lib",
             "m",
+            "--link-object",
+            "build/plugin.o",
+            "--link-static-artifact",
+            "lib/libcrypto.a",
             "--no-origin-filter",
         ])
         .output()
@@ -72,6 +76,10 @@ fn cli_scan_emits_inputs_and_link_metadata() {
     assert_eq!(json["inputs"]["include_dirs"][0], dir.to_str().unwrap());
     assert_eq!(json["link"]["library_paths"][0], dir.to_str().unwrap());
     assert_eq!(json["link"]["libraries"][0]["name"], "m");
+    assert_eq!(json["link"]["artifacts"][0]["path"], "build/plugin.o");
+    assert_eq!(json["link"]["artifacts"][0]["kind"], "Object");
+    assert_eq!(json["link"]["artifacts"][1]["path"], "lib/libcrypto.a");
+    assert_eq!(json["link"]["artifacts"][1]["kind"], "StaticLibrary");
     assert_eq!(json["items"].as_array().unwrap().len(), 1);
 
     std::fs::remove_dir_all(&dir).ok();

@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::extract::Extractor;
 use crate::ir::{
-    BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkLibrary,
-    LinkLibraryKind,
+    BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
+    LinkArtifactKind, LinkLibrary, LinkLibraryKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 
@@ -17,6 +17,7 @@ pub struct HeaderConfig {
     pub library_dirs: Vec<PathBuf>,
     pub defines: Vec<(String, Option<String>)>,
     pub link_libraries: Vec<LinkLibrary>,
+    pub link_artifacts: Vec<LinkArtifact>,
     pub compiler: Option<String>,
     pub flavor: Option<Flavor>,
     #[serde(skip)]
@@ -61,6 +62,7 @@ impl HeaderConfig {
             library_dirs: Vec::new(),
             defines: Vec::new(),
             link_libraries: Vec::new(),
+            link_artifacts: Vec::new(),
             compiler: None,
             flavor: None,
             origin_filter: Some(OriginFilter::default()),
@@ -107,6 +109,30 @@ impl HeaderConfig {
         self.link_libraries.push(LinkLibrary {
             name: name.into(),
             kind: LinkLibraryKind::Dynamic,
+        });
+        self
+    }
+
+    pub fn link_object_file(mut self, path: impl Into<PathBuf>) -> Self {
+        self.link_artifacts.push(LinkArtifact {
+            path: path.into().display().to_string(),
+            kind: LinkArtifactKind::Object,
+        });
+        self
+    }
+
+    pub fn link_static_artifact(mut self, path: impl Into<PathBuf>) -> Self {
+        self.link_artifacts.push(LinkArtifact {
+            path: path.into().display().to_string(),
+            kind: LinkArtifactKind::StaticLibrary,
+        });
+        self
+    }
+
+    pub fn link_shared_artifact(mut self, path: impl Into<PathBuf>) -> Self {
+        self.link_artifacts.push(LinkArtifact {
+            path: path.into().display().to_string(),
+            kind: LinkArtifactKind::SharedLibrary,
         });
         self
     }
@@ -317,6 +343,7 @@ impl HeaderConfig {
                 .map(|path| path.display().to_string())
                 .collect(),
             libraries: self.link_libraries.clone(),
+            artifacts: self.link_artifacts.clone(),
         }
     }
 
@@ -410,6 +437,9 @@ mod tests {
             .link_lib("m")
             .link_static_lib("z")
             .link_shared_lib("ssl")
+            .link_object_file("build/plugin.o")
+            .link_static_artifact("native/libfoo.a")
+            .link_shared_artifact("native/libfoo.so")
             .compiler("gcc")
             .flavor(Flavor::GnuC11);
 
@@ -418,6 +448,7 @@ mod tests {
         assert_eq!(cfg.library_dirs.len(), 1);
         assert_eq!(cfg.defines.len(), 2);
         assert_eq!(cfg.link_libraries.len(), 3);
+        assert_eq!(cfg.link_artifacts.len(), 3);
         assert_eq!(cfg.compiler.as_deref(), Some("gcc"));
         assert_eq!(cfg.flavor, Some(Flavor::GnuC11));
     }
@@ -437,7 +468,8 @@ mod tests {
             .include_dir("/usr/local/include")
             .library_dir("/usr/local/lib")
             .define("FOO", Some("1".into()))
-            .link_shared_lib("ssl");
+            .link_shared_lib("ssl")
+            .link_shared_artifact("/usr/local/lib/libssl.so");
 
         let json = serde_json::to_string(&cfg).unwrap();
         let cfg2: HeaderConfig = serde_json::from_str(&json).unwrap();
@@ -445,6 +477,7 @@ mod tests {
         assert_eq!(cfg2.defines.len(), 1);
         assert_eq!(cfg2.library_dirs.len(), 1);
         assert_eq!(cfg2.link_libraries.len(), 1);
+        assert_eq!(cfg2.link_artifacts.len(), 1);
     }
 
     #[test]
@@ -478,7 +511,8 @@ mod tests {
             .include_dir("include")
             .library_dir("lib")
             .define("FOO", Some("1".into()))
-            .link_static_lib("crypto");
+            .link_static_lib("crypto")
+            .link_static_artifact("lib/libcrypto.a");
 
         let target = cfg.binding_target();
         let inputs = cfg.binding_inputs();
@@ -494,6 +528,9 @@ mod tests {
         assert_eq!(link.libraries.len(), 1);
         assert_eq!(link.libraries[0].name, "crypto");
         assert_eq!(link.libraries[0].kind, LinkLibraryKind::Static);
+        assert_eq!(link.artifacts.len(), 1);
+        assert_eq!(link.artifacts[0].path, "lib/libcrypto.a");
+        assert_eq!(link.artifacts[0].kind, LinkArtifactKind::StaticLibrary);
     }
 
     #[test]

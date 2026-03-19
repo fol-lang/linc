@@ -45,6 +45,19 @@ pub struct LinkLibrary {
     pub kind: LinkLibraryKind,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LinkArtifactKind {
+    Object,
+    StaticLibrary,
+    SharedLibrary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LinkArtifact {
+    pub path: String,
+    pub kind: LinkArtifactKind,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BindingLinkSurface {
     #[serde(default)]
@@ -53,6 +66,8 @@ pub struct BindingLinkSurface {
     pub library_paths: Vec<String>,
     #[serde(default)]
     pub libraries: Vec<LinkLibrary>,
+    #[serde(default)]
+    pub artifacts: Vec<LinkArtifact>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -374,6 +389,10 @@ mod tests {
                 name: "z".into(),
                 kind: LinkLibraryKind::Dynamic,
             }],
+            artifacts: vec![LinkArtifact {
+                path: "/usr/lib/libz.so".into(),
+                kind: LinkArtifactKind::SharedLibrary,
+            }],
         };
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name: "size_t".into(),
@@ -502,6 +521,16 @@ mod tests {
                 LinkLibrary {
                     name: "crypto".into(),
                     kind: LinkLibraryKind::Static,
+                },
+            ],
+            artifacts: vec![
+                LinkArtifact {
+                    path: "libssl.a".into(),
+                    kind: LinkArtifactKind::StaticLibrary,
+                },
+                LinkArtifact {
+                    path: "plugin.o".into(),
+                    kind: LinkArtifactKind::Object,
                 },
             ],
         };
