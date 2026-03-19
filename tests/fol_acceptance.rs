@@ -54,9 +54,14 @@ struct FolValidationReport {
 
 #[derive(Debug, Deserialize)]
 struct FolValidationSummary {
+    #[serde(default)]
     matched: usize,
+    #[serde(default)]
     missing: usize,
+    #[serde(default)]
     abi_shape_mismatches: usize,
+    #[serde(default)]
+    duplicate_providers: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,6 +69,12 @@ struct FolValidationMatch {
     name: String,
     status: MatchStatus,
     provider_artifacts: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FolValidationGateReport {
+    summary: FolValidationSummary,
+    matches: Vec<FolValidationMatch>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,6 +93,15 @@ struct FolResolvedRequirement {
 #[derive(Debug, Deserialize)]
 struct FolResolvedProvider {
     artifact_path: String,
+}
+
+fn fol_should_gate_on_validation(report: &FolValidationGateReport) -> bool {
+    report.summary.abi_shape_mismatches > 0
+        || report.summary.missing > 0
+        || report
+            .matches
+            .iter()
+            .any(|m| matches!(m.status, MatchStatus::UnresolvedDeclaredLinkInputs | MatchStatus::DuplicateProviders))
 }
 
 #[test]
@@ -188,4 +208,24 @@ fn fol_acceptance_native_binding_and_link_flow_stays_consumable() {
         "/usr/lib/libdemo.so"
     );
     assert_eq!(consumed.link_plan.transitive_dependencies, vec!["libc.so.6"]);
+}
+
+#[test]
+fn fol_acceptance_validation_findings_gate_generation() {
+    let abi_questionable: FolValidationGateReport = serde_json::from_str(include_str!(
+        "../test/contracts/function_abi_questionable_report.json"
+    ))
+    .unwrap();
+    assert!(fol_should_gate_on_validation(&abi_questionable));
+    assert_eq!(abi_questionable.summary.abi_shape_mismatches, 1);
+    assert_eq!(abi_questionable.matches[0].name, "widget_init");
+    assert_eq!(abi_questionable.matches[0].status, MatchStatus::AbiShapeMismatch);
+
+    let duplicate_providers: FolValidationGateReport = serde_json::from_str(include_str!(
+        "../test/contracts/validation_duplicate_provider_report.json"
+    ))
+    .unwrap();
+    assert!(fol_should_gate_on_validation(&duplicate_providers));
+    assert_eq!(duplicate_providers.summary.duplicate_providers, 1);
+    assert_eq!(duplicate_providers.matches[0].status, MatchStatus::DuplicateProviders);
 }
