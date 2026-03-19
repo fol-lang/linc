@@ -73,6 +73,17 @@ pub enum SymbolBinding {
     Unknown,
 }
 
+/// Direction of the symbol relative to the inspected artifact.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SymbolDirection {
+    Exported,
+    Imported,
+}
+
+fn default_symbol_direction() -> SymbolDirection {
+    SymbolDirection::Exported
+}
+
 /// One discovered symbol entry.
 ///
 /// Invariant: `name` is the normalized match key, while `raw_name` preserves the original spelling
@@ -84,6 +95,8 @@ pub struct SymbolEntry {
     pub raw_name: Option<String>,
     #[serde(default)]
     pub version: Option<String>,
+    #[serde(default = "default_symbol_direction")]
+    pub direction: SymbolDirection,
     pub visibility: SymbolVisibility,
     pub is_function: bool,
     pub binding: SymbolBinding,
@@ -368,9 +381,13 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
         // with C identifier names used in header declarations.
         let (name, version) = normalize_symbol_identity(raw_name, obj.format());
 
-        // Keep defined symbols (have a section) or global undefined symbols
-        // that might be relevant for dynamic linking. Skip local undefined symbols.
-        if !sym.is_definition() {
+        let direction = if sym.is_definition() {
+            SymbolDirection::Exported
+        } else {
+            SymbolDirection::Imported
+        };
+
+        if !should_capture_symbol(obj.kind(), &sym, &direction) {
             continue;
         }
 
@@ -428,6 +445,7 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
             name,
             raw_name: Some(raw_name.to_string()),
             version,
+            direction,
             visibility,
             is_function,
             binding,
@@ -438,6 +456,20 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
     }
 
     symbols
+}
+
+fn should_capture_symbol(
+    kind: object::ObjectKind,
+    sym: &object::Symbol<'_, '_>,
+    direction: &SymbolDirection,
+) -> bool {
+    match direction {
+        SymbolDirection::Exported => true,
+        SymbolDirection::Imported => {
+            matches!(kind, object::ObjectKind::Dynamic | object::ObjectKind::Executable)
+                && sym.is_global()
+        }
+    }
 }
 
 fn normalize_symbol_identity(
@@ -800,6 +832,7 @@ mod tests {
                     name: "foo".into(),
                     raw_name: None,
                     version: None,
+                    direction: SymbolDirection::Exported,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -811,6 +844,7 @@ mod tests {
                     name: "bar".into(),
                     raw_name: None,
                     version: None,
+                    direction: SymbolDirection::Exported,
                     visibility: SymbolVisibility::Default,
                     is_function: false,
                     binding: SymbolBinding::Global,
@@ -842,6 +876,7 @@ mod tests {
                     name: "func1".into(),
                     raw_name: None,
                     version: None,
+                    direction: SymbolDirection::Exported,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -853,6 +888,7 @@ mod tests {
                     name: "data1".into(),
                     raw_name: None,
                     version: None,
+                    direction: SymbolDirection::Exported,
                     visibility: SymbolVisibility::Default,
                     is_function: false,
                     binding: SymbolBinding::Global,
@@ -864,6 +900,7 @@ mod tests {
                     name: "func2".into(),
                     raw_name: None,
                     version: None,
+                    direction: SymbolDirection::Exported,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -893,6 +930,7 @@ mod tests {
                 name: "foo_init".into(),
                 raw_name: Some("foo_init".into()),
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -948,6 +986,7 @@ mod tests {
             name: "demo_init".into(),
             raw_name: Some("__imp_demo_init".into()),
             version: None,
+            direction: SymbolDirection::Imported,
             visibility: SymbolVisibility::Unknown,
             is_function: true,
             binding: SymbolBinding::Unknown,

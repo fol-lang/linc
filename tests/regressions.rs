@@ -209,4 +209,5 @@ fn regression_windows_import_library_fixture_stays_consumable() {
     assert_eq!(inventory.format, ArtifactFormat::CoffImportLibrary);
     assert_eq!(inventory.kind, ArtifactKind::ImportLibrary);
     assert!(inventory.capabilities.imports_symbols);
+    assert_eq!(inventory.symbols[0].direction, bic::SymbolDirection::Imported);
 }

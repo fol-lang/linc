@@ -12,6 +12,7 @@
     {
       "name": "demo_init",
       "raw_name": "__imp_demo_init",
+      "direction": "Imported",
       "visibility": "Unknown",
       "is_function": true,
       "binding": "Unknown",

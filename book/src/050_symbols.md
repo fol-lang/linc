@@ -59,6 +59,7 @@ Each `SymbolEntry` carries:
 
 - normalized `name`
 - optional `raw_name`
+- `direction` (`Exported` or `Imported`)
 - `visibility`
 - whether it is a function or variable-like symbol
 - `binding`
@@ -76,6 +77,10 @@ This is important because native artifacts may use:
 - leading underscore decoration
 - other platform-specific symbol spellings
 - archive member-local provenance
+
+`direction` is also important now: only exported symbols are candidate providers during
+validation. Imported symbols are still preserved because they matter for shared-library and
+link-planning analysis.
 
 ## Archive Member Provenance
 

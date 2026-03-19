@@ -215,7 +215,8 @@ pub use probe::{
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};
 #[cfg(feature = "symbols")]
 pub use symbols::{
-    inspect_file as inspect_symbols, SymbolBinding, SymbolEntry, SymbolInventory, SymbolVisibility,
+    inspect_file as inspect_symbols, SymbolBinding, SymbolDirection, SymbolEntry, SymbolInventory,
+    SymbolVisibility,
 };
 #[cfg(feature = "symbols")]
 pub use validate::{
@@ -343,6 +344,7 @@ mod integration_tests {
                 name: "foo".into(),
                 raw_name: None,
                 version: None,
+                direction: symbols::SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: symbols::SymbolBinding::Global,

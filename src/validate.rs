@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ir::{BindingItem, BindingPackage};
-use crate::symbols::{SymbolBinding, SymbolInventory, SymbolVisibility};
+use crate::symbols::{SymbolBinding, SymbolDirection, SymbolInventory, SymbolVisibility};
 
 /// Declaration category that validation currently reasons about.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,7 +204,9 @@ pub fn validate_many(
                 inventory
                     .symbols
                     .iter()
-                    .filter(move |symbol| symbol.name == *name)
+                    .filter(move |symbol| {
+                        symbol.name == *name && symbol.direction == SymbolDirection::Exported
+                    })
                     .map(move |symbol| (inventory, symbol))
             })
             .collect();
@@ -439,6 +441,7 @@ mod tests {
                 name: name.to_string(),
                 raw_name: None,
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: vis.clone(),
                 is_function: *is_func,
                 binding: SymbolBinding::Global,
@@ -586,6 +589,7 @@ mod tests {
                 name: "_foo".into(),
                 raw_name: Some("_foo".into()),
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -621,6 +625,37 @@ mod tests {
         let report = validate(&pkg, &inv);
         assert!(!report.all_matched());
         assert_eq!(report.matches[0].status, MatchStatus::NotAFunction);
+    }
+
+    #[test]
+    fn imported_symbol_does_not_count_as_provider_match() {
+        let pkg = make_package(&["puts"]);
+        let inv = SymbolInventory {
+            artifact_path: "libdemo.so".into(),
+            format: ArtifactFormat::ElfSharedLibrary,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::SharedLibrary,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: true,
+            },
+            dependency_edges: vec!["libc.so.6".into()],
+            symbols: vec![SymbolEntry {
+                name: "puts".into(),
+                raw_name: Some("puts".into()),
+                version: Some("GLIBC_2.2.5".into()),
+                direction: SymbolDirection::Imported,
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
+                archive_member: None,
+            }],
+        };
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches[0].status, MatchStatus::Missing);
     }
 
     #[test]
@@ -699,6 +734,7 @@ mod tests {
                 name: "foo".into(),
                 raw_name: Some("_foo".into()),
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -739,6 +775,7 @@ mod tests {
                 name: "foo".into(),
                 raw_name: None,
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Weak,
@@ -799,6 +836,7 @@ mod tests {
                     name: "foo".into(),
                     raw_name: None,
                     version: None,
+                    direction: SymbolDirection::Exported,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -810,6 +848,7 @@ mod tests {
                     name: "bar".into(),
                     raw_name: None,
                     version: None,
+                    direction: SymbolDirection::Exported,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Weak,
@@ -862,6 +901,7 @@ mod tests {
                 name: "bar".into(),
                 raw_name: Some("bar".into()),
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -898,6 +938,7 @@ mod tests {
                 name: "foo".into(),
                 raw_name: Some("foo".into()),
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -920,6 +961,7 @@ mod tests {
                 name: "foo".into(),
                 raw_name: Some("foo".into()),
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -1020,6 +1062,7 @@ mod tests {
                 name: "foo".into(),
                 raw_name: None,
                 version: None,
+                direction: SymbolDirection::Exported,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Weak,
