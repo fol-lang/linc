@@ -98,6 +98,21 @@ fn regression_duplicate_provider_report_fixture_stays_consumable() {
 }
 
 #[test]
+fn regression_function_abi_questionable_fixture_stays_consumable() {
+    let report: ValidationReport = serde_json::from_str(include_str!(
+        "../test/contracts/function_abi_questionable_report.json"
+    ))
+    .unwrap();
+    assert_eq!(report.summary.abi_shape_mismatches, 1);
+    assert_eq!(report.matches[0].status, bic::MatchStatus::AbiShapeMismatch);
+    let routine = report.entries[0].evidence.routine_abi.as_ref().unwrap();
+    assert_eq!(routine.evidence_kind, Some(bic::RoutineAbiEvidenceKind::Mismatch));
+    assert_eq!(routine.confidence, Some(bic::RoutineAbiConfidence::Mismatch));
+    assert_eq!(routine.expected_parameter_sizes, vec![Some(8), Some(4)]);
+    assert_eq!(routine.observed_parameter_sizes, vec![Some(8), Some(8)]);
+}
+
+#[test]
 fn regression_tricky_layout_fixture_stays_consumable() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/tricky_layouts.h");
     let result = bic::HeaderConfig::new()

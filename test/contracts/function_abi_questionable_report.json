@@ -1,0 +1,78 @@
+{
+  "phases": [
+    {
+      "phase": "ProviderDiscovery",
+      "completed": true
+    },
+    {
+      "phase": "SymbolIdentity",
+      "completed": true
+    },
+    {
+      "phase": "AbiEvidence",
+      "completed": true
+    }
+  ],
+  "entries": [
+    {
+      "declaration": {
+        "name": "widget_init",
+        "item_kind": "Function"
+      },
+      "status": "AbiShapeMismatch",
+      "evidence": {
+        "provider_artifacts": [
+          "/usr/lib/libwidget.so"
+        ],
+        "raw_symbol_names": [
+          "widget_init"
+        ],
+        "visibility": "Default",
+        "confidence": "Low",
+        "evidence_kind": "AbiShapeMismatch",
+        "abi_shape": null,
+        "routine_abi": {
+          "evidence_kind": "Mismatch",
+          "confidence": "Mismatch",
+          "expected_parameter_count": 2,
+          "observed_parameter_count": 2,
+          "expected_return_size": 4,
+          "observed_return_size": 8,
+          "expected_parameter_sizes": [
+            8,
+            4
+          ],
+          "observed_parameter_sizes": [
+            8,
+            8
+          ]
+        }
+      }
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "matched": 0,
+    "abi_shape_mismatches": 1,
+    "missing": 0,
+    "unresolved_declared_link_inputs": 0,
+    "hidden": 0,
+    "weak_matches": 0,
+    "duplicate_providers": 0,
+    "decoration_mismatches": 0,
+    "kind_mismatches": 0
+  },
+  "matches": [
+    {
+      "name": "widget_init",
+      "item_kind": "Function",
+      "status": "AbiShapeMismatch",
+      "visibility": "Default",
+      "provider_artifacts": [
+        "/usr/lib/libwidget.so"
+      ],
+      "confidence": "Low",
+      "evidence_kind": "AbiShapeMismatch"
+    }
+  ]
+}
