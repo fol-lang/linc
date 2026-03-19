@@ -347,6 +347,9 @@ fn validation_evidence_reports_layout_backed_confidence() {
 
     assert!(entry.evidence.has_layout_backed_confidence());
     assert!(entry.has_layout_backed_confidence());
+    assert!(entry.has_resolved_provider_state());
+    assert!(!entry.has_unresolved_provider_state());
+    assert!(!entry.has_ambiguous_provider_state());
 }
 
 #[test]

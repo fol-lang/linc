@@ -86,6 +86,24 @@ impl ValidationEntry {
     pub fn has_layout_backed_confidence(&self) -> bool {
         self.evidence.has_layout_backed_confidence()
     }
+
+    pub fn has_resolved_provider_state(&self) -> bool {
+        matches!(
+            self.status,
+            MatchStatus::Matched | MatchStatus::AbiShapeMismatch | MatchStatus::WeakMatch
+        )
+    }
+
+    pub fn has_unresolved_provider_state(&self) -> bool {
+        matches!(
+            self.status,
+            MatchStatus::Missing | MatchStatus::UnresolvedDeclaredLinkInputs
+        )
+    }
+
+    pub fn has_ambiguous_provider_state(&self) -> bool {
+        self.status == MatchStatus::DuplicateProviders
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -259,6 +277,27 @@ impl ValidationReport {
         self.entries
             .iter()
             .filter(|entry| entry.has_layout_backed_confidence())
+            .collect()
+    }
+
+    pub fn resolved_provider_entries(&self) -> Vec<&ValidationEntry> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.has_resolved_provider_state())
+            .collect()
+    }
+
+    pub fn unresolved_provider_entries(&self) -> Vec<&ValidationEntry> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.has_unresolved_provider_state())
+            .collect()
+    }
+
+    pub fn ambiguous_provider_entries(&self) -> Vec<&ValidationEntry> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.has_ambiguous_provider_state())
             .collect()
     }
 }
@@ -2093,6 +2132,103 @@ mod tests {
                 .entries
                 .iter()
                 .all(|entry| entry.evidence.has_layout_backed_confidence())
+        );
+    }
+
+    #[test]
+    fn provider_state_helpers_group_resolved_unresolved_and_ambiguous_entries() {
+        let pkg = make_package(&["ok", "missing", "dup"]);
+        let inv1 = SymbolInventory {
+            artifact_path: "libone.a".into(),
+            format: ArtifactFormat::ElfStaticLibrary,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::StaticLibrary,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
+            dependency_edges: Vec::new(),
+            symbols: vec![
+                SymbolEntry {
+                    name: "ok".into(),
+                    raw_name: None,
+                    version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
+                    archive_member: Some("ok.o".into()),
+                    function_abi: None,
+                },
+                SymbolEntry {
+                    name: "dup".into(),
+                    raw_name: None,
+                    version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
+                    archive_member: Some("dup1.o".into()),
+                    function_abi: None,
+                },
+            ],
+        };
+        let inv2 = SymbolInventory {
+            artifact_path: "libtwo.a".into(),
+            format: ArtifactFormat::ElfStaticLibrary,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::StaticLibrary,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
+            dependency_edges: Vec::new(),
+            symbols: vec![SymbolEntry {
+                name: "dup".into(),
+                raw_name: None,
+                version: None,
+                direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
+                alias_of: None,
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
+                archive_member: Some("dup2.o".into()),
+                function_abi: None,
+            }],
+        };
+
+        let report = validate_many(&pkg, &[inv1, inv2]);
+        assert_eq!(report.resolved_provider_entries().len(), 1);
+        assert_eq!(report.unresolved_provider_entries().len(), 1);
+        assert_eq!(report.ambiguous_provider_entries().len(), 1);
+        assert!(
+            report
+                .resolved_provider_entries()
+                .iter()
+                .all(|entry| entry.has_resolved_provider_state())
+        );
+        assert!(
+            report
+                .unresolved_provider_entries()
+                .iter()
+                .all(|entry| entry.has_unresolved_provider_state())
+        );
+        assert!(
+            report
+                .ambiguous_provider_entries()
+                .iter()
+                .all(|entry| entry.has_ambiguous_provider_state())
         );
     }
 

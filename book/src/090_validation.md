@@ -245,6 +245,8 @@ surface instead of decoding optional fields by hand:
 - `ValidationEvidence::has_layout_backed_confidence()`
 - `ValidationEntry::has_layout_backed_confidence()`
 - `ValidationReport::layout_backed_entries()`
+- `ValidationEntry::{has_resolved_provider_state, has_unresolved_provider_state, has_ambiguous_provider_state}`
+- `ValidationReport::{resolved_provider_entries, unresolved_provider_entries, ambiguous_provider_entries}`
 - duplicate providers
 - decoration mismatches
 - kind mismatches
