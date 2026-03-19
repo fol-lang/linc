@@ -1,43 +1,65 @@
 use serde::{Deserialize, Serialize};
 
 use crate::ir::{BindingItem, BindingPackage};
-use crate::symbols::SymbolInventory;
+use crate::symbols::{SymbolInventory, SymbolVisibility};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ItemKind {
+    Function,
+    Variable,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MatchStatus {
     Matched,
     Missing,
     NotAFunction,
+    NotAVariable,
+    Hidden,
 }
 
+/// Renamed from FunctionMatch to support both functions and variables.
+pub type FunctionMatch = SymbolMatch;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FunctionMatch {
+pub struct SymbolMatch {
     pub name: String,
+    pub item_kind: ItemKind,
     pub status: MatchStatus,
+    pub visibility: Option<SymbolVisibility>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationReport {
-    pub matches: Vec<FunctionMatch>,
+    pub matches: Vec<SymbolMatch>,
 }
 
 impl ValidationReport {
-    pub fn matched(&self) -> Vec<&FunctionMatch> {
+    pub fn matched(&self) -> Vec<&SymbolMatch> {
         self.matches
             .iter()
             .filter(|m| m.status == MatchStatus::Matched)
             .collect()
     }
 
-    pub fn missing(&self) -> Vec<&FunctionMatch> {
+    pub fn missing(&self) -> Vec<&SymbolMatch> {
         self.matches
             .iter()
             .filter(|m| m.status == MatchStatus::Missing)
             .collect()
     }
 
+    pub fn hidden(&self) -> Vec<&SymbolMatch> {
+        self.matches
+            .iter()
+            .filter(|m| m.status == MatchStatus::Hidden)
+            .collect()
+    }
+
     pub fn all_matched(&self) -> bool {
-        self.matches.iter().all(|m| m.status == MatchStatus::Matched)
+        self.matches
+            .iter()
+            .all(|m| m.status == MatchStatus::Matched)
     }
 }
 
@@ -47,24 +69,47 @@ pub fn validate(package: &BindingPackage, inventory: &SymbolInventory) -> Valida
     for item in &package.items {
         match item {
             BindingItem::Function(f) => {
-                let status = if inventory.has_symbol(&f.name) {
-                    // Verify it's actually a function symbol
-                    let sym = inventory
-                        .symbols
-                        .iter()
-                        .find(|s| s.name == f.name)
-                        .unwrap();
-                    if sym.is_function {
-                        MatchStatus::Matched
-                    } else {
-                        MatchStatus::NotAFunction
+                let sym = inventory.symbols.iter().find(|s| s.name == f.name);
+                let (status, visibility) = match sym {
+                    Some(s) => {
+                        let vis = s.visibility.clone();
+                        if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
+                            (MatchStatus::Hidden, Some(vis))
+                        } else if s.is_function {
+                            (MatchStatus::Matched, Some(vis))
+                        } else {
+                            (MatchStatus::NotAFunction, Some(vis))
+                        }
                     }
-                } else {
-                    MatchStatus::Missing
+                    None => (MatchStatus::Missing, None),
                 };
-                matches.push(FunctionMatch {
+                matches.push(SymbolMatch {
                     name: f.name.clone(),
+                    item_kind: ItemKind::Function,
                     status,
+                    visibility,
+                });
+            }
+            BindingItem::Variable(v) => {
+                let sym = inventory.symbols.iter().find(|s| s.name == v.name);
+                let (status, visibility) = match sym {
+                    Some(s) => {
+                        let vis = s.visibility.clone();
+                        if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
+                            (MatchStatus::Hidden, Some(vis))
+                        } else if !s.is_function {
+                            (MatchStatus::Matched, Some(vis))
+                        } else {
+                            (MatchStatus::NotAVariable, Some(vis))
+                        }
+                    }
+                    None => (MatchStatus::Missing, None),
+                };
+                matches.push(SymbolMatch {
+                    name: v.name.clone(),
+                    item_kind: ItemKind::Variable,
+                    status,
+                    visibility,
                 });
             }
             _ => {}
@@ -80,27 +125,33 @@ mod tests {
     use crate::ir::*;
     use crate::symbols::*;
 
-    fn make_inventory(funcs: &[&str], data: &[&str]) -> SymbolInventory {
-        let mut symbols = Vec::new();
-        for name in funcs {
-            symbols.push(SymbolEntry {
+    fn make_inventory_with_vis(
+        entries: &[(&str, bool, SymbolVisibility)],
+    ) -> SymbolInventory {
+        let symbols = entries
+            .iter()
+            .map(|(name, is_func, vis)| SymbolEntry {
                 name: name.to_string(),
-                visibility: SymbolVisibility::Default,
-                is_function: true,
-            });
-        }
-        for name in data {
-            symbols.push(SymbolEntry {
-                name: name.to_string(),
-                visibility: SymbolVisibility::Default,
-                is_function: false,
-            });
-        }
+                visibility: vis.clone(),
+                is_function: *is_func,
+            })
+            .collect();
         SymbolInventory {
             artifact_path: "test.o".into(),
             format: ArtifactFormat::ElfObject,
             symbols,
         }
+    }
+
+    fn make_inventory(funcs: &[&str], data: &[&str]) -> SymbolInventory {
+        let mut entries: Vec<(&str, bool, SymbolVisibility)> = Vec::new();
+        for name in funcs {
+            entries.push((name, true, SymbolVisibility::Default));
+        }
+        for name in data {
+            entries.push((name, false, SymbolVisibility::Default));
+        }
+        make_inventory_with_vis(&entries)
     }
 
     fn make_package(func_names: &[&str]) -> BindingPackage {
@@ -117,6 +168,37 @@ mod tests {
                 })
             })
             .collect();
+        BindingPackage {
+            source_path: None,
+            items,
+            diagnostics: Vec::new(),
+        }
+    }
+
+    fn make_package_with_vars(
+        func_names: &[&str],
+        var_names: &[&str],
+    ) -> BindingPackage {
+        let mut items: Vec<BindingItem> = func_names
+            .iter()
+            .map(|name| {
+                BindingItem::Function(FunctionBinding {
+                    name: name.to_string(),
+                    calling_convention: CallingConvention::C,
+                    parameters: Vec::new(),
+                    return_type: BindingType::Void,
+                    variadic: false,
+                    source_offset: None,
+                })
+            })
+            .collect();
+        for name in var_names {
+            items.push(BindingItem::Variable(VariableBinding {
+                name: name.to_string(),
+                ty: BindingType::Int,
+                source_offset: None,
+            }));
+        }
         BindingPackage {
             source_path: None,
             items,
@@ -184,6 +266,91 @@ mod tests {
         let json = serde_json::to_string(&report).unwrap();
         let report2: ValidationReport = serde_json::from_str(&json).unwrap();
         assert_eq!(report, report2);
+    }
+
+    // --- Phase 12 tests ---
+
+    #[test]
+    fn variable_matched() {
+        let inv = make_inventory(&[], &["errno"]);
+        let pkg = make_package_with_vars(&[], &["errno"]);
+        let report = validate(&pkg, &inv);
+        assert!(report.all_matched());
+        assert_eq!(report.matched().len(), 1);
+        assert_eq!(report.matches[0].item_kind, ItemKind::Variable);
+    }
+
+    #[test]
+    fn variable_missing() {
+        let inv = make_inventory(&[], &[]);
+        let pkg = make_package_with_vars(&[], &["errno"]);
+        let report = validate(&pkg, &inv);
+        assert!(!report.all_matched());
+        assert_eq!(report.missing().len(), 1);
+        assert_eq!(report.missing()[0].item_kind, ItemKind::Variable);
+    }
+
+    #[test]
+    fn variable_name_is_function() {
+        let inv = make_inventory(&["errno"], &[]);
+        let pkg = make_package_with_vars(&[], &["errno"]);
+        let report = validate(&pkg, &inv);
+        assert!(!report.all_matched());
+        assert_eq!(report.matches[0].status, MatchStatus::NotAVariable);
+    }
+
+    #[test]
+    fn mixed_functions_and_variables() {
+        let inv = make_inventory(&["foo"], &["bar"]);
+        let pkg = make_package_with_vars(&["foo"], &["bar"]);
+        let report = validate(&pkg, &inv);
+        assert!(report.all_matched());
+        assert_eq!(report.matched().len(), 2);
+    }
+
+    #[test]
+    fn hidden_function_not_matched() {
+        let inv = make_inventory_with_vis(&[("foo", true, SymbolVisibility::Hidden)]);
+        let pkg = make_package(&["foo"]);
+        let report = validate(&pkg, &inv);
+        assert!(!report.all_matched());
+        assert_eq!(report.hidden().len(), 1);
+        assert_eq!(
+            report.matches[0].visibility,
+            Some(SymbolVisibility::Hidden)
+        );
+    }
+
+    #[test]
+    fn internal_variable_not_matched() {
+        let inv = make_inventory_with_vis(&[("data", false, SymbolVisibility::Internal)]);
+        let pkg = make_package_with_vars(&[], &["data"]);
+        let report = validate(&pkg, &inv);
+        assert!(!report.all_matched());
+        assert_eq!(report.hidden().len(), 1);
+    }
+
+    #[test]
+    fn default_visibility_matched() {
+        let inv = make_inventory_with_vis(&[("foo", true, SymbolVisibility::Default)]);
+        let pkg = make_package(&["foo"]);
+        let report = validate(&pkg, &inv);
+        assert!(report.all_matched());
+        assert_eq!(
+            report.matches[0].visibility,
+            Some(SymbolVisibility::Default)
+        );
+    }
+
+    #[test]
+    fn match_has_item_kind() {
+        let inv = make_inventory(&["foo"], &["bar"]);
+        let pkg = make_package_with_vars(&["foo"], &["bar"]);
+        let report = validate(&pkg, &inv);
+        let func_match = report.matches.iter().find(|m| m.name == "foo").unwrap();
+        let var_match = report.matches.iter().find(|m| m.name == "bar").unwrap();
+        assert_eq!(func_match.item_kind, ItemKind::Function);
+        assert_eq!(var_match.item_kind, ItemKind::Variable);
     }
 
     /// End-to-end: parse C, compile it, validate symbols.

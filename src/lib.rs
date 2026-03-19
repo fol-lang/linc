@@ -18,7 +18,7 @@ pub use ir::{
 pub use preprocess::PreprocessedInput;
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};
 pub use symbols::{inspect_file as inspect_symbols, SymbolEntry, SymbolInventory, SymbolVisibility};
-pub use validate::{validate, FunctionMatch, MatchStatus, ValidationReport};
+pub use validate::{validate, FunctionMatch, ItemKind, MatchStatus, SymbolMatch, ValidationReport};
 
 /// Serialize a BindingPackage to a deterministic JSON string.
 pub fn to_json(package: &BindingPackage) -> Result<String, serde_json::Error> {
