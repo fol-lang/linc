@@ -879,6 +879,43 @@ mod tests {
     }
 
     #[test]
+    fn config_normalization_is_deterministic() {
+        let cfg = HeaderConfig::new()
+            .header("api.h")
+            .include_dir("/usr/include")
+            .framework_dir("/System/Library/Frameworks")
+            .library_dir("/usr/lib")
+            .define("DEBUG", None)
+            .define("VERSION", Some("2".into()))
+            .link_framework("Security")
+            .link_static_lib("z")
+            .link_shared_artifact("/usr/lib/libssl.so")
+            .prefer_dynamic_linking()
+            .target_constraint("linux")
+            .probe_type_layout("size_t")
+            .compiler("clang")
+            .flavor(Flavor::ClangC11);
+
+        let pac_a = cfg.build_pac_config();
+        let pac_b = cfg.build_pac_config();
+        assert_eq!(pac_a.cpp_command, pac_b.cpp_command);
+        assert_eq!(pac_a.cpp_options, pac_b.cpp_options);
+        assert_eq!(pac_a.flavor, pac_b.flavor);
+
+        let target_a = cfg.binding_target();
+        let target_b = cfg.binding_target();
+        assert_eq!(target_a, target_b);
+
+        let inputs_a = cfg.binding_inputs();
+        let inputs_b = cfg.binding_inputs();
+        assert_eq!(inputs_a, inputs_b);
+
+        let link_a = cfg.binding_link_surface();
+        let link_b = cfg.binding_link_surface();
+        assert_eq!(link_a, link_b);
+    }
+
+    #[test]
     fn combined_source_generation() {
         let cfg = HeaderConfig::new()
             .header("a.h")
