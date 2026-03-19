@@ -99,6 +99,8 @@ fn abi_probe_report_root_types_roundtrip() {
             kind: ProbeSubjectKind::Type,
             confidence: ProbeConfidence::MeasuredLayout,
             record_completeness: None,
+            enum_underlying_size: None,
+            enum_is_signed: None,
             layout: TypeLayout {
                 name: "size_t".into(),
                 size: 8,
@@ -124,6 +126,8 @@ fn probe_subject_report_supports_record_completeness_metadata() {
         kind: ProbeSubjectKind::Record,
         confidence: ProbeConfidence::MeasuredLayout,
         record_completeness: Some(RecordCompleteness::Complete),
+        enum_underlying_size: None,
+        enum_is_signed: None,
         layout: TypeLayout {
             name: "struct widget".into(),
             size: 16,
@@ -133,5 +137,28 @@ fn probe_subject_report_supports_record_completeness_metadata() {
 
     let json = serde_json::to_string(&subject).unwrap();
     let decoded: ProbeSubjectReport = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, subject);
+}
+
+#[test]
+fn probe_subject_report_supports_enum_representation_metadata() {
+    let subject = ProbeSubjectReport {
+        name: "enum mode".into(),
+        kind: ProbeSubjectKind::Enum,
+        confidence: ProbeConfidence::MeasuredLayout,
+        record_completeness: None,
+        enum_underlying_size: Some(4),
+        enum_is_signed: Some(true),
+        layout: TypeLayout {
+            name: "enum mode".into(),
+            size: 4,
+            align: 4,
+        },
+    };
+
+    let json = serde_json::to_string(&subject).unwrap();
+    let decoded: ProbeSubjectReport = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded.enum_underlying_size, Some(4));
+    assert_eq!(decoded.enum_is_signed, Some(true));
     assert_eq!(decoded, subject);
 }

@@ -125,6 +125,14 @@ Current confidence/completeness semantics are intentionally conservative:
 - `Complete` means a record subject compiled as a complete type and therefore had a usable
   `sizeof` / `_Alignof` probe surface
 
+Enum subjects also preserve:
+
+- `enum_underlying_size`
+- `enum_is_signed`
+
+This gives downstream generators a concrete representation hint even before field-level enum
+analysis exists in the declaration IR.
+
 ## What Layouts Solve
 
 Compiler-probed layouts are especially useful for:

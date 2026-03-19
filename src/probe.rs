@@ -31,6 +31,10 @@ pub struct ProbeSubjectReport {
     pub confidence: ProbeConfidence,
     #[serde(default)]
     pub record_completeness: Option<RecordCompleteness>,
+    #[serde(default)]
+    pub enum_underlying_size: Option<u64>,
+    #[serde(default)]
+    pub enum_is_signed: Option<bool>,
     pub layout: TypeLayout,
 }
 
@@ -115,16 +119,22 @@ pub fn probe_type_layouts(
         .map_err(|e| BicError::ProbeOutput {
             reason: e.to_string(),
         })?;
-    let layouts = parse_layout_output(&stdout)?;
+    let parsed = parse_layout_output(&stdout)?;
+    let layouts = parsed
+        .iter()
+        .map(|entry| entry.layout.clone())
+        .collect::<Vec<_>>();
     let subjects = type_names
         .iter()
-        .zip(layouts.iter())
-        .map(|(type_name, layout)| ProbeSubjectReport {
+        .zip(parsed.iter())
+        .map(|(type_name, parsed)| ProbeSubjectReport {
             name: type_name.as_ref().to_string(),
             kind: classify_probe_subject(type_name.as_ref()),
             confidence: ProbeConfidence::MeasuredLayout,
             record_completeness: classify_record_completeness(type_name.as_ref()),
-            layout: layout.clone(),
+            enum_underlying_size: parsed.enum_underlying_size,
+            enum_is_signed: parsed.enum_is_signed,
+            layout: parsed.layout.clone(),
         })
         .collect();
     cleanup_probe_root(&temp_root);
@@ -183,10 +193,16 @@ fn build_probe_source(config: &HeaderConfig, type_names: &[impl AsRef<str>]) -> 
     for type_name in type_names {
         let raw = type_name.as_ref();
         let literal = c_string_literal(raw);
-        source.push_str(&format!(
-            "    printf(\"%s\\t%zu\\t%zu\\n\", \"{}\", sizeof({}), _Alignof({}));\n",
-            literal, raw, raw
-        ));
+        match classify_probe_subject(raw) {
+            ProbeSubjectKind::Enum => source.push_str(&format!(
+                "    printf(\"%s\\t%zu\\t%zu\\t%zu\\t%d\\n\", \"{}\", sizeof({}), _Alignof({}), sizeof({}), (({})-1) < (({})0) ? 1 : 0);\n",
+                literal, raw, raw, raw, raw, raw
+            )),
+            _ => source.push_str(&format!(
+                "    printf(\"%s\\t%zu\\t%zu\\t%s\\t%s\\n\", \"{}\", sizeof({}), _Alignof({}), \"-\", \"-\");\n",
+                literal, raw, raw
+            )),
+        }
     }
     source.push_str("    return 0;\n}\n");
     source
@@ -196,7 +212,14 @@ fn c_string_literal(raw: &str) -> String {
     raw.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-fn parse_layout_output(stdout: &str) -> Result<Vec<TypeLayout>, BicError> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ParsedProbeLayout {
+    layout: TypeLayout,
+    enum_underlying_size: Option<u64>,
+    enum_is_signed: Option<bool>,
+}
+
+fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError> {
     stdout
         .lines()
         .filter(|line| !line.trim().is_empty())
@@ -225,10 +248,33 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<TypeLayout>, BicError> {
                 .map_err(|e| BicError::ProbeOutput {
                     reason: format!("invalid align in probe output '{}': {}", line, e),
                 })?;
-            Ok(TypeLayout {
-                name: name.to_string(),
-                size,
-                align,
+            let enum_underlying_size = match parts.next() {
+                Some("-") | None => None,
+                Some(value) => Some(value.parse::<u64>().map_err(|e| BicError::ProbeOutput {
+                    reason: format!("invalid enum size in probe output '{}': {}", line, e),
+                })?),
+            };
+            let enum_is_signed = match parts.next() {
+                Some("-") | None => None,
+                Some("0") => Some(false),
+                Some("1") => Some(true),
+                Some(value) => {
+                    return Err(BicError::ProbeOutput {
+                        reason: format!(
+                            "invalid enum signedness in probe output '{}': {}",
+                            line, value
+                        ),
+                    })
+                }
+            };
+            Ok(ParsedProbeLayout {
+                layout: TypeLayout {
+                    name: name.to_string(),
+                    size,
+                    align,
+                },
+                enum_underlying_size,
+                enum_is_signed,
             })
         })
         .collect()
@@ -264,15 +310,23 @@ mod tests {
         assert_eq!(
             parsed,
             vec![
-                TypeLayout {
-                    name: "widget".into(),
-                    size: 16,
-                    align: 8,
+                ParsedProbeLayout {
+                    layout: TypeLayout {
+                        name: "widget".into(),
+                        size: 16,
+                        align: 8,
+                    },
+                    enum_underlying_size: None,
+                    enum_is_signed: None,
                 },
-                TypeLayout {
-                    name: "value_t".into(),
-                    size: 4,
-                    align: 4,
+                ParsedProbeLayout {
+                    layout: TypeLayout {
+                        name: "value_t".into(),
+                        size: 4,
+                        align: 4,
+                    },
+                    enum_underlying_size: None,
+                    enum_is_signed: None,
                 },
             ]
         );
@@ -354,6 +408,8 @@ mod tests {
                 kind: ProbeSubjectKind::Type,
                 confidence: ProbeConfidence::MeasuredLayout,
                 record_completeness: None,
+                enum_underlying_size: None,
+                enum_is_signed: None,
                 layout: TypeLayout {
                     name: "size_t".into(),
                     size: 8,
@@ -415,5 +471,31 @@ mod tests {
         let report: AbiProbeReport = serde_json::from_str(json).unwrap();
         assert_eq!(report.subjects[0].confidence, ProbeConfidence::MeasuredLayout);
         assert_eq!(report.subjects[0].record_completeness, None);
+    }
+
+    #[test]
+    fn parse_layout_output_captures_enum_representation() {
+        let parsed = parse_layout_output("enum mode\t4\t4\t4\t1\n").unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].layout.name, "enum mode");
+        assert_eq!(parsed[0].enum_underlying_size, Some(4));
+        assert_eq!(parsed[0].enum_is_signed, Some(true));
+    }
+
+    #[test]
+    fn probe_type_layouts_reports_enum_underlying_representation() {
+        let dir = temp_dir("enum_header");
+        let header = dir.join("api.h");
+        std::fs::write(&header, "enum mode { MODE_A = 0, MODE_B = 7 };\n").unwrap();
+
+        let report = probe_type_layouts(&HeaderConfig::new().header(&header), &["enum mode"])
+            .unwrap();
+
+        assert_eq!(report.subjects.len(), 1);
+        assert_eq!(report.subjects[0].kind, ProbeSubjectKind::Enum);
+        assert_eq!(report.subjects[0].enum_underlying_size, Some(report.layouts[0].size));
+        assert!(report.subjects[0].enum_is_signed.is_some());
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
