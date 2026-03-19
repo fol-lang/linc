@@ -6,8 +6,8 @@ use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::extract::Extractor;
 use crate::ir::{
     BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
-    LinkArtifactKind, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource,
-    LinkResolutionMode, MacroBinding, MacroCategory, MacroKind,
+    LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind,
+    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::probe_type_layouts;
@@ -16,9 +16,11 @@ use crate::probe::probe_type_layouts;
 pub struct HeaderConfig {
     pub entry_headers: Vec<PathBuf>,
     pub include_dirs: Vec<PathBuf>,
+    pub framework_dirs: Vec<PathBuf>,
     pub library_dirs: Vec<PathBuf>,
     pub defines: Vec<(String, Option<String>)>,
     pub link_libraries: Vec<LinkLibrary>,
+    pub link_frameworks: Vec<LinkFramework>,
     pub link_artifacts: Vec<LinkArtifact>,
     pub ordered_link_inputs: Vec<LinkInput>,
     pub preferred_link_mode: LinkResolutionMode,
@@ -64,9 +66,11 @@ impl HeaderConfig {
         Self {
             entry_headers: Vec::new(),
             include_dirs: Vec::new(),
+            framework_dirs: Vec::new(),
             library_dirs: Vec::new(),
             defines: Vec::new(),
             link_libraries: Vec::new(),
+            link_frameworks: Vec::new(),
             link_artifacts: Vec::new(),
             ordered_link_inputs: Vec::new(),
             preferred_link_mode: LinkResolutionMode::Default,
@@ -84,6 +88,11 @@ impl HeaderConfig {
 
     pub fn include_dir(mut self, path: impl Into<PathBuf>) -> Self {
         self.include_dirs.push(path.into());
+        self
+    }
+
+    pub fn framework_dir(mut self, path: impl Into<PathBuf>) -> Self {
+        self.framework_dirs.push(path.into());
         self
     }
 
@@ -142,6 +151,17 @@ impl HeaderConfig {
         self.ordered_link_inputs
             .push(LinkInput::Artifact(artifact.clone()));
         self.link_artifacts.push(artifact);
+        self
+    }
+
+    pub fn link_framework(mut self, name: impl Into<String>) -> Self {
+        let framework = LinkFramework {
+            name: name.into(),
+            source: LinkRequirementSource::Declared,
+        };
+        self.ordered_link_inputs
+            .push(LinkInput::Framework(framework.clone()));
+        self.link_frameworks.push(framework);
         self
     }
 
@@ -391,12 +411,18 @@ impl HeaderConfig {
                 .iter()
                 .map(|path| path.display().to_string())
                 .collect(),
+            framework_paths: self
+                .framework_dirs
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect(),
             library_paths: self
                 .library_dirs
                 .iter()
                 .map(|path| path.display().to_string())
                 .collect(),
             libraries: self.link_libraries.clone(),
+            frameworks: self.link_frameworks.clone(),
             artifacts: self.link_artifacts.clone(),
             ordered_inputs: self.ordered_link_inputs.clone(),
         }
@@ -620,10 +646,12 @@ mod tests {
         let cfg = HeaderConfig::new()
             .header("foo.h")
             .include_dir("/usr/include")
+            .framework_dir("/System/Library/Frameworks")
             .library_dir("/usr/lib")
             .define("DEBUG", None)
             .define("VERSION", Some("2".into()))
             .link_lib("m")
+            .link_framework("Security")
             .link_static_lib("z")
             .link_shared_lib("ssl")
             .link_object_file("build/plugin.o")
@@ -636,9 +664,11 @@ mod tests {
 
         assert_eq!(cfg.entry_headers.len(), 1);
         assert_eq!(cfg.include_dirs.len(), 1);
+        assert_eq!(cfg.framework_dirs.len(), 1);
         assert_eq!(cfg.library_dirs.len(), 1);
         assert_eq!(cfg.defines.len(), 2);
         assert_eq!(cfg.link_libraries.len(), 3);
+        assert_eq!(cfg.link_frameworks.len(), 1);
         assert_eq!(cfg.link_artifacts.len(), 3);
         assert_eq!(cfg.preferred_link_mode, LinkResolutionMode::PreferStatic);
         assert_eq!(cfg.probe_types.len(), 1);
@@ -659,8 +689,10 @@ mod tests {
         let cfg = HeaderConfig::new()
             .header("test.h")
             .include_dir("/usr/local/include")
+            .framework_dir("/System/Library/Frameworks")
             .library_dir("/usr/local/lib")
             .define("FOO", Some("1".into()))
+            .link_framework("Foundation")
             .link_shared_lib("ssl")
             .link_shared_artifact("/usr/local/lib/libssl.so")
             .prefer_dynamic_linking()
@@ -670,10 +702,12 @@ mod tests {
         let cfg2: HeaderConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(cfg2.entry_headers.len(), 1);
         assert_eq!(cfg2.defines.len(), 1);
+        assert_eq!(cfg2.framework_dirs.len(), 1);
         assert_eq!(cfg2.library_dirs.len(), 1);
+        assert_eq!(cfg2.link_frameworks.len(), 1);
         assert_eq!(cfg2.link_libraries.len(), 1);
         assert_eq!(cfg2.link_artifacts.len(), 1);
-        assert_eq!(cfg2.ordered_link_inputs.len(), 2);
+        assert_eq!(cfg2.ordered_link_inputs.len(), 3);
         assert_eq!(cfg2.preferred_link_mode, LinkResolutionMode::PreferDynamic);
         assert_eq!(cfg2.probe_types.len(), 1);
     }
@@ -707,8 +741,10 @@ mod tests {
         let cfg = HeaderConfig::new()
             .header("api.h")
             .include_dir("include")
+            .framework_dir("frameworks")
             .library_dir("lib")
             .define("FOO", Some("1".into()))
+            .link_framework("CoreFoundation")
             .link_static_lib("crypto")
             .link_static_artifact("lib/libcrypto.a")
             .prefer_static_linking()
@@ -724,8 +760,11 @@ mod tests {
         assert_eq!(inputs.include_dirs, vec!["include".to_string()]);
         assert_eq!(inputs.defines.len(), 1);
         assert_eq!(link.include_paths, vec!["include".to_string()]);
+        assert_eq!(link.framework_paths, vec!["frameworks".to_string()]);
         assert_eq!(link.library_paths, vec!["lib".to_string()]);
         assert_eq!(link.preferred_mode, LinkResolutionMode::PreferStatic);
+        assert_eq!(link.frameworks.len(), 1);
+        assert_eq!(link.frameworks[0].name, "CoreFoundation");
         assert_eq!(link.libraries.len(), 1);
         assert_eq!(link.libraries[0].name, "crypto");
         assert_eq!(link.libraries[0].kind, LinkLibraryKind::Static);
@@ -734,14 +773,18 @@ mod tests {
         assert_eq!(link.artifacts[0].path, "lib/libcrypto.a");
         assert_eq!(link.artifacts[0].kind, LinkArtifactKind::StaticLibrary);
         assert_eq!(link.artifacts[0].source, LinkRequirementSource::Declared);
-        assert_eq!(link.ordered_inputs.len(), 2);
+        assert_eq!(link.ordered_inputs.len(), 3);
         match &link.ordered_inputs[0] {
-            LinkInput::Library(lib) => assert_eq!(lib.name, "crypto"),
-            other => panic!("expected first ordered input to be library, got {:?}", other),
+            LinkInput::Framework(framework) => assert_eq!(framework.name, "CoreFoundation"),
+            other => panic!("expected first ordered input to be framework, got {:?}", other),
         }
         match &link.ordered_inputs[1] {
+            LinkInput::Library(lib) => assert_eq!(lib.name, "crypto"),
+            other => panic!("expected second ordered input to be library, got {:?}", other),
+        }
+        match &link.ordered_inputs[2] {
             LinkInput::Artifact(artifact) => assert_eq!(artifact.path, "lib/libcrypto.a"),
-            other => panic!("expected second ordered input to be artifact, got {:?}", other),
+            other => panic!("expected third ordered input to be artifact, got {:?}", other),
         }
         assert_eq!(cfg.probe_types, vec!["struct widget".to_string()]);
     }

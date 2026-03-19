@@ -113,9 +113,17 @@ pub struct LinkArtifact {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LinkFramework {
+    pub name: String,
+    #[serde(default)]
+    pub source: LinkRequirementSource,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LinkInput {
     Library(LinkLibrary),
     Artifact(LinkArtifact),
+    Framework(LinkFramework),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -125,9 +133,13 @@ pub struct BindingLinkSurface {
     #[serde(default)]
     pub include_paths: Vec<String>,
     #[serde(default)]
+    pub framework_paths: Vec<String>,
+    #[serde(default)]
     pub library_paths: Vec<String>,
     #[serde(default)]
     pub libraries: Vec<LinkLibrary>,
+    #[serde(default)]
+    pub frameworks: Vec<LinkFramework>,
     #[serde(default)]
     pub artifacts: Vec<LinkArtifact>,
     #[serde(default)]
@@ -469,11 +481,16 @@ mod tests {
         pkg.link = BindingLinkSurface {
             preferred_mode: LinkResolutionMode::PreferDynamic,
             include_paths: vec!["/usr/include".into()],
+            framework_paths: vec!["/System/Library/Frameworks".into()],
             library_paths: vec!["/usr/lib".into()],
             libraries: vec![LinkLibrary {
                 name: "z".into(),
                 kind: LinkLibraryKind::Dynamic,
                 source: LinkRequirementSource::Declared,
+            }],
+            frameworks: vec![LinkFramework {
+                name: "CoreFoundation".into(),
+                source: LinkRequirementSource::Inferred,
             }],
             artifacts: vec![LinkArtifact {
                 path: "/usr/lib/libz.so".into(),
@@ -481,6 +498,10 @@ mod tests {
                 source: LinkRequirementSource::Discovered,
             }],
             ordered_inputs: vec![
+                LinkInput::Framework(LinkFramework {
+                    name: "CoreFoundation".into(),
+                    source: LinkRequirementSource::Inferred,
+                }),
                 LinkInput::Library(LinkLibrary {
                     name: "z".into(),
                     kind: LinkLibraryKind::Dynamic,
@@ -665,6 +686,7 @@ mod tests {
         let link = BindingLinkSurface {
             preferred_mode: LinkResolutionMode::PreferStatic,
             include_paths: vec!["include".into()],
+            framework_paths: vec!["frameworks".into()],
             library_paths: vec!["lib".into()],
             libraries: vec![
                 LinkLibrary {
@@ -678,6 +700,10 @@ mod tests {
                     source: LinkRequirementSource::Inferred,
                 },
             ],
+            frameworks: vec![LinkFramework {
+                name: "Security".into(),
+                source: LinkRequirementSource::Declared,
+            }],
             artifacts: vec![
                 LinkArtifact {
                     path: "libssl.a".into(),
@@ -691,6 +717,10 @@ mod tests {
                 },
             ],
             ordered_inputs: vec![
+                LinkInput::Framework(LinkFramework {
+                    name: "Security".into(),
+                    source: LinkRequirementSource::Declared,
+                }),
                 LinkInput::Library(LinkLibrary {
                     name: "ssl".into(),
                     kind: LinkLibraryKind::Default,
@@ -734,6 +764,8 @@ mod tests {
         assert_eq!(decoded.preferred_mode, LinkResolutionMode::Default);
         assert_eq!(decoded.libraries[0].source, LinkRequirementSource::Declared);
         assert_eq!(decoded.artifacts[0].source, LinkRequirementSource::Declared);
+        assert!(decoded.framework_paths.is_empty());
+        assert!(decoded.frameworks.is_empty());
         assert!(decoded.ordered_inputs.is_empty());
     }
 }

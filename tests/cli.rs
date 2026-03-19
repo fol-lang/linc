@@ -57,12 +57,16 @@ fn cli_scan_emits_inputs_and_link_metadata() {
             header.to_str().unwrap(),
             "--include-dir",
             dir.to_str().unwrap(),
+            "--framework-dir",
+            "/System/Library/Frameworks",
             "--library-dir",
             dir.to_str().unwrap(),
             "--define",
             "API_LEVEL=1",
             "--link-lib",
             "m",
+            "--link-framework",
+            "Security",
             "--link-object",
             "build/plugin.o",
             "--link-static-artifact",
@@ -81,8 +85,11 @@ fn cli_scan_emits_inputs_and_link_metadata() {
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert_eq!(json["inputs"]["entry_headers"].as_array().unwrap().len(), 1);
     assert_eq!(json["inputs"]["include_dirs"][0], dir.to_str().unwrap());
+    assert_eq!(json["link"]["framework_paths"][0], "/System/Library/Frameworks");
     assert_eq!(json["link"]["library_paths"][0], dir.to_str().unwrap());
     assert_eq!(json["link"]["preferred_mode"], "PreferStatic");
+    assert_eq!(json["link"]["frameworks"][0]["name"], "Security");
+    assert_eq!(json["link"]["frameworks"][0]["source"], "Declared");
     assert_eq!(json["link"]["libraries"][0]["name"], "m");
     assert_eq!(json["link"]["libraries"][0]["source"], "Declared");
     assert_eq!(json["link"]["artifacts"][0]["path"], "build/plugin.o");
@@ -90,10 +97,11 @@ fn cli_scan_emits_inputs_and_link_metadata() {
     assert_eq!(json["link"]["artifacts"][0]["source"], "Declared");
     assert_eq!(json["link"]["artifacts"][1]["path"], "lib/libcrypto.a");
     assert_eq!(json["link"]["artifacts"][1]["kind"], "StaticLibrary");
-    assert_eq!(json["link"]["ordered_inputs"].as_array().unwrap().len(), 3);
+    assert_eq!(json["link"]["ordered_inputs"].as_array().unwrap().len(), 4);
     assert_eq!(json["link"]["ordered_inputs"][0]["Library"]["name"], "m");
-    assert_eq!(json["link"]["ordered_inputs"][1]["Artifact"]["path"], "build/plugin.o");
-    assert_eq!(json["link"]["ordered_inputs"][2]["Artifact"]["path"], "lib/libcrypto.a");
+    assert_eq!(json["link"]["ordered_inputs"][1]["Framework"]["name"], "Security");
+    assert_eq!(json["link"]["ordered_inputs"][2]["Artifact"]["path"], "build/plugin.o");
+    assert_eq!(json["link"]["ordered_inputs"][3]["Artifact"]["path"], "lib/libcrypto.a");
     assert!(json["macros"]
         .as_array()
         .unwrap()
@@ -400,7 +408,11 @@ fn cli_link_plan_emits_link_surface_json() {
             "link": {
                 "preferred_mode": "PreferDynamic",
                 "include_paths": ["include"],
+                "framework_paths": ["/System/Library/Frameworks"],
                 "library_paths": ["lib"],
+                "frameworks": [
+                    { "name": "Foundation", "source": "Declared" }
+                ],
                 "libraries": [
                     { "name": "ssl", "kind": "Dynamic", "source": "Inferred" }
                 ],
@@ -412,6 +424,7 @@ fn cli_link_plan_emits_link_surface_json() {
                     }
                 ],
                 "ordered_inputs": [
+                    { "Framework": { "name": "Foundation", "source": "Declared" } },
                     { "Library": { "name": "ssl", "kind": "Dynamic", "source": "Inferred" } },
                     {
                         "Artifact": {
@@ -441,16 +454,20 @@ fn cli_link_plan_emits_link_surface_json() {
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert_eq!(json["preferred_mode"], "PreferDynamic");
     assert_eq!(json["include_paths"][0], "include");
+    assert_eq!(json["framework_paths"][0], "/System/Library/Frameworks");
     assert_eq!(json["library_paths"][0], "lib");
+    assert_eq!(json["frameworks"][0]["name"], "Foundation");
+    assert_eq!(json["frameworks"][0]["source"], "Declared");
     assert_eq!(json["libraries"][0]["name"], "ssl");
     assert_eq!(json["libraries"][0]["kind"], "Dynamic");
     assert_eq!(json["libraries"][0]["source"], "Inferred");
     assert_eq!(json["artifacts"][0]["path"], "native/libcrypto.a");
     assert_eq!(json["artifacts"][0]["kind"], "StaticLibrary");
     assert_eq!(json["artifacts"][0]["source"], "Discovered");
-    assert_eq!(json["ordered_inputs"].as_array().unwrap().len(), 2);
-    assert_eq!(json["ordered_inputs"][0]["Library"]["name"], "ssl");
-    assert_eq!(json["ordered_inputs"][1]["Artifact"]["path"], "native/libcrypto.a");
+    assert_eq!(json["ordered_inputs"].as_array().unwrap().len(), 3);
+    assert_eq!(json["ordered_inputs"][0]["Framework"]["name"], "Foundation");
+    assert_eq!(json["ordered_inputs"][1]["Library"]["name"], "ssl");
+    assert_eq!(json["ordered_inputs"][2]["Artifact"]["path"], "native/libcrypto.a");
 
     std::fs::remove_dir_all(&dir).ok();
 }

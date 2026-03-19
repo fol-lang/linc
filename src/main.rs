@@ -45,6 +45,10 @@ fn run_scan(args: &[String]) -> Result<(), String> {
                 i += 1;
                 cfg = cfg.include_dir(required_value(args, i, "--include-dir")?);
             }
+            "--framework-dir" => {
+                i += 1;
+                cfg = cfg.framework_dir(required_value(args, i, "--framework-dir")?);
+            }
             "--library-dir" => {
                 i += 1;
                 cfg = cfg.library_dir(required_value(args, i, "--library-dir")?);
@@ -58,6 +62,10 @@ fn run_scan(args: &[String]) -> Result<(), String> {
             "--link-lib" => {
                 i += 1;
                 cfg = cfg.link_lib(required_value(args, i, "--link-lib")?);
+            }
+            "--link-framework" => {
+                i += 1;
+                cfg = cfg.link_framework(required_value(args, i, "--link-framework")?);
             }
             "--link-static-lib" => {
                 i += 1;
@@ -357,9 +365,11 @@ fn usage() -> String {
         "scan options:",
         "  --header <path>",
         "  --include-dir <path>",
+        "  --framework-dir <path>",
         "  --library-dir <path>",
         "  --define NAME[=VALUE]",
         "  --link-lib <name>",
+        "  --link-framework <name>",
         "  --link-static-lib <name>",
         "  --link-shared-lib <name>",
         "  --link-object <path>",
