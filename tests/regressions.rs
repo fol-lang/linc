@@ -161,3 +161,40 @@ fn regression_tricky_macro_fixture_stays_consumable() {
         .unwrap();
     assert!(function_like.is_unsupported_function_like());
 }
+
+#[test]
+fn regression_linux_artifact_fixture_stays_consumable() {
+    let inventory: SymbolInventory = serde_json::from_str(include_str!(
+        "../test/contracts/linux_elf_inventory_fixture.json"
+    ))
+    .unwrap();
+    assert_eq!(inventory.platform, ArtifactPlatform::Elf);
+    assert_eq!(inventory.format, ArtifactFormat::ElfSharedLibrary);
+    assert_eq!(inventory.dependency_edges, vec!["libc.so.6"]);
+    assert!(inventory.has_symbol("demo_init"));
+}
+
+#[test]
+fn regression_macos_artifact_fixture_stays_consumable() {
+    let inventory: SymbolInventory = serde_json::from_str(include_str!(
+        "../test/contracts/macos_macho_inventory_fixture.json"
+    ))
+    .unwrap();
+    assert_eq!(inventory.platform, ArtifactPlatform::MachO);
+    assert_eq!(inventory.format, ArtifactFormat::MachODylib);
+    assert_eq!(inventory.symbols[0].raw_name.as_deref(), Some("_demo_init"));
+}
+
+#[test]
+fn regression_windows_artifact_gap_fixture_stays_consumable() {
+    let inventory: SymbolInventory = serde_json::from_str(include_str!(
+        "../test/contracts/windows_coff_inventory_fixture.json"
+    ))
+    .unwrap();
+    assert_eq!(inventory.platform, ArtifactPlatform::Unknown);
+    assert_eq!(
+        inventory.format,
+        ArtifactFormat::Unknown("coff-object-fixture".into())
+    );
+    assert_eq!(inventory.symbols[0].raw_name.as_deref(), Some("_demo_init@4"));
+}

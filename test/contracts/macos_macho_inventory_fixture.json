@@ -1,0 +1,23 @@
+{
+  "artifact_path": "/usr/lib/libdemo.dylib",
+  "format": "MachODylib",
+  "platform": "MachO",
+  "kind": "SharedLibrary",
+  "capabilities": {
+    "exports_symbols": true,
+    "imports_symbols": true
+  },
+  "dependency_edges": [],
+  "symbols": [
+    {
+      "name": "demo_init",
+      "raw_name": "_demo_init",
+      "visibility": "Default",
+      "is_function": true,
+      "binding": "Global",
+      "size": 32,
+      "section": "__text",
+      "archive_member": null
+    }
+  ]
+}

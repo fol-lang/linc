@@ -80,6 +80,10 @@ That means downstream consumers should not yet assume:
 
 This is a roadmap gap, not just a documentation gap.
 
+The regression corpus now also carries checked-in platform artifact fixtures for Linux and macOS,
+plus an explicit Windows-gap fixture. That gives downstream consumers a stable contract snapshot
+for the current support boundary even before full COFF/PE inventory support lands.
+
 ## Recommended Production Posture
 
 For now:
