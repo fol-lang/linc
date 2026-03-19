@@ -1,0 +1,12 @@
+name = "zlib-adler32"
+mode = "driver"
+flavor = "gnu"
+entry = "adler32.c"
+include_dirs = ["include"]
+allow_system_includes = true
+expected = "parse_ok"
+source = "https://github.com/madler/zlib"
+upstream_ref = "v1.3.1"
+license = "Zlib"
+notes = "Official zlib implementation file with vendored internal header shim and public headers."
+tags = ["external", "implementation", "zlib", "slow"]

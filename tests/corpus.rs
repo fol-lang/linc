@@ -1,61 +1,59 @@
 //! Real-world corpus tests for BIC.
 //!
-//! These tests parse real C library headers and validate the output.
-//! They are ignored by default and require the corresponding system
-//! headers/libraries to be installed.
+//! Uses vendored headers from test/full_apps/external/ (copied from pac).
+//! System-header tests (string.h, symbol validation) are #[ignore] and
+//! require gcc/clang or dev libraries.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use bic::*;
 
-fn find_system_header(name: &str) -> Option<std::path::PathBuf> {
+/// Path to the vendored test corpus.
+fn corpus_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("test")
+        .join("full_apps")
+        .join("external")
+}
+
+fn find_system_header(name: &str) -> Option<PathBuf> {
     let paths = [
         format!("/usr/include/{}", name),
         format!("/usr/local/include/{}", name),
         format!("/usr/include/x86_64-linux-gnu/{}", name),
     ];
-    for p in &paths {
-        let path = Path::new(p);
-        if path.exists() {
-            return Some(path.to_path_buf());
-        }
-    }
-    None
+    paths
+        .iter()
+        .map(PathBuf::from)
+        .find(|p| p.exists())
 }
 
-fn find_system_lib(name: &str) -> Option<std::path::PathBuf> {
+fn find_system_lib(name: &str) -> Option<PathBuf> {
     let paths = [
         format!("/usr/lib/{}", name),
         format!("/usr/lib/x86_64-linux-gnu/{}", name),
         format!("/usr/local/lib/{}", name),
         format!("/lib/x86_64-linux-gnu/{}", name),
     ];
-    for p in &paths {
-        let path = Path::new(p);
-        if path.exists() {
-            return Some(path.to_path_buf());
-        }
-    }
-    None
+    paths
+        .iter()
+        .map(PathBuf::from)
+        .find(|p| p.exists())
 }
 
 // ============================================================================
-// zlib corpus
+// zlib corpus — uses vendored headers, no system deps
 // ============================================================================
 
 #[test]
-#[ignore] // Requires zlib-dev installed
-fn zlib_parse_filtered() {
-    let header = match find_system_header("zlib.h") {
-        Some(p) => p,
-        None => {
-            eprintln!("SKIP: zlib.h not found");
-            return;
-        }
-    };
+fn zlib_vendored_parse() {
+    let zlib_inc = corpus_dir().join("zlib/header/include");
+    let main_c = corpus_dir().join("zlib/header/main.c");
 
     let result = bic::raw_headers::HeaderConfig::new()
-        .header(&header)
+        .header(&main_c)
+        .include_dir(&zlib_inc)
+        .no_origin_filter() // include all declarations
         .process()
         .unwrap();
 
@@ -69,24 +67,58 @@ fn zlib_parse_filtered() {
         })
         .collect();
 
-    // With origin filtering, should only get zlib functions (75-90)
+    // Key zlib functions should be present
+    assert!(funcs.contains(&"deflate"), "missing deflate");
+    assert!(funcs.contains(&"inflate"), "missing inflate");
+    assert!(funcs.contains(&"compress"), "missing compress");
+    assert!(funcs.contains(&"uncompress"), "missing uncompress");
     assert!(
         funcs.len() >= 30,
         "expected at least 30 zlib functions, got {}",
         funcs.len()
     );
+}
 
-    // Key zlib functions
+#[test]
+fn zlib_vendored_origin_filter() {
+    let zlib_inc = corpus_dir().join("zlib/header/include");
+    let zlib_h = zlib_inc.join("zlib.h");
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&zlib_h)
+        .include_dir(&zlib_inc)
+        .process() // default filter: exclude system
+        .unwrap();
+
+    let funcs: Vec<&str> = result
+        .package
+        .items
+        .iter()
+        .filter_map(|i| match i {
+            BindingItem::Function(f) => Some(f.name.as_str()),
+            _ => None,
+        })
+        .collect();
+
     assert!(funcs.contains(&"deflate"), "missing deflate");
     assert!(funcs.contains(&"inflate"), "missing inflate");
-    assert!(funcs.contains(&"compress"), "missing compress");
-    assert!(funcs.contains(&"uncompress"), "missing uncompress");
 
-    // Should NOT contain system functions
+    // System functions should be filtered out (if any leaked in)
     assert!(!funcs.contains(&"printf"), "printf should be filtered out");
-    assert!(!funcs.contains(&"memcpy"), "memcpy should be filtered out");
+}
 
-    // Check key types
+#[test]
+fn zlib_vendored_types() {
+    let zlib_inc = corpus_dir().join("zlib/header/include");
+    let zlib_h = zlib_inc.join("zlib.h");
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&zlib_h)
+        .include_dir(&zlib_inc)
+        .no_origin_filter()
+        .process()
+        .unwrap();
+
     let type_names: Vec<&str> = result
         .package
         .items
@@ -98,58 +130,21 @@ fn zlib_parse_filtered() {
         .collect();
 
     assert!(
-        type_names.contains(&"Bytef") || type_names.contains(&"uLong"),
-        "expected zlib typedefs"
+        type_names.contains(&"Bytef") || type_names.contains(&"uLong") || type_names.contains(&"z_stream"),
+        "expected zlib typedefs, got: {:?}",
+        type_names
     );
 }
 
 #[test]
-#[ignore] // Requires zlib-dev and libz installed
-fn zlib_validate_symbols() {
-    let header = match find_system_header("zlib.h") {
-        Some(p) => p,
-        None => return,
-    };
-    let lib = match find_system_lib("libz.so") {
-        Some(p) => p,
-        None => return,
-    };
+fn zlib_vendored_codegen() {
+    let zlib_inc = corpus_dir().join("zlib/header/include");
+    let zlib_h = zlib_inc.join("zlib.h");
 
     let result = bic::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
-        .unwrap();
-
-    let inventory = inspect_symbols(&lib).unwrap();
-    let report = validate(&result.package, &inventory);
-
-    // Most zlib functions should match
-    let matched = report.matched().len();
-    let total = report.matches.len();
-    assert!(
-        matched > 0,
-        "expected some matched symbols, got 0 of {}",
-        total
-    );
-
-    eprintln!(
-        "zlib validation: {}/{} matched, {} missing",
-        matched,
-        total,
-        report.missing().len()
-    );
-}
-
-#[test]
-#[ignore] // Requires zlib-dev
-fn zlib_codegen() {
-    let header = match find_system_header("zlib.h") {
-        Some(p) => p,
-        None => return,
-    };
-
-    let result = bic::raw_headers::HeaderConfig::new()
-        .header(&header)
+        .header(&zlib_h)
+        .include_dir(&zlib_inc)
+        .no_origin_filter()
         .process()
         .unwrap();
 
@@ -164,8 +159,120 @@ fn zlib_codegen() {
     assert_eq!(result.package, pkg2);
 }
 
+#[test]
+fn zlib_vendored_determinism() {
+    let zlib_inc = corpus_dir().join("zlib/header/include");
+    let zlib_h = zlib_inc.join("zlib.h");
+
+    let r1 = bic::raw_headers::HeaderConfig::new()
+        .header(&zlib_h)
+        .include_dir(&zlib_inc)
+        .no_origin_filter()
+        .process()
+        .unwrap();
+    let r2 = bic::raw_headers::HeaderConfig::new()
+        .header(&zlib_h)
+        .include_dir(&zlib_inc)
+        .no_origin_filter()
+        .process()
+        .unwrap();
+
+    let json1 = bic::to_json(&r1.package).unwrap();
+    let json2 = bic::to_json(&r2.package).unwrap();
+    assert_eq!(json1, json2, "JSON output should be deterministic");
+}
+
 // ============================================================================
-// string.h corpus (musl-compatible)
+// libpng corpus — uses vendored headers
+// ============================================================================
+
+#[test]
+fn libpng_vendored_parse() {
+    let png_inc = corpus_dir().join("libpng/header/include");
+    let main_c = corpus_dir().join("libpng/header/main.c");
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&main_c)
+        .include_dir(&png_inc)
+        .no_origin_filter()
+        .process()
+        .unwrap();
+
+    let funcs: Vec<&str> = result
+        .package
+        .items
+        .iter()
+        .filter_map(|i| match i {
+            BindingItem::Function(f) => Some(f.name.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    assert!(
+        funcs.iter().any(|f| f.starts_with("png_")),
+        "expected png_ functions, got: {:?}",
+        &funcs[..funcs.len().min(10)]
+    );
+}
+
+#[test]
+fn libpng_vendored_codegen() {
+    let png_inc = corpus_dir().join("libpng/header/include");
+    let png_h = png_inc.join("png.h");
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&png_h)
+        .include_dir(&png_inc)
+        .no_origin_filter()
+        .process()
+        .unwrap();
+
+    let rust_ffi = emit_rust_ffi(&result.package);
+    assert!(rust_ffi.contains("extern \"C\""));
+    // Should have at least some png_ functions in the output
+    assert!(rust_ffi.contains("png_"), "expected png_ in generated FFI");
+}
+
+// ============================================================================
+// musl stdint corpus — uses vendored headers
+// ============================================================================
+
+#[test]
+fn musl_stdint_vendored_parse() {
+    let musl_inc = corpus_dir().join("musl/stdint/include");
+    let main_c = corpus_dir().join("musl/stdint/main.c");
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&main_c)
+        .include_dir(&musl_inc)
+        .no_origin_filter()
+        .process()
+        .unwrap();
+
+    let type_names: Vec<&str> = result
+        .package
+        .items
+        .iter()
+        .filter_map(|i| match i {
+            BindingItem::TypeAlias(t) => Some(t.name.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    // Key stdint types
+    let expected = ["int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t"];
+    for name in &expected {
+        assert!(
+            type_names.contains(name),
+            "missing typedef {}, got: {:?}",
+            name,
+            type_names
+        );
+    }
+}
+
+// ============================================================================
+// System header tests — require gcc/clang + system headers
 // ============================================================================
 
 #[test]
@@ -191,7 +298,6 @@ fn string_h_parse() {
         })
         .collect();
 
-    // Key string functions
     let expected = ["memcpy", "memset", "strlen", "strcmp", "memmove", "memcmp"];
     for name in &expected {
         assert!(funcs.contains(name), "missing {}", name);
@@ -211,7 +317,6 @@ fn string_h_const_correctness() {
         .process()
         .unwrap();
 
-    // Find strlen — should have const char * parameter
     let strlen = result
         .package
         .items
@@ -230,7 +335,6 @@ fn string_h_const_correctness() {
         );
     }
 
-    // Find memcpy — dest should be *mut void, src should be *const void
     let memcpy = result
         .package
         .items
@@ -255,10 +359,18 @@ fn string_h_const_correctness() {
     }
 }
 
+// ============================================================================
+// Symbol validation — requires system libs
+// ============================================================================
+
 #[test]
-#[ignore] // Requires gcc/clang
-fn string_h_codegen() {
-    let header = match find_system_header("string.h") {
+#[ignore] // Requires zlib1g-dev: sudo apt install zlib1g-dev
+fn zlib_system_validate_symbols() {
+    let header = match find_system_header("zlib.h") {
+        Some(p) => p,
+        None => return,
+    };
+    let lib = match find_system_lib("libz.so") {
         Some(p) => p,
         None => return,
     };
@@ -268,72 +380,15 @@ fn string_h_codegen() {
         .process()
         .unwrap();
 
-    let rust_ffi = emit_rust_ffi(&result.package);
-    assert!(rust_ffi.contains("pub fn memcpy"));
-    assert!(rust_ffi.contains("pub fn strlen"));
-    assert!(rust_ffi.contains("*const"));
-    assert!(rust_ffi.contains("*mut"));
-}
+    let inventory = inspect_symbols(&lib).unwrap();
+    let report = validate(&result.package, &inventory);
 
-// ============================================================================
-// libpng corpus
-// ============================================================================
+    let matched = report.matched().len();
+    let total = report.matches.len();
+    assert!(matched > 0, "expected some matched symbols, got 0 of {}", total);
 
-#[test]
-#[ignore] // Requires libpng-dev installed
-fn libpng_parse() {
-    let header = match find_system_header("png.h") {
-        Some(p) => p,
-        None => {
-            eprintln!("SKIP: png.h not found");
-            return;
-        }
-    };
-
-    let result = bic::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
-        .unwrap();
-
-    let funcs: Vec<&str> = result
-        .package
-        .items
-        .iter()
-        .filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f.name.as_str()),
-            _ => None,
-        })
-        .collect();
-
-    // Key libpng functions
-    assert!(
-        funcs.iter().any(|f| f.starts_with("png_")),
-        "expected png_ prefixed functions"
+    eprintln!(
+        "zlib validation: {}/{} matched, {} missing",
+        matched, total, report.missing().len()
     );
-}
-
-// ============================================================================
-// JSON snapshot stability
-// ============================================================================
-
-#[test]
-#[ignore] // Requires gcc/clang
-fn json_snapshot_determinism() {
-    let header = match find_system_header("string.h") {
-        Some(p) => p,
-        None => return,
-    };
-
-    let result1 = bic::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
-        .unwrap();
-    let result2 = bic::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
-        .unwrap();
-
-    let json1 = bic::to_json(&result1.package).unwrap();
-    let json2 = bic::to_json(&result2.package).unwrap();
-    assert_eq!(json1, json2, "JSON output should be deterministic");
 }

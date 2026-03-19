@@ -1,0 +1,11 @@
+name = "musl-stdint"
+mode = "driver"
+flavor = "std"
+entry = "main.c"
+include_dirs = ["include"]
+expected = "parse_ok"
+source = "https://git.musl-libc.org/cgit/musl/"
+upstream_ref = "v1.2.5"
+license = "MIT"
+notes = "Vendored from official musl headers with a generated bits/alltypes.h derived from official .in sources."
+tags = ["external", "header", "musl", "stdint", "slow"]

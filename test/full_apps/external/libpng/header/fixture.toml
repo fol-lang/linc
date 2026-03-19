@@ -1,0 +1,12 @@
+name = "libpng-header"
+mode = "driver"
+flavor = "gnu"
+entry = "main.c"
+include_dirs = ["include", "../../zlib/header/include"]
+allow_system_includes = true
+expected = "parse_ok"
+source = "https://github.com/pnggroup/libpng"
+upstream_ref = "v1.6.43"
+license = "libpng-2.0"
+notes = "Vendored official libpng public headers with local zlib header path and a wrapper translation unit."
+tags = ["external", "header", "libpng", "slow"]
