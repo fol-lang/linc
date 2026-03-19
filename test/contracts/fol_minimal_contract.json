@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "bic_version": "0.1.0",
+  "source_path": "demo.h",
+  "items": [
+    {
+      "Function": {
+        "name": "demo_init",
+        "calling_convention": "C",
+        "parameters": [],
+        "return_type": "Int",
+        "variadic": false,
+        "source_offset": 10
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -61,6 +61,20 @@ The key contract boundaries are:
 - `ValidationReport` is evidence, not an exception channel
 - diagnostics are part of the data contract, not incidental logs
 
+## Fixture-Driven Consumer Testing
+
+This repository also carries serialized fixture packages for downstream-consumer tests.
+
+Those fixtures are example consumer fixtures, not the universal crate contract.
+They exist so a downstream tool such as `fol` can pin a narrow, intentional subset of the generic
+library contract and regression-test it without depending on live repository state.
+
+The current fixture tiers are:
+
+- a minimal package fixture that exercises the smallest durable generation contract
+- an extended package fixture that exercises additive evidence such as macros, layouts, and link
+  metadata
+
 ## What `fol` Should Not Assume
 
 `fol` should not assume:

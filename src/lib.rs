@@ -610,6 +610,26 @@ mod integration_tests {
         assert_eq!(pkg.items.len(), 1);
     }
 
+    #[test]
+    fn contract_snapshot_fol_minimal_contract_is_consumable() {
+        let json = include_str!("../test/contracts/fol_minimal_contract.json");
+        let pkg = from_json(json).unwrap();
+        assert_eq!(pkg.items.len(), 1);
+        assert!(pkg.macros.is_empty());
+        assert!(pkg.layouts.is_empty());
+    }
+
+    #[test]
+    fn contract_snapshot_fol_extended_contract_is_consumable() {
+        let json = include_str!("../test/contracts/fol_extended_contract.json");
+        let pkg = from_json(json).unwrap();
+        assert_eq!(pkg.items.len(), 1);
+        assert_eq!(pkg.macros.len(), 1);
+        assert_eq!(pkg.macros[0].value, Some(MacroValue::Integer(3)));
+        assert_eq!(pkg.layouts.len(), 1);
+        assert_eq!(pkg.link.libraries.len(), 1);
+    }
+
     // Phase 25: error path and edge case tests
 
     #[test]
