@@ -164,3 +164,16 @@ println!("ordered inputs: {}", link.ordered_inputs.len());
 ```
 
 This keeps link-planning policy in the downstream library or tool that consumes `bic`.
+
+## Normalized Plan Artifact
+
+When a consumer wants a library-facing planning artifact instead of reading raw link buckets
+directly, it can call:
+
+```rust
+let plan = bic::resolve_link_plan(&package);
+assert_eq!(plan.inputs.len(), package.link.ordered_inputs.len());
+```
+
+`ResolvedLinkPlan` is intentionally still a normalized metadata artifact.
+It is not yet a full filesystem-resolved linker invocation.
