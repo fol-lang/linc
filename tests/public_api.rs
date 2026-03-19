@@ -149,6 +149,18 @@ fn probe_subject_report_supports_record_completeness_metadata() {
 }
 
 #[test]
+fn probed_field_layout_supports_partial_bitfield_metadata() {
+    let field = ProbedFieldLayout {
+        name: "value".into(),
+        offset_bytes: None,
+        bit_width: Some(3),
+    };
+    let json = serde_json::to_string(&field).unwrap();
+    let decoded: ProbedFieldLayout = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, field);
+}
+
+#[test]
 fn probe_subject_report_supports_enum_representation_metadata() {
     let subject = ProbeSubjectReport {
         name: "enum mode".into(),

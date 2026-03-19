@@ -748,6 +748,19 @@ mod tests {
     }
 
     #[test]
+    fn parse_layout_output_captures_partial_bitfield_probe_data() {
+        let parsed = parse_layout_output(
+            "L\tstruct flags\t4\t4\t-\t-\nF\tstruct flags\tvalue\t-\t3\n",
+        )
+        .unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].fields.len(), 1);
+        assert_eq!(parsed[0].fields[0].name, "value");
+        assert_eq!(parsed[0].fields[0].offset_bytes, None);
+        assert_eq!(parsed[0].fields[0].bit_width, Some(3));
+    }
+
+    #[test]
     fn probe_type_layouts_reports_enum_underlying_representation() {
         let dir = temp_dir("enum_header");
         let header = dir.join("api.h");
@@ -760,6 +773,27 @@ mod tests {
         assert_eq!(report.subjects[0].kind, ProbeSubjectKind::Enum);
         assert_eq!(report.subjects[0].enum_underlying_size, Some(report.layouts[0].size));
         assert!(report.subjects[0].enum_is_signed.is_some());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_type_layouts_reports_partial_bitfield_field_data() {
+        let dir = temp_dir("bitfield_header");
+        let header = dir.join("api.h");
+        std::fs::write(&header, "struct flags { unsigned value:3; unsigned other:5; };\n")
+            .unwrap();
+
+        let report = probe_type_layouts(&HeaderConfig::new().header(&header), &["struct flags"])
+            .unwrap();
+
+        assert_eq!(report.subjects.len(), 1);
+        assert_eq!(report.subjects[0].fields.len(), 2);
+        assert_eq!(report.subjects[0].fields[0].name, "value");
+        assert_eq!(report.subjects[0].fields[0].offset_bytes, None);
+        assert_eq!(report.subjects[0].fields[0].bit_width, Some(3));
+        assert_eq!(report.subjects[0].fields[1].name, "other");
+        assert_eq!(report.subjects[0].fields[1].bit_width, Some(5));
 
         std::fs::remove_dir_all(&dir).ok();
     }

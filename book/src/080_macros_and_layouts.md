@@ -119,6 +119,14 @@ Each `ProbeSubjectReport` keeps:
 
 For record subjects, `fields` may also preserve named field offsets as compiler-measured evidence.
 
+For bitfields, the current probe surface is intentionally partial:
+
+- `bit_width` may be present
+- `offset_bytes` may remain absent
+
+That is deliberate. `bic` preserves width evidence where it can, but does not guess a byte offset
+for bitfields when the probe path cannot establish one safely.
+
 The older `layouts` array is still preserved as a flattened compatibility surface.
 
 Current confidence/completeness semantics are intentionally conservative:
