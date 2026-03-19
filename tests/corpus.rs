@@ -365,6 +365,114 @@ fn string_h_const_correctness() {
 
 #[test]
 #[ignore] // Requires zlib1g-dev: sudo apt install zlib1g-dev
+fn zlib_system_parse_filtered() {
+    let header = match find_system_header("zlib.h") {
+        Some(p) => p,
+        None => return,
+    };
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&header)
+        .process()
+        .unwrap();
+
+    let funcs: Vec<&str> = result
+        .package
+        .items
+        .iter()
+        .filter_map(|i| match i {
+            BindingItem::Function(f) => Some(f.name.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    // Origin filtering should keep only zlib declarations
+    assert!(funcs.contains(&"deflate"), "missing deflate");
+    assert!(funcs.contains(&"inflate"), "missing inflate");
+    assert!(funcs.contains(&"compress"), "missing compress");
+    assert!(funcs.contains(&"uncompress"), "missing uncompress");
+    assert!(!funcs.contains(&"printf"), "system function leaked through filter");
+
+    eprintln!("zlib system: {} functions extracted", funcs.len());
+
+    // Codegen
+    let rust_ffi = emit_rust_ffi(&result.package);
+    assert!(rust_ffi.contains("pub fn deflate"));
+    assert!(rust_ffi.contains("pub fn inflate"));
+    assert!(rust_ffi.contains("*const")); // const correctness
+
+    // JSON roundtrip
+    let json = bic::to_json(&result.package).unwrap();
+    let pkg2 = bic::from_json(&json).unwrap();
+    assert_eq!(result.package, pkg2);
+}
+
+#[test]
+#[ignore] // Requires libpng-dev: sudo apt install libpng-dev
+fn libpng_system_parse() {
+    let header = match find_system_header("png.h") {
+        Some(p) => p,
+        None => return,
+    };
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&header)
+        .process()
+        .unwrap();
+
+    let funcs: Vec<&str> = result
+        .package
+        .items
+        .iter()
+        .filter_map(|i| match i {
+            BindingItem::Function(f) => Some(f.name.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    assert!(
+        funcs.iter().any(|f| f.starts_with("png_")),
+        "expected png_ functions"
+    );
+    assert!(!funcs.contains(&"printf"), "system function leaked through filter");
+
+    eprintln!("libpng system: {} functions extracted", funcs.len());
+}
+
+#[test]
+#[ignore] // Requires libpng-dev: sudo apt install libpng-dev
+fn libpng_system_validate_symbols() {
+    let header = match find_system_header("png.h") {
+        Some(p) => p,
+        None => return,
+    };
+    let lib = match find_system_lib("libpng16.so")
+        .or_else(|| find_system_lib("libpng.so"))
+    {
+        Some(p) => p,
+        None => return,
+    };
+
+    let result = bic::raw_headers::HeaderConfig::new()
+        .header(&header)
+        .process()
+        .unwrap();
+
+    let inventory = inspect_symbols(&lib).unwrap();
+    let report = validate(&result.package, &inventory);
+
+    let matched = report.matched().len();
+    let total = report.matches.len();
+    assert!(matched > 0, "expected some matched symbols, got 0 of {}", total);
+
+    eprintln!(
+        "libpng validation: {}/{} matched, {} missing",
+        matched, total, report.missing().len()
+    );
+}
+
+#[test]
+#[ignore] // Requires zlib1g-dev: sudo apt install zlib1g-dev
 fn zlib_system_validate_symbols() {
     let header = match find_system_header("zlib.h") {
         Some(p) => p,
