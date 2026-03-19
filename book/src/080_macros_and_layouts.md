@@ -16,8 +16,10 @@ Each `MacroBinding` carries:
 - `name`
 - `body`
 - `function_like`
+- `form`
 - `kind`
 - `category`
+- optional parsed `value` for bindable integer/string constants
 
 ### Macro Kind
 
@@ -98,6 +100,9 @@ let cfg = HeaderConfig::new()
 let report = probe_type_layouts(&cfg, &["struct api_context".into()])?;
 println!("{:?}", report.layouts);
 ```
+
+`AbiProbeReport` also preserves target/compiler identity metadata alongside the layouts.
+That makes probe evidence auditable and safer to hand across process or repo boundaries.
 
 ## What Layouts Solve
 

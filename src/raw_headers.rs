@@ -678,7 +678,7 @@ impl HeaderConfig {
         }
     }
 
-    fn binding_target(&self) -> BindingTarget {
+    pub(crate) fn binding_target(&self) -> BindingTarget {
         let compiler_command = self.compiler_command();
         BindingTarget {
             target_triple: detect_target_triple(&compiler_command),
@@ -785,7 +785,7 @@ impl HeaderConfig {
         (command, args)
     }
 
-    fn compiler_command(&self) -> String {
+    pub(crate) fn compiler_command(&self) -> String {
         let flavor = self.flavor.unwrap_or(Flavor::GnuC11);
         self.compiler
             .clone()

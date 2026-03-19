@@ -3,11 +3,13 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::error::BicError;
-use crate::ir::TypeLayout;
+use crate::ir::{BindingTarget, TypeLayout};
 use crate::raw_headers::{Flavor, HeaderConfig};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AbiProbeReport {
+    #[serde(default)]
+    pub target: BindingTarget,
     pub compiler_command: String,
     pub entry_headers: Vec<String>,
     pub layouts: Vec<TypeLayout>,
@@ -83,6 +85,7 @@ pub fn probe_type_layouts(
     cleanup_probe_root(&temp_root);
 
     Ok(AbiProbeReport {
+        target: config.binding_target(),
         compiler_command: compiler,
         entry_headers: config
             .entry_headers
@@ -224,6 +227,8 @@ mod tests {
         )
         .unwrap();
 
+        assert_eq!(report.target.compiler_command.as_deref(), Some("gcc"));
+        assert_eq!(report.target.flavor.as_deref(), Some("gnu-c11"));
         assert_eq!(report.layouts.len(), 2);
         assert!(report.layouts.iter().any(|layout| {
             layout.name == "value_t" && layout.size >= 4 && layout.align >= 4
@@ -256,5 +261,28 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, BicError::InvalidConfig { .. }));
+    }
+
+    #[test]
+    fn probe_report_serialization_preserves_target_identity() {
+        let report = AbiProbeReport {
+            target: BindingTarget {
+                target_triple: Some("x86_64-unknown-linux-gnu".into()),
+                compiler_command: Some("clang".into()),
+                compiler_version: Some("clang 18.0.0".into()),
+                flavor: Some("clang-c11".into()),
+            },
+            compiler_command: "clang".into(),
+            entry_headers: vec!["demo.h".into()],
+            layouts: vec![TypeLayout {
+                name: "size_t".into(),
+                size: 8,
+                align: 8,
+            }],
+        };
+
+        let json = serde_json::to_string(&report).unwrap();
+        let decoded: AbiProbeReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, report);
     }
 }
