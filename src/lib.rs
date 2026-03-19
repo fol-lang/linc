@@ -520,6 +520,32 @@ mod integration_tests {
     }
 
     #[test]
+    fn typed_error_matrix_for_public_operations() {
+        let no_headers = HeaderConfig::new().process().unwrap_err();
+        assert!(matches!(no_headers, BicError::NoHeaders));
+
+        let probe_no_headers = probe_type_layouts(&HeaderConfig::new(), &["struct widget"])
+            .unwrap_err();
+        assert!(matches!(probe_no_headers, BicError::NoHeaders));
+
+        let probe_no_types = probe_type_layouts(
+            &HeaderConfig::new().header("demo.h"),
+            &[] as &[&str],
+        )
+        .unwrap_err();
+        assert!(matches!(probe_no_types, BicError::NoProbeTypes));
+
+        let symbol_read = inspect_symbols("/nonexistent/path.o").unwrap_err();
+        assert!(matches!(symbol_read, BicError::SymbolRead { .. }));
+
+        let future_schema = from_json(
+            r#"{"schema_version": 999, "bic_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#,
+        )
+        .unwrap_err();
+        assert!(matches!(future_schema, BicError::SchemaVersion { .. }));
+    }
+
+    #[test]
     fn contract_snapshot_simple_api_package_is_consumable() {
         let json = include_str!("../test/contracts/simple_api_package.json");
         let pkg = from_json(json).unwrap();
