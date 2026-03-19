@@ -24,6 +24,25 @@
 //! - treating best-effort extracted data as full ABI proof without checking diagnostics,
 //!   layouts, and validation evidence
 //!
+//! # Crate API Policy
+//!
+//! The current intended policy for the public crate surface is:
+//!
+//! - the crate root is the primary consumer entry point
+//! - public modules remain available for advanced use, but not all modules have the same
+//!   long-term stability expectations
+//! - additive API growth is preferred over disruptive surface churn within the current
+//!   compatibility line
+//! - typed data contracts and documented semantics are the preferred stability boundary
+//! - diagnostics and validation reports are part of the API contract, not incidental logs
+//!
+//! In practice, downstream users should optimize for:
+//!
+//! - root re-exports
+//! - documented container concepts
+//! - compatibility-tested JSON payloads
+//! - explicit validation and diagnostic handling
+//!
 //! # Public API Tiers
 //!
 //! The current library surface is intentionally split into practical stability tiers.

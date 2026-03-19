@@ -17,6 +17,18 @@ The intended downstream pattern is:
 
 Consumers should prefer the crate root over deep module imports whenever possible.
 
+## Crate API Policy
+
+The current intended crate policy is:
+
+- the crate root is the preferred consumer boundary
+- public modules may still be used directly, but module depth correlates with how implementation-shaped an API is
+- additive, documented evolution is preferred over disruptive surface churn
+- typed data contracts are more important than incidental formatting or helper layout
+- diagnostics and validation reports are contractual structured output, not just debugging aids
+
+This policy should guide both downstream usage and future maintenance work.
+
 ## Normative Rules For Consumers
 
 If you are building on top of `bic`, the current intended rules are:
