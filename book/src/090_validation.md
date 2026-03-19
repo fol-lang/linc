@@ -209,6 +209,9 @@ The report also exposes helper methods such as:
 - `duplicate_providers()`
 - `unresolved_declared()`
 
+The repository also keeps dedicated validation regression fixtures for ambiguous-provider cases so
+duplicate-provider evidence remains stable across JSON and API evolution.
+
 ## What Validation Does Not Prove
 
 Current validation is symbol-oriented, not full ABI-signature verification.

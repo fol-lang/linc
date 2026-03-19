@@ -823,6 +823,20 @@ mod tests {
     }
 
     #[test]
+    fn duplicate_provider_contract_fixture_is_consumable() {
+        let report: ValidationReport = serde_json::from_str(include_str!(
+            "../test/contracts/validation_duplicate_provider_report.json"
+        ))
+        .unwrap();
+        assert_eq!(report.summary.duplicate_providers, 1);
+        assert_eq!(report.matches[0].status, MatchStatus::DuplicateProviders);
+        assert_eq!(
+            report.entries[0].evidence.evidence_kind,
+            EvidenceKind::DuplicateVisibleProviders
+        );
+    }
+
+    #[test]
     fn validate_many_collects_provider_artifacts() {
         let pkg = make_package(&["foo", "bar"]);
         let inv1 = make_inventory(&["foo"], &[]);

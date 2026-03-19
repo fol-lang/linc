@@ -2,6 +2,7 @@ use bic::{
     from_json, resolve_link_plan_for_target, validate, AbiProbeReport, BindingItem,
     BindingPackage, BindingType, CallingConvention, FunctionBinding, LinkInput, LinkLibrary,
     LinkLibraryKind, LinkRequirementSource, MacroValue, ParameterBinding, SymbolInventory,
+    ValidationReport,
 };
 use bic::symbols::{ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform};
 
@@ -82,4 +83,15 @@ fn regression_probe_record_fixture_keeps_record_and_enum_metadata() {
     assert_eq!(report.subjects.len(), 2);
     assert_eq!(report.subjects[0].layout.name, "struct widget");
     assert_eq!(report.subjects[1].enum_underlying_size, Some(4));
+}
+
+#[test]
+fn regression_duplicate_provider_report_fixture_stays_consumable() {
+    let report: ValidationReport = serde_json::from_str(include_str!(
+        "../test/contracts/validation_duplicate_provider_report.json"
+    ))
+    .unwrap();
+    assert_eq!(report.summary.duplicate_providers, 1);
+    assert_eq!(report.duplicate_providers().len(), 1);
+    assert_eq!(report.entries[0].evidence.evidence_kind, bic::EvidenceKind::DuplicateVisibleProviders);
 }
