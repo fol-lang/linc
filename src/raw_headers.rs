@@ -139,6 +139,15 @@ impl HeaderConfig {
     ///   over the implicit default filter
     /// - explicit `compiler(...)` and `flavor(...)` values are reflected in the produced
     ///   package target metadata and probe/preprocess invocation
+    ///
+    /// For consumers that want to treat those subdomains explicitly without a full type split
+    /// yet, this API also exposes borrowed views via:
+    ///
+    /// - [`HeaderConfig::preprocessing`]
+    /// - [`HeaderConfig::binding_surface`]
+    /// - [`HeaderConfig::linking`]
+    /// - [`HeaderConfig::probing`]
+    /// - [`HeaderConfig::filtering`]
     pub fn new() -> Self {
         Self {
             entry_headers: Vec::new(),

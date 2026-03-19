@@ -24,6 +24,15 @@ For production use, it is better to think about `HeaderConfig` as five conceptua
 The implementation is still a single builder type.
 This categorization matters because future API cleanup work is likely to preserve these domains even if the concrete type layout changes.
 
+The current library API also exposes borrowed views for these domains, so downstream code can
+already treat them separately without waiting for a full type split:
+
+- `HeaderConfig::preprocessing()`
+- `HeaderConfig::binding_surface()`
+- `HeaderConfig::linking()`
+- `HeaderConfig::probing()`
+- `HeaderConfig::filtering()`
+
 ### 1. Preprocessing Inputs
 
 These options exist to make the header stack preprocess and parse correctly:
@@ -155,6 +164,9 @@ The most important builder methods are:
 | `origin_filter(f)` | Use a custom origin filter |
 | `no_origin_filter()` | Keep declarations from every origin |
 | `probe_type_layout(name)` | Request compiler-probed layout data |
+
+For downstream API design, it is often cleaner to inspect one of the borrowed domain views than
+to pass the full `HeaderConfig` everywhere.
 
 ## Entry Headers
 
