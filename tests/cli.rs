@@ -203,3 +203,53 @@ fn cli_validate_emits_validation_report_json() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn cli_link_plan_emits_link_surface_json() {
+    let dir = temp_dir("link_plan");
+    let bindings = dir.join("bindings.json");
+
+    std::fs::write(
+        &bindings,
+        serde_json::json!({
+            "schema_version": 1,
+            "bic_version": "0.1.0",
+            "target": {},
+            "inputs": {},
+            "macros": [],
+            "link": {
+                "include_paths": ["include"],
+                "library_paths": ["lib"],
+                "libraries": [
+                    { "name": "ssl", "kind": "Dynamic" }
+                ],
+                "artifacts": [
+                    { "path": "native/libcrypto.a", "kind": "StaticLibrary" }
+                ]
+            },
+            "source_path": "api.h",
+            "items": [],
+            "diagnostics": []
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_bic"))
+        .args(["link-plan", "--bindings-json", bindings.to_str().unwrap()])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "{:?}", output);
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(json["include_paths"][0], "include");
+    assert_eq!(json["library_paths"][0], "lib");
+    assert_eq!(json["libraries"][0]["name"], "ssl");
+    assert_eq!(json["libraries"][0]["kind"], "Dynamic");
+    assert_eq!(json["artifacts"][0]["path"], "native/libcrypto.a");
+    assert_eq!(json["artifacts"][0]["kind"], "StaticLibrary");
+
+    std::fs::remove_dir_all(&dir).ok();
+}

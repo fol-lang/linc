@@ -19,6 +19,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
         "scan-preprocessed" => run_scan_preprocessed(rest),
         "inspect-symbols" => run_inspect_symbols(rest),
         "validate" => run_validate(rest),
+        "link-plan" => run_link_plan(rest),
         "--help" | "-h" | "help" => {
             println!("{}", usage());
             Ok(())
@@ -209,6 +210,41 @@ fn run_validate(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+fn run_link_plan(args: &[String]) -> Result<(), String> {
+    let mut bindings_json: Option<PathBuf> = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--bindings-json" => {
+                i += 1;
+                bindings_json = Some(PathBuf::from(required_value(args, i, "--bindings-json")?));
+            }
+            "--help" | "-h" => {
+                println!("{}", usage());
+                return Ok(());
+            }
+            other => return Err(format!("unknown link-plan option '{other}'")),
+        }
+        i += 1;
+    }
+
+    let bindings_json =
+        bindings_json.ok_or_else(|| "link-plan requires --bindings-json".to_string())?;
+    let package_json = std::fs::read_to_string(&bindings_json).map_err(|e| {
+        format!(
+            "failed to read bindings json {}: {}",
+            bindings_json.display(),
+            e
+        )
+    })?;
+    let package = from_json(&package_json)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&package.link).map_err(|e| e.to_string())?
+    );
+    Ok(())
+}
+
 fn required_value<'a>(args: &'a [String], index: usize, flag: &str) -> Result<&'a str, String> {
     args.get(index)
         .map(|value| value.as_str())
@@ -247,6 +283,7 @@ fn usage() -> String {
         "  bic scan-preprocessed --file <path> [options]",
         "  bic inspect-symbols --file <path>",
         "  bic validate --bindings-json <path> --artifact <path>",
+        "  bic link-plan --bindings-json <path>",
         "",
         "scan options:",
         "  --header <path>",
@@ -274,6 +311,9 @@ fn usage() -> String {
         "validate options:",
         "  --bindings-json <path>",
         "  --artifact <path>",
+        "",
+        "link-plan options:",
+        "  --bindings-json <path>",
     ]
     .join("\n")
 }
