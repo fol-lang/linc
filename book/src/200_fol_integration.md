@@ -75,6 +75,14 @@ The current fixture tiers are:
 - an extended package fixture that exercises additive evidence such as macros, layouts, and link
   metadata
 
+The repository now also carries producer-side `fol` acceptance tests that exercise:
+
+- a live binding-scan flow serialized into a narrow consumer subset
+- a native validation plus link-plan flow serialized into a narrow consumer subset
+
+That keeps the generic library contract primary while still regression-testing the concrete `fol`
+integration profile.
+
 ## What `fol` Should Not Assume
 
 `fol` should not assume:
