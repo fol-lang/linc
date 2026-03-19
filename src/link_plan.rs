@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ir::{BindingPackage, LinkInput, LinkResolutionMode, NativeSurfaceKind};
+use crate::ir::{
+    BindingPackage, LinkInput, LinkRequirementSource, LinkResolutionMode, NativeSurfaceKind,
+};
 use crate::symbols::SymbolInventory;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -10,10 +12,17 @@ pub enum ProviderMatchKind {
     FrameworkName,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ProviderProvenance {
+    DeclaredArtifact,
+    DiscoveredInventory,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolvedProvider {
     pub artifact_path: String,
     pub match_kind: ProviderMatchKind,
+    pub provenance: ProviderProvenance,
     #[serde(default)]
     pub dependency_edges: Vec<String>,
 }
@@ -29,6 +38,8 @@ pub enum RequirementResolution {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolvedLinkRequirement {
     pub declared: LinkInput,
+    #[serde(default)]
+    pub source: LinkRequirementSource,
     #[serde(default)]
     pub resolution: RequirementResolution,
     #[serde(default)]
@@ -71,6 +82,7 @@ pub fn resolve_link_plan_with_inventories(
         .map(|declared| {
             let providers = matching_providers(&declared, inventories);
             ResolvedLinkRequirement {
+                source: declared_requirement_source(&declared),
                 resolution: match providers.len() {
                     0 => RequirementResolution::Unresolved,
                     1 => RequirementResolution::Resolved,
@@ -108,6 +120,7 @@ fn matching_providers(input: &LinkInput, inventories: &[SymbolInventory]) -> Vec
                 Some(ResolvedProvider {
                     artifact_path: inventory.artifact_path.clone(),
                     match_kind: ProviderMatchKind::ExactArtifact,
+                    provenance: ProviderProvenance::DeclaredArtifact,
                     dependency_edges: inventory.dependency_edges.clone(),
                 })
             }
@@ -115,6 +128,7 @@ fn matching_providers(input: &LinkInput, inventories: &[SymbolInventory]) -> Vec
                 Some(ResolvedProvider {
                     artifact_path: inventory.artifact_path.clone(),
                     match_kind: ProviderMatchKind::LibraryName,
+                    provenance: ProviderProvenance::DiscoveredInventory,
                     dependency_edges: inventory.dependency_edges.clone(),
                 })
             }
@@ -124,12 +138,21 @@ fn matching_providers(input: &LinkInput, inventories: &[SymbolInventory]) -> Vec
                 Some(ResolvedProvider {
                     artifact_path: inventory.artifact_path.clone(),
                     match_kind: ProviderMatchKind::FrameworkName,
+                    provenance: ProviderProvenance::DiscoveredInventory,
                     dependency_edges: inventory.dependency_edges.clone(),
                 })
             }
             _ => None,
         })
         .collect()
+}
+
+fn declared_requirement_source(input: &LinkInput) -> LinkRequirementSource {
+    match input {
+        LinkInput::Library(library) => library.source,
+        LinkInput::Artifact(artifact) => artifact.source,
+        LinkInput::Framework(framework) => framework.source,
+    }
 }
 
 fn inventory_matches_library_name(path: &str, name: &str) -> bool {
@@ -191,6 +214,11 @@ mod tests {
         assert!(
             plan.requirements
                 .iter()
+                .all(|req| req.source == LinkRequirementSource::Declared)
+        );
+        assert!(
+            plan.requirements
+                .iter()
                 .all(|req| req.resolution == RequirementResolution::Unresolved)
         );
     }
@@ -243,14 +271,23 @@ mod tests {
         let plan = resolve_link_plan_with_inventories(&package, &inventories);
         assert_eq!(plan.requirements.len(), 2);
         assert_eq!(plan.requirements[0].providers.len(), 1);
+        assert_eq!(plan.requirements[0].source, LinkRequirementSource::Declared);
         assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
         assert_eq!(plan.requirements[0].providers[0].match_kind, ProviderMatchKind::LibraryName);
+        assert_eq!(
+            plan.requirements[0].providers[0].provenance,
+            ProviderProvenance::DiscoveredInventory
+        );
         assert_eq!(
             plan.requirements[0].providers[0].dependency_edges,
             vec!["libc.so.6".to_string()]
         );
         assert_eq!(plan.requirements[1].providers.len(), 1);
         assert_eq!(plan.requirements[1].resolution, RequirementResolution::Resolved);
+        assert_eq!(
+            plan.requirements[1].providers[0].provenance,
+            ProviderProvenance::DeclaredArtifact
+        );
         assert_eq!(
             plan.requirements[1].providers[0].match_kind,
             ProviderMatchKind::ExactArtifact

@@ -200,3 +200,9 @@ The requirement resolution state is explicit:
 When providers come from inspected shared libraries, their dependency edges are also preserved in
 the plan so downstream tooling can see the current known transitive native surface without losing
 the distinction between declared requirements and discovered dependency evidence.
+
+Requirement and provider provenance are also preserved explicitly:
+
+- requirement source stays attached from the declared package metadata
+- provider provenance distinguishes exact declared-artifact matches from discovered inventory-based
+  matches
