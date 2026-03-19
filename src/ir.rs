@@ -258,46 +258,70 @@ impl BindingPackage {
         self.items.len()
     }
 
+    pub fn functions(&self) -> impl Iterator<Item = &FunctionBinding> {
+        self.items.iter().filter_map(|item| match item {
+            BindingItem::Function(function) => Some(function),
+            _ => None,
+        })
+    }
+
+    pub fn records(&self) -> impl Iterator<Item = &RecordBinding> {
+        self.items.iter().filter_map(|item| match item {
+            BindingItem::Record(record) => Some(record),
+            _ => None,
+        })
+    }
+
+    pub fn enums(&self) -> impl Iterator<Item = &EnumBinding> {
+        self.items.iter().filter_map(|item| match item {
+            BindingItem::Enum(enum_binding) => Some(enum_binding),
+            _ => None,
+        })
+    }
+
+    pub fn type_aliases(&self) -> impl Iterator<Item = &TypeAliasBinding> {
+        self.items.iter().filter_map(|item| match item {
+            BindingItem::TypeAlias(type_alias) => Some(type_alias),
+            _ => None,
+        })
+    }
+
+    pub fn variables(&self) -> impl Iterator<Item = &VariableBinding> {
+        self.items.iter().filter_map(|item| match item {
+            BindingItem::Variable(variable) => Some(variable),
+            _ => None,
+        })
+    }
+
+    pub fn unsupported_items(&self) -> impl Iterator<Item = &UnsupportedItem> {
+        self.items.iter().filter_map(|item| match item {
+            BindingItem::Unsupported(unsupported) => Some(unsupported),
+            _ => None,
+        })
+    }
+
     pub fn function_count(&self) -> usize {
-        self.items
-            .iter()
-            .filter(|item| matches!(item, BindingItem::Function(_)))
-            .count()
+        self.functions().count()
     }
 
     pub fn record_count(&self) -> usize {
-        self.items
-            .iter()
-            .filter(|item| matches!(item, BindingItem::Record(_)))
-            .count()
+        self.records().count()
     }
 
     pub fn enum_count(&self) -> usize {
-        self.items
-            .iter()
-            .filter(|item| matches!(item, BindingItem::Enum(_)))
-            .count()
+        self.enums().count()
     }
 
     pub fn type_alias_count(&self) -> usize {
-        self.items
-            .iter()
-            .filter(|item| matches!(item, BindingItem::TypeAlias(_)))
-            .count()
+        self.type_aliases().count()
     }
 
     pub fn variable_count(&self) -> usize {
-        self.items
-            .iter()
-            .filter(|item| matches!(item, BindingItem::Variable(_)))
-            .count()
+        self.variables().count()
     }
 
     pub fn unsupported_count(&self) -> usize {
-        self.items
-            .iter()
-            .filter(|item| matches!(item, BindingItem::Unsupported(_)))
-            .count()
+        self.unsupported_items().count()
     }
 }
 
@@ -537,6 +561,69 @@ mod tests {
         assert_eq!(pkg.type_alias_count(), 1);
         assert_eq!(pkg.variable_count(), 1);
         assert_eq!(pkg.unsupported_count(), 1);
+    }
+
+    #[test]
+    fn binding_package_typed_iterators_filter_by_kind() {
+        let mut pkg = BindingPackage::new();
+        pkg.items.push(BindingItem::Function(FunctionBinding {
+            name: "malloc".into(),
+            calling_convention: CallingConvention::C,
+            parameters: Vec::new(),
+            return_type: BindingType::ptr(BindingType::Void),
+            variadic: false,
+            source_offset: Some(1),
+        }));
+        pkg.items.push(BindingItem::Record(RecordBinding {
+            kind: RecordKind::Struct,
+            name: Some("point".into()),
+            fields: None,
+            source_offset: Some(2),
+        }));
+        pkg.items.push(BindingItem::Enum(EnumBinding {
+            name: Some("mode".into()),
+            variants: vec![EnumVariant {
+                name: "MODE_A".into(),
+                value: Some(0),
+            }],
+            source_offset: Some(3),
+        }));
+        pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
+            name: "size_t".into(),
+            target: BindingType::ULong,
+            source_offset: Some(4),
+        }));
+        pkg.items.push(BindingItem::Variable(VariableBinding {
+            name: "errno".into(),
+            ty: BindingType::Int,
+            source_offset: Some(5),
+        }));
+        pkg.items.push(BindingItem::Unsupported(UnsupportedItem {
+            name: Some("flags".into()),
+            reason: "bitfield".into(),
+            source_offset: Some(6),
+        }));
+
+        assert_eq!(pkg.functions().map(|item| item.name.as_str()).collect::<Vec<_>>(), vec!["malloc"]);
+        assert_eq!(
+            pkg.records().map(|item| item.name.as_deref()).collect::<Vec<_>>(),
+            vec![Some("point")]
+        );
+        assert_eq!(pkg.enums().map(|item| item.name.as_deref()).collect::<Vec<_>>(), vec![Some("mode")]);
+        assert_eq!(
+            pkg.type_aliases().map(|item| item.name.as_str()).collect::<Vec<_>>(),
+            vec!["size_t"]
+        );
+        assert_eq!(
+            pkg.variables().map(|item| item.name.as_str()).collect::<Vec<_>>(),
+            vec!["errno"]
+        );
+        assert_eq!(
+            pkg.unsupported_items()
+                .map(|item| item.reason.as_str())
+                .collect::<Vec<_>>(),
+            vec!["bitfield"]
+        );
     }
 
     #[test]
