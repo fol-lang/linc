@@ -23,3 +23,4 @@
 - [Macro Semantics](./210_macro_semantics.md)
 - [Support Tiers](./220_support_tiers.md)
 - [Unsupported Cases](./230_unsupported_cases.md)
+- [`fol` Minimal Contract](./240_fol_minimal_contract.md)
