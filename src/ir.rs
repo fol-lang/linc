@@ -300,6 +300,31 @@ impl BindingPackage {
         })
     }
 
+    pub fn find_function(&self, name: &str) -> Option<&FunctionBinding> {
+        self.functions().find(|item| item.name == name)
+    }
+
+    pub fn find_record(&self, name: &str) -> Option<&RecordBinding> {
+        self.records().find(|item| item.name.as_deref() == Some(name))
+    }
+
+    pub fn find_enum(&self, name: &str) -> Option<&EnumBinding> {
+        self.enums().find(|item| item.name.as_deref() == Some(name))
+    }
+
+    pub fn find_type_alias(&self, name: &str) -> Option<&TypeAliasBinding> {
+        self.type_aliases().find(|item| item.name == name)
+    }
+
+    pub fn find_variable(&self, name: &str) -> Option<&VariableBinding> {
+        self.variables().find(|item| item.name == name)
+    }
+
+    pub fn find_unsupported(&self, name: &str) -> Option<&UnsupportedItem> {
+        self.unsupported_items()
+            .find(|item| item.name.as_deref() == Some(name))
+    }
+
     pub fn function_count(&self) -> usize {
         self.functions().count()
     }
@@ -624,6 +649,68 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["bitfield"]
         );
+    }
+
+    #[test]
+    fn binding_package_lookup_helpers_find_named_items() {
+        let mut pkg = BindingPackage::new();
+        pkg.items.push(BindingItem::Function(FunctionBinding {
+            name: "malloc".into(),
+            calling_convention: CallingConvention::C,
+            parameters: Vec::new(),
+            return_type: BindingType::ptr(BindingType::Void),
+            variadic: false,
+            source_offset: Some(1),
+        }));
+        pkg.items.push(BindingItem::Record(RecordBinding {
+            kind: RecordKind::Struct,
+            name: Some("point".into()),
+            fields: None,
+            source_offset: Some(2),
+        }));
+        pkg.items.push(BindingItem::Enum(EnumBinding {
+            name: Some("mode".into()),
+            variants: vec![EnumVariant {
+                name: "MODE_A".into(),
+                value: Some(0),
+            }],
+            source_offset: Some(3),
+        }));
+        pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
+            name: "size_t".into(),
+            target: BindingType::ULong,
+            source_offset: Some(4),
+        }));
+        pkg.items.push(BindingItem::Variable(VariableBinding {
+            name: "errno".into(),
+            ty: BindingType::Int,
+            source_offset: Some(5),
+        }));
+        pkg.items.push(BindingItem::Unsupported(UnsupportedItem {
+            name: Some("flags".into()),
+            reason: "bitfield".into(),
+            source_offset: Some(6),
+        }));
+
+        assert_eq!(pkg.find_function("malloc").map(|item| item.name.as_str()), Some("malloc"));
+        assert_eq!(pkg.find_record("point").and_then(|item| item.name.as_deref()), Some("point"));
+        assert_eq!(pkg.find_enum("mode").and_then(|item| item.name.as_deref()), Some("mode"));
+        assert_eq!(
+            pkg.find_type_alias("size_t").map(|item| item.name.as_str()),
+            Some("size_t")
+        );
+        assert_eq!(pkg.find_variable("errno").map(|item| item.name.as_str()), Some("errno"));
+        assert_eq!(
+            pkg.find_unsupported("flags").and_then(|item| item.name.as_deref()),
+            Some("flags")
+        );
+
+        assert!(pkg.find_function("calloc").is_none());
+        assert!(pkg.find_record("vector").is_none());
+        assert!(pkg.find_enum("MODE_B").is_none());
+        assert!(pkg.find_type_alias("ssize_t").is_none());
+        assert!(pkg.find_variable("stdin").is_none());
+        assert!(pkg.find_unsupported("padding").is_none());
     }
 
     #[test]
