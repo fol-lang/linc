@@ -170,6 +170,11 @@ Current values distinguish:
 - plain missing providers
 - wrong-kind providers
 
+`ReexportedCandidate` can now come from either:
+
+- a broad artifact-level dependency signal
+- a symbol-local imported entry that carries `reexported_via`
+
 ## How To Read A Report
 
 The most important first pass is:

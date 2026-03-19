@@ -232,8 +232,21 @@ pub fn validate_many(
                     .map(move |symbol| (inventory, symbol))
             })
             .collect();
+        let imported_candidates: Vec<_> = inventories
+            .iter()
+            .flat_map(|inventory| {
+                inventory
+                    .symbols
+                    .iter()
+                    .filter(move |symbol| {
+                        symbol.name == *name && symbol.direction == SymbolDirection::Imported
+                    })
+                    .map(move |symbol| (inventory, symbol))
+            })
+            .collect();
         let raw_symbol_names = candidates
             .iter()
+            .chain(imported_candidates.iter())
             .chain(decorated_candidates.iter())
             .filter_map(|(_, symbol)| symbol.raw_name.clone())
             .collect::<Vec<_>>();
@@ -310,13 +323,28 @@ pub fn validate_many(
             MatchStatus::DecorationMismatch => EvidenceKind::DecoratedCandidate,
             MatchStatus::DuplicateProviders => EvidenceKind::DuplicateVisibleProviders,
             MatchStatus::UnresolvedDeclaredLinkInputs => {
-                if inventories.iter().any(|inventory| !inventory.dependency_edges.is_empty()) {
+                if imported_candidates
+                    .iter()
+                    .any(|(_, symbol)| !symbol.reexported_via.is_empty())
+                    || inventories
+                        .iter()
+                        .any(|inventory| !inventory.dependency_edges.is_empty())
+                {
                     EvidenceKind::ReexportedCandidate
                 } else {
                     EvidenceKind::DeclaredLinkInputsWithoutProvider
                 }
             }
-            MatchStatus::Missing => EvidenceKind::MissingProvider,
+            MatchStatus::Missing => {
+                if imported_candidates
+                    .iter()
+                    .any(|(_, symbol)| !symbol.reexported_via.is_empty())
+                {
+                    EvidenceKind::ReexportedCandidate
+                } else {
+                    EvidenceKind::MissingProvider
+                }
+            }
             MatchStatus::NotAFunction | MatchStatus::NotAVariable => EvidenceKind::KindMismatch,
         };
 
@@ -442,6 +470,7 @@ mod tests {
                 raw_name: None,
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: vis.clone(),
                 is_function: *is_func,
                 binding: SymbolBinding::Global,
@@ -590,6 +619,7 @@ mod tests {
                 raw_name: Some("_foo".into()),
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -645,6 +675,7 @@ mod tests {
                 raw_name: Some("puts".into()),
                 version: Some("GLIBC_2.2.5".into()),
                 direction: SymbolDirection::Imported,
+                reexported_via: vec!["libc.so.6".into()],
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -656,6 +687,7 @@ mod tests {
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::Missing);
+        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::ReexportedCandidate);
     }
 
     #[test]
@@ -735,6 +767,7 @@ mod tests {
                 raw_name: Some("_foo".into()),
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -776,6 +809,7 @@ mod tests {
                 raw_name: None,
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Weak,
@@ -819,6 +853,46 @@ mod tests {
     }
 
     #[test]
+    fn symbol_specific_imported_candidate_marks_unresolved_as_reexported() {
+        let mut pkg = make_package(&["foo"]);
+        pkg.link.libraries.push(LinkLibrary {
+            name: "demo".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        });
+
+        let inv = SymbolInventory {
+            artifact_path: "libdemo.so".into(),
+            format: ArtifactFormat::ElfSharedLibrary,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::SharedLibrary,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: true,
+            },
+            dependency_edges: vec!["libdep.so".into()],
+            symbols: vec![SymbolEntry {
+                name: "foo".into(),
+                raw_name: Some("foo".into()),
+                version: None,
+                direction: SymbolDirection::Imported,
+                reexported_via: vec!["libdep.so".into()],
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
+                archive_member: None,
+            }],
+        };
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches[0].status, MatchStatus::UnresolvedDeclaredLinkInputs);
+        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::ReexportedCandidate);
+        assert_eq!(report.entries[0].evidence.raw_symbol_names, vec!["foo"]);
+    }
+
+    #[test]
     fn report_summary_and_query_helpers_track_statuses() {
         let pkg = make_package(&["foo", "bar", "baz"]);
         let inv = SymbolInventory {
@@ -837,6 +911,7 @@ mod tests {
                     raw_name: None,
                     version: None,
                     direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -849,6 +924,7 @@ mod tests {
                     raw_name: None,
                     version: None,
                     direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Weak,
@@ -902,6 +978,7 @@ mod tests {
                 raw_name: Some("bar".into()),
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -939,6 +1016,7 @@ mod tests {
                 raw_name: Some("foo".into()),
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -962,6 +1040,7 @@ mod tests {
                 raw_name: Some("foo".into()),
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -1063,6 +1142,7 @@ mod tests {
                 raw_name: None,
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Weak,

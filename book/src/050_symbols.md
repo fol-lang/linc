@@ -66,6 +66,7 @@ Each `SymbolEntry` carries:
 - optional `size`
 - optional `section`
 - optional `archive_member`
+- optional `reexported_via`
 
 ### Normalized vs Raw Name
 
@@ -110,6 +111,11 @@ Example values might look like:
 - `libm.so.6`
 - `libc.so.6`
 - `libz.so.1`
+
+When `bic` sees imported symbols inside a shared library or executable, it also preserves
+symbol-local `reexported_via` evidence using those dependency edges. That is still an inference
+layer, not proof of a platform loader decision, but it is much stronger than a plain artifact-wide
+"this file has dependencies" signal.
 
 ## Platform Behavior Notes
 

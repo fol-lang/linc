@@ -97,6 +97,8 @@ pub struct SymbolEntry {
     pub version: Option<String>,
     #[serde(default = "default_symbol_direction")]
     pub direction: SymbolDirection,
+    #[serde(default)]
+    pub reexported_via: Vec<String>,
     pub visibility: SymbolVisibility,
     pub is_function: bool,
     pub binding: SymbolBinding,
@@ -160,14 +162,16 @@ pub fn inspect_bytes(data: &[u8], artifact_path: String) -> Result<SymbolInvento
         })?;
 
     let format = classify_format(&obj);
-    let symbols = extract_symbols_from_object(&obj);
+    let mut symbols = extract_symbols_from_object(&obj);
     let dependency_edges = detect_dependency_edges(&artifact_path, &obj);
+    attach_reexport_candidates(&mut symbols, &dependency_edges, classify_kind(&obj));
+    let kind = classify_kind(&obj);
 
     Ok(SymbolInventory {
         artifact_path,
         format,
         platform: classify_platform(&obj),
-        kind: classify_kind(&obj),
+        kind,
         capabilities: classify_capabilities(&obj),
         dependency_edges,
         symbols,
@@ -446,6 +450,7 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
             raw_name: Some(raw_name.to_string()),
             version,
             direction,
+            reexported_via: Vec::new(),
             visibility,
             is_function,
             binding,
@@ -468,6 +473,24 @@ fn should_capture_symbol(
         SymbolDirection::Imported => {
             matches!(kind, object::ObjectKind::Dynamic | object::ObjectKind::Executable)
                 && sym.is_global()
+        }
+    }
+}
+
+fn attach_reexport_candidates(
+    symbols: &mut [SymbolEntry],
+    dependency_edges: &[String],
+    kind: ArtifactKind,
+) {
+    if !matches!(kind, ArtifactKind::SharedLibrary | ArtifactKind::Executable)
+        || dependency_edges.is_empty()
+    {
+        return;
+    }
+
+    for symbol in symbols {
+        if symbol.direction == SymbolDirection::Imported {
+            symbol.reexported_via = dependency_edges.to_vec();
         }
     }
 }
@@ -833,6 +856,7 @@ mod tests {
                     raw_name: None,
                     version: None,
                     direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -845,6 +869,7 @@ mod tests {
                     raw_name: None,
                     version: None,
                     direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
                     visibility: SymbolVisibility::Default,
                     is_function: false,
                     binding: SymbolBinding::Global,
@@ -877,6 +902,7 @@ mod tests {
                     raw_name: None,
                     version: None,
                     direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -889,6 +915,7 @@ mod tests {
                     raw_name: None,
                     version: None,
                     direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
                     visibility: SymbolVisibility::Default,
                     is_function: false,
                     binding: SymbolBinding::Global,
@@ -901,6 +928,7 @@ mod tests {
                     raw_name: None,
                     version: None,
                     direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -931,6 +959,7 @@ mod tests {
                 raw_name: Some("foo_init".into()),
                 version: None,
                 direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -987,6 +1016,7 @@ mod tests {
             raw_name: Some("__imp_demo_init".into()),
             version: None,
             direction: SymbolDirection::Imported,
+            reexported_via: Vec::new(),
             visibility: SymbolVisibility::Unknown,
             is_function: true,
             binding: SymbolBinding::Unknown,
@@ -1088,6 +1118,47 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 "#,
         );
         assert_eq!(parsed, vec!["libm.so.6".to_string(), "libc.so.6".to_string()]);
+    }
+
+    #[test]
+    fn attach_reexport_candidates_marks_imported_symbols_on_shared_artifacts() {
+        let mut symbols = vec![
+            SymbolEntry {
+                name: "demo_init".into(),
+                raw_name: Some("demo_init".into()),
+                version: None,
+                direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: Some(32),
+                section: Some(".text".into()),
+                archive_member: None,
+            },
+            SymbolEntry {
+                name: "puts".into(),
+                raw_name: Some("puts".into()),
+                version: Some("GLIBC_2.2.5".into()),
+                direction: SymbolDirection::Imported,
+                reexported_via: Vec::new(),
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
+                archive_member: None,
+            },
+        ];
+
+        attach_reexport_candidates(
+            &mut symbols,
+            &["libc.so.6".into(), "libm.so.6".into()],
+            ArtifactKind::SharedLibrary,
+        );
+
+        assert!(symbols[0].reexported_via.is_empty());
+        assert_eq!(symbols[1].reexported_via, vec!["libc.so.6", "libm.so.6"]);
     }
 
     #[test]
