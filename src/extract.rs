@@ -1,7 +1,7 @@
 use pac::ast::*;
 use pac::span::Node;
 
-use crate::diagnostics::Diagnostic;
+use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::ir::*;
 
 pub struct Extractor {
@@ -87,6 +87,29 @@ impl Extractor {
         let name = self.declarator_name(&fdef.declarator.node);
         let Some(name) = name else { return };
 
+        let is_static = fdef.specifiers.iter().any(|s| {
+            matches!(
+                s.node,
+                DeclarationSpecifier::StorageClass(ref sc)
+                    if sc.node == StorageClassSpecifier::Static
+            )
+        });
+        if is_static {
+            self.diagnostics.push(
+                Diagnostic::warning(
+                    DiagnosticKind::DeclarationUnsupported,
+                    format!("static function '{}' not bindable", name),
+                )
+                .with_item(&name)
+                .with_location(None, offset),
+            );
+            return;
+        }
+
+        self.emit_extension_diagnostics(&fdef.declarator.node.extensions, &name, offset);
+        self.emit_specifier_diagnostics(&fdef.specifiers, &name, offset);
+        self.emit_derived_diagnostics(&fdef.declarator.node, &name, offset);
+
         let base_ty = self.resolve_base_type(&fdef.specifiers);
         let base_is_const = self.has_const_qualifier(&fdef.specifiers);
         let (mut return_type, params, variadic) =
@@ -159,6 +182,10 @@ impl Extractor {
             Some(n) => n,
             None => return,
         };
+
+        self.emit_extension_diagnostics(&declarator.extensions, &name, offset);
+        self.emit_specifier_diagnostics(specifiers, &name, offset);
+        self.emit_derived_diagnostics(declarator, &name, offset);
 
         let base_ty = self.resolve_base_type(specifiers);
         let base_is_const = self.has_const_qualifier(specifiers);
@@ -275,6 +302,18 @@ impl Extractor {
                 .declarator
                 .as_ref()
                 .and_then(|d| self.declarator_name(&d.node));
+
+            if sd.node.bit_width.is_some() {
+                let field_name = name.as_deref().unwrap_or("<anonymous>");
+                self.diagnostics.push(
+                    Diagnostic::warning(
+                        DiagnosticKind::DeclarationPartial,
+                        format!("bitfield width ignored on field '{}'", field_name),
+                    )
+                    .with_item(field_name),
+                );
+            }
+
             let mut ty = match &sd.node.declarator {
                 Some(d) => self.apply_derived_type(
                     self.resolve_base_type_from_type_specs(&base_type_specs),
@@ -372,6 +411,12 @@ impl Extractor {
                 }
                 TypeSpecifier::TypedefName(id) => {
                     return BindingType::TypedefRef(id.node.name.clone());
+                }
+                TypeSpecifier::Complex => {
+                    return BindingType::Opaque("_Complex".into());
+                }
+                TypeSpecifier::TypeOf(_) => {
+                    return BindingType::Opaque("typeof".into());
                 }
                 _ => {}
             }
@@ -674,6 +719,118 @@ impl Extractor {
             DeclaratorKind::Identifier(id) => Some(id.node.name.clone()),
             DeclaratorKind::Declarator(inner) => self.declarator_name(&inner.node),
             DeclaratorKind::Abstract => None,
+        }
+    }
+
+    fn emit_specifier_diagnostics(
+        &mut self,
+        specifiers: &[Node<DeclarationSpecifier>],
+        item_name: &str,
+        offset: usize,
+    ) {
+        for spec in specifiers {
+            match &spec.node {
+                DeclarationSpecifier::TypeSpecifier(ts) => match &ts.node {
+                    TypeSpecifier::Complex => {
+                        self.diagnostics.push(
+                            Diagnostic::warning(
+                                DiagnosticKind::DeclarationUnsupported,
+                                format!("_Complex type not supported on '{}'", item_name),
+                            )
+                            .with_item(item_name)
+                            .with_location(None, offset),
+                        );
+                    }
+                    TypeSpecifier::TypeOf(_) => {
+                        self.diagnostics.push(
+                            Diagnostic::warning(
+                                DiagnosticKind::DeclarationPartial,
+                                format!("typeof not resolved on '{}'", item_name),
+                            )
+                            .with_item(item_name)
+                            .with_location(None, offset),
+                        );
+                    }
+                    _ => {}
+                },
+                DeclarationSpecifier::TypeQualifier(tq) => {
+                    if tq.node == TypeQualifier::Atomic {
+                        self.diagnostics.push(
+                            Diagnostic::warning(
+                                DiagnosticKind::DeclarationPartial,
+                                format!("_Atomic qualifier ignored on '{}'", item_name),
+                            )
+                            .with_item(item_name)
+                            .with_location(None, offset),
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn emit_derived_diagnostics(
+        &mut self,
+        declarator: &Declarator,
+        item_name: &str,
+        offset: usize,
+    ) {
+        for derived in &declarator.derived {
+            match &derived.node {
+                DerivedDeclarator::KRFunction(_) => {
+                    self.diagnostics.push(
+                        Diagnostic::warning(
+                            DiagnosticKind::DeclarationUnsupported,
+                            format!("K&R function declaration on '{}'", item_name),
+                        )
+                        .with_item(item_name)
+                        .with_location(None, offset),
+                    );
+                }
+                DerivedDeclarator::Block(_) => {
+                    self.diagnostics.push(
+                        Diagnostic::warning(
+                            DiagnosticKind::DeclarationUnsupported,
+                            format!("block pointer not supported on '{}'", item_name),
+                        )
+                        .with_item(item_name)
+                        .with_location(None, offset),
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn emit_extension_diagnostics(
+        &mut self,
+        extensions: &[Node<pac::ast::Extension>],
+        item_name: &str,
+        offset: usize,
+    ) {
+        if extensions.is_empty() {
+            return;
+        }
+        let attr_names: Vec<String> = extensions
+            .iter()
+            .filter_map(|e| match &e.node {
+                pac::ast::Extension::Attribute(a) => Some(a.name.node.clone()),
+                pac::ast::Extension::AsmLabel(_) => Some("asm_label".into()),
+                pac::ast::Extension::AvailabilityAttribute(_) => {
+                    Some("availability".into())
+                }
+            })
+            .collect();
+        if !attr_names.is_empty() {
+            self.diagnostics.push(
+                Diagnostic::warning(
+                    DiagnosticKind::DeclarationPartial,
+                    format!("attributes ignored: {}", attr_names.join(", ")),
+                )
+                .with_item(item_name)
+                .with_location(None, offset),
+            );
         }
     }
 }
@@ -1036,6 +1193,52 @@ mod tests {
         let fields = records[0].fields.as_ref().unwrap();
         assert_eq!(fields[0].ty, BindingType::const_ptr(BindingType::Char));
         assert_eq!(fields[1].ty, BindingType::ptr(BindingType::Int));
+    }
+
+    #[test]
+    fn diag_bitfield_warning() {
+        let pkg = extract("struct s { int x : 3; int y; };");
+        assert_eq!(pkg.diagnostics.len(), 1);
+        assert_eq!(pkg.diagnostics[0].kind, DiagnosticKind::DeclarationPartial);
+        assert!(pkg.diagnostics[0].message.contains("bitfield"));
+        assert_eq!(pkg.diagnostics[0].item_name.as_deref(), Some("x"));
+    }
+
+    #[test]
+    fn diag_static_function_unsupported() {
+        let pkg = extract("static int helper(void) { return 0; }");
+        // Static function should not produce a BindingItem::Function
+        let funcs: Vec<_> = pkg
+            .items
+            .iter()
+            .filter(|i| matches!(i, BindingItem::Function(_)))
+            .collect();
+        assert!(funcs.is_empty());
+        assert_eq!(pkg.diagnostics.len(), 1);
+        assert_eq!(
+            pkg.diagnostics[0].kind,
+            DiagnosticKind::DeclarationUnsupported
+        );
+        assert!(pkg.diagnostics[0].message.contains("static"));
+    }
+
+    #[test]
+    fn diag_atomic_qualifier() {
+        let pkg = extract("_Atomic int counter(void);");
+        let atomics: Vec<_> = pkg
+            .diagnostics
+            .iter()
+            .filter(|d| d.message.contains("_Atomic"))
+            .collect();
+        assert_eq!(atomics.len(), 1);
+        assert_eq!(atomics[0].kind, DiagnosticKind::DeclarationPartial);
+    }
+
+    #[test]
+    fn diag_diagnostics_count_by_kind() {
+        let pkg = extract("struct s { int a : 1; int b : 2; };");
+        let counts = pkg.diagnostics_count_by_kind();
+        assert_eq!(counts.get("DeclarationPartial"), Some(&2));
     }
 
     #[test]

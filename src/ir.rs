@@ -25,6 +25,17 @@ impl Default for BindingPackage {
     }
 }
 
+impl BindingPackage {
+    pub fn diagnostics_count_by_kind(&self) -> std::collections::HashMap<String, usize> {
+        let mut counts = std::collections::HashMap::new();
+        for d in &self.diagnostics {
+            let key = format!("{:?}", d.kind);
+            *counts.entry(key).or_insert(0) += 1;
+        }
+        counts
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingItem {
     Function(FunctionBinding),
