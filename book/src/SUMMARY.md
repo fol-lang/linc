@@ -20,3 +20,4 @@
 - [Platform Support](./180_platform_support.md)
 - [Stable Usage Patterns](./190_stable_usage_patterns.md)
 - [`fol` Integration Guide](./200_fol_integration.md)
+- [Macro Semantics](./210_macro_semantics.md)
