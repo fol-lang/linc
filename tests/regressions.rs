@@ -481,6 +481,23 @@ fn regression_macos_artifact_fixture_stays_consumable() {
 }
 
 #[test]
+fn regression_macos_dylib_mixed_fixture_preserves_imported_and_exported_symbols() {
+    let inventory: SymbolInventory = serde_json::from_str(include_str!(
+        "../test/contracts/macos_macho_dylib_mixed_fixture.json"
+    ))
+    .unwrap();
+    assert_eq!(inventory.platform, ArtifactPlatform::MachO);
+    assert_eq!(inventory.format, ArtifactFormat::MachODylib);
+    assert_eq!(inventory.dependency_edges, vec!["/usr/lib/libSystem.B.dylib"]);
+    assert_eq!(inventory.symbols[0].raw_name.as_deref(), Some("_widget_init"));
+    assert_eq!(inventory.symbols[1].direction, bic::SymbolDirection::Imported);
+    assert_eq!(
+        inventory.symbols[1].reexported_via,
+        vec!["/usr/lib/libSystem.B.dylib"]
+    );
+}
+
+#[test]
 fn regression_windows_artifact_fixture_stays_consumable() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
         "../test/contracts/windows_coff_inventory_fixture.json"
