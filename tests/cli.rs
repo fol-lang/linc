@@ -477,6 +477,76 @@ fn cli_validate_reports_unresolved_declared_link_inputs() {
 }
 
 #[test]
+fn cli_validate_reports_decoration_mismatch() {
+    let dir = temp_dir("validate_decor");
+    let bindings = dir.join("bindings.json");
+    let c_path = dir.join("lib.c");
+    let o_path = dir.join("lib.o");
+
+    std::fs::write(
+        &bindings,
+        serde_json::json!({
+            "schema_version": 1,
+            "bic_version": "0.1.0",
+            "target": {},
+            "inputs": {},
+            "link": {},
+            "source_path": "api.h",
+            "items": [
+                {
+                    "Function": {
+                        "name": "foo",
+                        "calling_convention": "C",
+                        "parameters": [],
+                        "return_type": "Int",
+                        "variadic": false,
+                        "source_offset": null
+                    }
+                }
+            ],
+            "diagnostics": []
+        })
+        .to_string(),
+    )
+    .unwrap();
+    std::fs::write(
+        &c_path,
+        "int foo(void) __asm__(\"_foo\");\nint foo(void) { return 7; }\n",
+    )
+    .unwrap();
+
+    let status = Command::new("cc")
+        .args(["-c", "-o"])
+        .arg(&o_path)
+        .arg(&c_path)
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_bic"))
+        .args([
+            "validate",
+            "--bindings-json",
+            bindings.to_str().unwrap(),
+            "--artifact",
+            o_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "{:?}", output);
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let matches = json["matches"].as_array().unwrap();
+    assert!(matches.iter().any(|entry| {
+        entry["name"] == "foo" && entry["status"] == "DecorationMismatch"
+    }));
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn cli_link_plan_emits_link_surface_json() {
     let dir = temp_dir("link_plan");
     let bindings = dir.join("bindings.json");

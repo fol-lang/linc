@@ -14,6 +14,7 @@ pub enum MatchStatus {
     Matched,
     Missing,
     UnresolvedDeclaredLinkInputs,
+    DecorationMismatch,
     NotAFunction,
     NotAVariable,
     Hidden,
@@ -99,6 +100,24 @@ pub fn validate_many(
             .iter()
             .map(|(inventory, symbol)| format_provider(inventory, symbol))
             .collect();
+        let decorated_candidates: Vec<_> = inventories
+            .iter()
+            .flat_map(|inventory| {
+                inventory
+                    .symbols
+                    .iter()
+                    .filter(move |symbol| {
+                        symbol
+                            .raw_name
+                            .as_deref()
+                            .map(normalize_decorated_name)
+                            .as_deref()
+                            == Some(name.as_str())
+                            && symbol.name != *name
+                    })
+                    .map(move |symbol| (inventory, symbol))
+            })
+            .collect();
         let (status, visibility) = match candidates.first() {
             Some(_) => {
                 let visible: Vec<_> = candidates
@@ -144,7 +163,9 @@ pub fn validate_many(
                 }
             }
             None => {
-                let status = if has_declared_link_inputs(package) {
+                let status = if !decorated_candidates.is_empty() {
+                    MatchStatus::DecorationMismatch
+                } else if has_declared_link_inputs(package) {
                     MatchStatus::UnresolvedDeclaredLinkInputs
                 } else {
                     MatchStatus::Missing
@@ -177,6 +198,17 @@ fn has_declared_link_inputs(package: &BindingPackage) -> bool {
         || !package.link.frameworks.is_empty()
         || !package.link.artifacts.is_empty()
         || !package.link.ordered_inputs.is_empty()
+}
+
+fn normalize_decorated_name(raw_name: &str) -> String {
+    let mut name = raw_name;
+    if let Some(stripped) = name.strip_prefix('_') {
+        name = stripped;
+    }
+    if let Some((base, _)) = name.split_once('@') {
+        name = base;
+    }
+    name.to_string()
 }
 
 #[cfg(test)]
@@ -320,6 +352,35 @@ mod tests {
             report.matches[0].status,
             MatchStatus::UnresolvedDeclaredLinkInputs
         );
+    }
+
+    #[test]
+    fn decorated_symbol_is_reported_as_decoration_mismatch() {
+        let pkg = make_package(&["foo"]);
+        let inv = SymbolInventory {
+            artifact_path: "decorated.o".into(),
+            format: ArtifactFormat::ElfObject,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::Object,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
+            symbols: vec![SymbolEntry {
+                name: "_foo".into(),
+                raw_name: Some("_foo".into()),
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
+                archive_member: None,
+            }],
+        };
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches.len(), 1);
+        assert_eq!(report.matches[0].status, MatchStatus::DecorationMismatch);
     }
 
     #[test]
