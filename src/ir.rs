@@ -242,6 +242,63 @@ impl BindingPackage {
         }
         counts
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+            && self.diagnostics.is_empty()
+            && self.macros.is_empty()
+            && self.layouts.is_empty()
+    }
+
+    pub fn has_diagnostics(&self) -> bool {
+        !self.diagnostics.is_empty()
+    }
+
+    pub fn item_count(&self) -> usize {
+        self.items.len()
+    }
+
+    pub fn function_count(&self) -> usize {
+        self.items
+            .iter()
+            .filter(|item| matches!(item, BindingItem::Function(_)))
+            .count()
+    }
+
+    pub fn record_count(&self) -> usize {
+        self.items
+            .iter()
+            .filter(|item| matches!(item, BindingItem::Record(_)))
+            .count()
+    }
+
+    pub fn enum_count(&self) -> usize {
+        self.items
+            .iter()
+            .filter(|item| matches!(item, BindingItem::Enum(_)))
+            .count()
+    }
+
+    pub fn type_alias_count(&self) -> usize {
+        self.items
+            .iter()
+            .filter(|item| matches!(item, BindingItem::TypeAlias(_)))
+            .count()
+    }
+
+    pub fn variable_count(&self) -> usize {
+        self.items
+            .iter()
+            .filter(|item| matches!(item, BindingItem::Variable(_)))
+            .count()
+    }
+
+    pub fn unsupported_count(&self) -> usize {
+        self.items
+            .iter()
+            .filter(|item| matches!(item, BindingItem::Unsupported(_)))
+            .count()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -388,18 +445,98 @@ pub struct UnsupportedItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DiagnosticKind;
 
     #[test]
     fn binding_package_default_is_empty() {
         let pkg = BindingPackage::new();
-        assert!(pkg.items.is_empty());
-        assert!(pkg.diagnostics.is_empty());
+        assert!(pkg.is_empty());
+        assert_eq!(pkg.item_count(), 0);
+        assert!(!pkg.has_diagnostics());
         assert!(pkg.source_path.is_none());
         assert_eq!(pkg.target, BindingTarget::default());
         assert_eq!(pkg.inputs, BindingInputs::default());
         assert!(pkg.macros.is_empty());
         assert!(pkg.layouts.is_empty());
         assert_eq!(pkg.link, BindingLinkSurface::default());
+    }
+
+    #[test]
+    fn binding_package_query_helpers_report_counts() {
+        let mut pkg = BindingPackage::new();
+        pkg.macros.push(MacroBinding {
+            name: "API_LEVEL".into(),
+            body: "7".into(),
+            function_like: false,
+            kind: MacroKind::Integer,
+            category: MacroCategory::BindableConstant,
+        });
+        pkg.layouts.push(TypeLayout {
+            name: "size_t".into(),
+            size: 8,
+            align: 8,
+        });
+        pkg.diagnostics.push(Diagnostic {
+            kind: DiagnosticKind::DeclarationUnsupported,
+            severity: crate::Severity::Warning,
+            message: "unsupported".into(),
+            location: None,
+            item_name: Some("flags".into()),
+            artifact_path: None,
+        });
+        pkg.items.push(BindingItem::Function(FunctionBinding {
+            name: "malloc".into(),
+            calling_convention: CallingConvention::C,
+            parameters: vec![ParameterBinding {
+                name: Some("size".into()),
+                ty: BindingType::ULong,
+            }],
+            return_type: BindingType::ptr(BindingType::Void),
+            variadic: false,
+            source_offset: Some(1),
+        }));
+        pkg.items.push(BindingItem::Record(RecordBinding {
+            kind: RecordKind::Struct,
+            name: Some("point".into()),
+            fields: Some(vec![FieldBinding {
+                name: Some("x".into()),
+                ty: BindingType::Int,
+            }]),
+            source_offset: Some(2),
+        }));
+        pkg.items.push(BindingItem::Enum(EnumBinding {
+            name: Some("mode".into()),
+            variants: vec![EnumVariant {
+                name: "MODE_A".into(),
+                value: Some(0),
+            }],
+            source_offset: Some(3),
+        }));
+        pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
+            name: "size_t".into(),
+            target: BindingType::ULong,
+            source_offset: Some(4),
+        }));
+        pkg.items.push(BindingItem::Variable(VariableBinding {
+            name: "errno".into(),
+            ty: BindingType::Int,
+            source_offset: Some(5),
+        }));
+        pkg.items.push(BindingItem::Unsupported(UnsupportedItem {
+            name: Some("flags".into()),
+            reason: "bitfield".into(),
+            source_offset: Some(6),
+        }));
+
+        assert!(!pkg.is_empty());
+        assert!(pkg.has_diagnostics());
+        assert_eq!(pkg.item_count(), 6);
+        assert_eq!(pkg.function_count(), 1);
+        assert_eq!(pkg.record_count(), 1);
+        assert_eq!(pkg.enum_count(), 1);
+        assert_eq!(pkg.type_alias_count(), 1);
+        assert_eq!(pkg.variable_count(), 1);
+        assert_eq!(pkg.unsupported_count(), 1);
     }
 
     #[test]
