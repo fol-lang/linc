@@ -18,3 +18,4 @@
 - [Failure Model](./160_failure_model.md)
 - [Schema Version Review](./170_schema_review.md)
 - [Platform Support](./180_platform_support.md)
+- [Stable Usage Patterns](./190_stable_usage_patterns.md)
