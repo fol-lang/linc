@@ -1,31 +1,136 @@
-# Symbol Validation
+# Symbol Inventories
 
-BIC can inspect ELF and Mach-O binaries and validate extracted bindings against actual symbols.
+When the `symbols` feature is enabled, `bic` can inspect native artifacts and produce a `SymbolInventory`.
 
-## Inspecting symbols
+This is the artifact-side counterpart to `BindingPackage`.
 
-```rust
-let inventory = bic::inspect_symbols("libz.so").unwrap();
-```
+## Why Symbol Inventories Matter
 
-Each `SymbolEntry` contains: name, visibility, binding (Local/Global/Weak), size, and section.
+Header extraction tells you what the C surface claims exists.
+Artifact inspection tells you what a native file actually exports or imports.
 
-## Supported formats
+You need both when you want to answer questions such as:
 
-| Format | Extensions | Artifact types |
-|--------|-----------|----------------|
-| ELF | `.o`, `.a`, `.so` | Object, static library, shared library |
-| Mach-O | `.o`, `.a`, `.dylib` | Object, static library, dynamic library |
+- does this library really provide the declarations I scanned?
+- which artifact satisfies a symbol?
+- is the symbol hidden, weak, or duplicated?
+- what shared-library dependencies does this artifact declare?
 
-Mach-O symbol names have their leading `_` prefix stripped automatically to match C identifier names from headers.
-
-## Validating bindings
+## Entry Point
 
 ```rust
-let report = bic::validate(&result.package, &inventory);
+use bic::inspect_symbols;
 
-println!("matched: {}", report.matched().len());
-println!("missing: {}", report.missing().len());
+let inventory = inspect_symbols("build/libdemo.so").unwrap();
 ```
 
-The validation report classifies each binding as Matched, Missing, Hidden, WeakMatch, or type-mismatched (NotAFunction, NotAVariable).
+## Supported Artifact Shapes
+
+Current artifact coverage includes:
+
+| Platform format | Typical files | Kinds |
+|---|---|---|
+| ELF | `.o`, `.a`, `.so` | object, static library, shared library |
+| Mach-O | `.o`, `.a`, `.dylib` | object, static library, dynamic library |
+
+The inventory also classifies the artifact at a higher level.
+
+Current metadata includes:
+
+- `format`
+- `platform`
+- `kind`
+- `capabilities`
+- `dependency_edges`
+- `symbols`
+
+## Artifact Capabilities
+
+`capabilities` currently capture whether an artifact:
+
+- exports symbols
+- imports symbols
+
+That distinction matters for differentiating linkable providers from dependency-only inputs.
+
+## Symbol Entries
+
+Each `SymbolEntry` carries:
+
+- normalized `name`
+- optional `raw_name`
+- `visibility`
+- whether it is a function or variable-like symbol
+- `binding`
+- optional `size`
+- optional `section`
+- optional `archive_member`
+
+### Normalized vs Raw Name
+
+The normalized name is used for matching declarations.
+The raw name preserves the original artifact spelling.
+
+This is important because native artifacts may use:
+
+- leading underscore decoration
+- other platform-specific symbol spellings
+- archive member-local provenance
+
+## Archive Member Provenance
+
+For static libraries, `bic` preserves the member path/name that provided each symbol when available.
+
+That lets downstream validation report a provider more precisely than just:
+
+```text
+libfoo.a
+```
+
+It can instead report:
+
+```text
+libfoo.a:bar.o
+```
+
+## Shared-Library Dependency Edges
+
+On ELF shared libraries and executables, `bic` now captures `DT_NEEDED` dependencies into `dependency_edges`.
+
+This is not a full dynamic-loader model.
+It is still useful because it exposes artifact-declared native dependencies in the inventory itself.
+
+Example values might look like:
+
+- `libm.so.6`
+- `libc.so.6`
+- `libz.so.1`
+
+## Platform Behavior Notes
+
+Mach-O commonly prefixes external symbols with `_`.
+`bic` normalizes those names so C declarations and native symbols compare more naturally.
+
+That normalization is intentionally paired with `raw_name` preservation so no spelling evidence is lost.
+
+## CLI Equivalent
+
+```sh
+bic inspect-symbols --file build/libdemo.so
+```
+
+The command prints pretty JSON suitable for:
+
+- debugging
+- snapshots in tests
+- feeding validation jobs
+- collecting artifact metadata in a build graph
+
+## When To Use Inventories Directly
+
+Use `inspect-symbols` or `inspect_symbols(...)` directly when:
+
+- you want to debug a native artifact before validating bindings
+- you need artifact metadata without having headers available
+- you want to compare two builds of the same native library
+- you need archive-member or dependency-edge evidence for a linker-oriented workflow

@@ -1,0 +1,1759 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>BIC Reference</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-b074ab2b.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-f199b3b4.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">BIC Reference</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="bic-reference"><a class="header" href="#bic-reference">BIC Reference</a></h1>
+<p><code>bic</code> is the machine-facing C interop analysis layer in the Bresilla toolchain.</p>
+<p>Its job is not to compile C code and it is not a full linker on its own.
+Its job is to take C-facing inputs such as headers, preprocessed translation units, and native artifacts, then normalize that information into a form downstream tooling can trust.</p>
+<p>In practice that means <code>bic</code> sits between:</p>
+<ul>
+<li><code>pac</code>, which handles preprocessing and parsing</li>
+<li>native artifacts such as <code>.o</code>, <code>.a</code>, <code>.so</code>, and <code>.dylib</code></li>
+<li>downstream consumers such as <code>fol</code>, code generators, or validation/reporting tooling</li>
+</ul>
+<h2 id="what-bic-produces"><a class="header" href="#what-bic-produces">What BIC Produces</a></h2>
+<p>The core output is a <code>BindingPackage</code>.</p>
+<p>That package is intentionally machine-oriented. It contains:</p>
+<ul>
+<li>binding items extracted from headers</li>
+<li>target/compiler metadata for the scan</li>
+<li>declared and normalized native link inputs</li>
+<li>captured macro inventory</li>
+<li>compiler-probed type layouts</li>
+<li>diagnostics produced during extraction</li>
+</ul>
+<p>When native artifacts are involved, <code>bic</code> can also produce:</p>
+<ul>
+<li><code>SymbolInventory</code> values from <code>inspect-symbols</code></li>
+<li><code>ValidationReport</code> values from <code>validate</code></li>
+</ul>
+<h2 id="mental-model"><a class="header" href="#mental-model">Mental Model</a></h2>
+<p>The practical pipeline looks like this:</p>
+<pre><code class="language-text">headers / preprocessed C / native artifacts
+    -&gt; preprocessing and parsing
+    -&gt; declaration extraction
+    -&gt; macro capture
+    -&gt; optional ABI layout probing
+    -&gt; link surface normalization
+    -&gt; optional artifact inspection
+    -&gt; optional declaration-vs-artifact validation
+</code></pre>
+<p>Another way to say it:</p>
+<ul>
+<li><code>pac</code> tells <code>bic</code> what the C source says</li>
+<li>the compiler helps <code>bic</code> discover ABI facts</li>
+<li>artifact inspection tells <code>bic</code> what native binaries actually export</li>
+<li><code>bic</code> packages the result into JSON-friendly structures</li>
+</ul>
+<h2 id="what-bic-is-good-at"><a class="header" href="#what-bic-is-good-at">What BIC Is Good At</a></h2>
+<p>Today <code>bic</code> is especially useful for:</p>
+<ul>
+<li>extracting C declarations from real headers</li>
+<li>filtering out irrelevant system-header noise</li>
+<li>producing stable JSON for other tools</li>
+<li>generating Rust FFI stubs from extracted declarations</li>
+<li>inventorying exported symbols from ELF and Mach-O artifacts</li>
+<li>comparing declarations against one or more native artifacts</li>
+<li>preserving native link metadata alongside the extracted API surface</li>
+</ul>
+<h2 id="what-bic-does-not-try-to-be"><a class="header" href="#what-bic-does-not-try-to-be">What BIC Does Not Try To Be</a></h2>
+<p><code>bic</code> is not:</p>
+<ul>
+<li>a C compiler</li>
+<li>a full semantic C type checker</li>
+<li>a full platform linker driver</li>
+<li>a replacement for build-system-native concepts such as rpaths, linker scripts, or loader policy</li>
+</ul>
+<p>That separation matters. The intended division of labor is:</p>
+<ul>
+<li><code>pac</code> parses</li>
+<li><code>bic</code> analyzes and normalizes</li>
+<li><code>fol</code> or another consumer decides how to generate, compile, and link final output</li>
+</ul>
+<h2 id="main-public-surfaces"><a class="header" href="#main-public-surfaces">Main Public Surfaces</a></h2>
+<p>Most users touch one or more of these entry points:</p>
+<ul>
+<li><code>HeaderConfig</code> for scanning raw headers</li>
+<li><code>PreprocessedInput</code> for parsing already-preprocessed source</li>
+<li><code>probe_type_layouts</code> for compiler-assisted ABI layout probing</li>
+<li><code>inspect_symbols</code> for reading native artifact symbols</li>
+<li><code>validate</code> and <code>validate_many</code> for declaration-vs-artifact checks</li>
+<li><code>emit_rust_ffi</code> for Rust FFI emission when the <code>codegen</code> feature is enabled</li>
+</ul>
+<p>The CLI mirrors those surfaces:</p>
+<ul>
+<li><code>bic scan</code></li>
+<li><code>bic scan-preprocessed</code></li>
+<li><code>bic probe-layout</code></li>
+<li><code>bic inspect-symbols</code></li>
+<li><code>bic validate</code></li>
+<li><code>bic link-plan</code></li>
+</ul>
+<h2 id="recommended-reading-order"><a class="header" href="#recommended-reading-order">Recommended Reading Order</a></h2>
+<p>If you are new to the repository, read the book in this order:</p>
+<ol>
+<li>Getting Started</li>
+<li>Header Processing</li>
+<li>IR Model</li>
+<li>Macros and Layouts</li>
+<li>Link Surface</li>
+<li>Symbol Inventories</li>
+<li>Validation</li>
+<li>CLI Reference</li>
+<li>End-to-End Workflows</li>
+</ol>
+<p>If you only want to integrate <code>bic</code> into another tool, focus on:</p>
+<ul>
+<li><a href="#header-processing">Header Processing</a></li>
+<li><a href="#ir-model">IR Model</a></li>
+<li><a href="#link-surface">Link Surface</a></li>
+<li><a href="#cli-reference">CLI Reference</a></li>
+<li><a href="#end-to-end-workflows">End-to-End Workflows</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p>This chapter shows the shortest path from “I have a header” to “I have machine-readable bindings”.</p>
+<h2 id="add-the-crate"><a class="header" href="#add-the-crate">Add the Crate</a></h2>
+<p>Use a local path dependency while developing in the workspace:</p>
+<pre><code class="language-toml">[dependencies]
+bic = { path = "../bic" }
+</code></pre>
+<p>If you need Rust FFI generation, enable the <code>codegen</code> feature.
+If you need native artifact inspection and validation, enable the <code>symbols</code> feature.</p>
+<p>Example:</p>
+<pre><code class="language-toml">[dependencies]
+bic = { path = "../bic", features = ["codegen", "symbols"] }
+</code></pre>
+<h2 id="smallest-useful-example"><a class="header" href="#smallest-useful-example">Smallest Useful Example</a></h2>
+<pre class="playground"><code class="language-rust">use bic::HeaderConfig;
+
+fn main() -&gt; Result&lt;(), String&gt; {
+    let result = HeaderConfig::new()
+        .header("mylib.h")
+        .process()?;
+
+    println!("items: {}", result.package.items.len());
+    println!("macros: {}", result.package.macros.len());
+    println!("layouts: {}", result.package.layouts.len());
+
+    Ok(())
+}</code></pre>
+<p><code>process()</code> returns a <code>RawHeaderResult</code> with two parts:</p>
+<ul>
+<li><code>package</code>: the durable output you usually keep or serialize</li>
+<li><code>report</code>: the immediate preprocessing invocation details and preprocessed source</li>
+</ul>
+<h2 id="typical-scan-with-real-inputs"><a class="header" href="#typical-scan-with-real-inputs">Typical Scan With Real Inputs</a></h2>
+<p>Most real scans need include paths, defines, and some native link metadata:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::HeaderConfig;
+
+let result = HeaderConfig::new()
+    .header("api.h")
+    .include_dir("vendor/include")
+    .library_dir("vendor/lib")
+    .define("MYLIB_FEATURE_X", Some("1".into()))
+    .link_lib("mylib")
+    .link_shared_lib("dl")
+    .probe_type_layout("struct api_context")
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>That single scan can now carry:</p>
+<ul>
+<li>extracted declarations</li>
+<li>captured preprocessor macros</li>
+<li>link requirements</li>
+<li>probed type layouts</li>
+<li>diagnostics</li>
+</ul>
+<h2 id="json-round-trip"><a class="header" href="#json-round-trip">JSON Round Trip</a></h2>
+<p><code>BindingPackage</code> is designed to be exchanged across tools.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::{from_json, to_json, HeaderConfig};
+
+let result = HeaderConfig::new()
+    .header("mylib.h")
+    .process()?;
+
+let json = to_json(&amp;result.package).unwrap();
+let restored = from_json(&amp;json).unwrap();
+
+assert_eq!(result.package, restored);
+<span class="boring">}</span></code></pre>
+<p>This is the normal handoff point to another system.</p>
+<h2 id="preprocessed-input-path"><a class="header" href="#preprocessed-input-path">Preprocessed Input Path</a></h2>
+<p>Sometimes you already have a <code>.i</code> file or a preprocessor pipeline elsewhere.
+In that case, skip raw-header driving and feed the preprocessed text directly.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::PreprocessedInput;
+
+let pkg = PreprocessedInput::from_string("int add(int a, int b);")
+    .with_path("generated.i")
+    .extract();
+
+assert_eq!(pkg.items.len(), 1);
+<span class="boring">}</span></code></pre>
+<p>Use this mode when:</p>
+<ul>
+<li>another build system already owns preprocessing</li>
+<li>you want fully reproducible parser input checked into tests</li>
+<li>you need to debug extraction separate from compiler invocation</li>
+</ul>
+<h2 id="common-integration-pattern"><a class="header" href="#common-integration-pattern">Common Integration Pattern</a></h2>
+<p>The most common downstream pattern is:</p>
+<ol>
+<li>Run <code>HeaderConfig::process()</code></li>
+<li>Serialize the <code>BindingPackage</code></li>
+<li>Optionally inspect artifacts with <code>inspect_symbols</code></li>
+<li>Optionally validate the package against those artifacts</li>
+<li>Feed the package and validation results into your generator/build system</li>
+</ol>
+<p>That is the intended shape for <code>fol</code> integration as well.</p>
+<h2 id="first-things-to-inspect"><a class="header" href="#first-things-to-inspect">First Things To Inspect</a></h2>
+<p>When a scan does not look right, inspect these fields first:</p>
+<ul>
+<li><code>package.items</code></li>
+<li><code>package.macros</code></li>
+<li><code>package.layouts</code></li>
+<li><code>package.link</code></li>
+<li><code>package.diagnostics</code></li>
+<li><code>report.preprocessed_source</code></li>
+</ul>
+<p>Those six surfaces usually tell you whether the problem is:</p>
+<ul>
+<li>preprocessing</li>
+<li>extraction</li>
+<li>macro visibility</li>
+<li>ABI probing</li>
+<li>link metadata declaration</li>
+</ul>
+<h2 id="minimal-cli-equivalent"><a class="header" href="#minimal-cli-equivalent">Minimal CLI Equivalent</a></h2>
+<p>Everything above has a CLI path.</p>
+<pre><code class="language-sh">bic scan --header mylib.h
+</code></pre>
+<p>For richer scans:</p>
+<pre><code class="language-sh">bic scan \
+  --header api.h \
+  --include-dir vendor/include \
+  --library-dir vendor/lib \
+  --define MYLIB_FEATURE_X=1 \
+  --link-lib mylib \
+  --probe-type "struct api_context"
+</code></pre>
+<p>The CLI prints JSON, which makes it suitable for scripting and build graph integration.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="header-processing"><a class="header" href="#header-processing">Header Processing</a></h1>
+<p><code>HeaderConfig</code> is the main driver for turning raw headers into a <code>BindingPackage</code>.</p>
+<p>It owns three separate concerns:</p>
+<ul>
+<li>how headers are preprocessed</li>
+<li>which declarations are treated as part of the bindable surface</li>
+<li>what native-link metadata should be attached to the resulting package</li>
+</ul>
+<h2 id="what-process-does"><a class="header" href="#what-process-does">What <code>process()</code> Does</a></h2>
+<p>Calling <code>.process()</code> performs this sequence:</p>
+<ol>
+<li>Build a temporary translation unit that includes the configured entry headers</li>
+<li>Run the configured compiler/preprocessor through <code>pac</code></li>
+<li>Capture macro definitions from the same header set</li>
+<li>Extract binding items from the parsed translation unit</li>
+<li>Attach target/input/link metadata</li>
+<li>Optionally probe requested type layouts</li>
+<li>Optionally filter items by source origin</li>
+</ol>
+<p>The returned <code>RawHeaderResult</code> contains:</p>
+<ul>
+<li><code>package</code>: the extracted result</li>
+<li><code>report.command</code>: compiler executable used</li>
+<li><code>report.args</code>: effective preprocessor arguments</li>
+<li><code>report.preprocessed_source</code>: the exact source seen by the parser</li>
+</ul>
+<h2 id="core-configuration-surface"><a class="header" href="#core-configuration-surface">Core Configuration Surface</a></h2>
+<p>The most important builder methods are:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>header(path)</code></td><td>Add an entry header</td></tr>
+<tr><td><code>include_dir(path)</code></td><td>Add an include search path</td></tr>
+<tr><td><code>framework_dir(path)</code></td><td>Add a framework search path</td></tr>
+<tr><td><code>library_dir(path)</code></td><td>Add a native library search path</td></tr>
+<tr><td><code>define(name, value)</code></td><td>Add a preprocessor define</td></tr>
+<tr><td><code>compiler(cmd)</code></td><td>Override the compiler/preprocessor driver</td></tr>
+<tr><td><code>flavor(f)</code></td><td>Select C dialect handling</td></tr>
+<tr><td><code>origin_filter(f)</code></td><td>Use a custom origin filter</td></tr>
+<tr><td><code>no_origin_filter()</code></td><td>Keep declarations from every origin</td></tr>
+<tr><td><code>probe_type_layout(name)</code></td><td>Request compiler-probed layout data</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="entry-headers"><a class="header" href="#entry-headers">Entry Headers</a></h2>
+<p>Entry headers define the top-level API surface you are scanning.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = HeaderConfig::new()
+    .header("include/api.h")
+    .header("include/extra.h")
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>Internally, <code>bic</code> synthesizes a temporary source file containing <code>#include</code> lines for each entry header.</p>
+<p>That means:</p>
+<ul>
+<li>order matters when headers depend on previous macro or type setup</li>
+<li>multiple entry headers are treated as one scan unit</li>
+<li>diagnostics and origin filtering are still tracked back to source origins</li>
+</ul>
+<h2 id="include-directories-and-defines"><a class="header" href="#include-directories-and-defines">Include Directories And Defines</a></h2>
+<p>Headers almost always depend on compile-time environment.
+If your scan omits that environment, the extracted package is unreliable.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = HeaderConfig::new()
+    .header("api.h")
+    .include_dir("vendor/include")
+    .include_dir("generated/include")
+    .define("API_VERSION", Some("3".into()))
+    .define("USE_EXPERIMENTAL", None)
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>Notes:</p>
+<ul>
+<li><code>define("NAME", None)</code> corresponds to <code>-DNAME</code></li>
+<li><code>define("NAME", Some("VALUE".into()))</code> corresponds to <code>-DNAME=VALUE</code></li>
+<li>the configured values are preserved in <code>package.inputs.defines</code></li>
+</ul>
+<h2 id="compiler-and-flavor"><a class="header" href="#compiler-and-flavor">Compiler And Flavor</a></h2>
+<p><code>bic</code> uses the compiler as a preprocessor and ABI probe driver.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::raw_headers::Flavor;
+
+let result = HeaderConfig::new()
+    .header("api.h")
+    .compiler("clang")
+    .flavor(Flavor::ClangC11)
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>Flavor affects parsing expectations and extension handling:</p>
+<ul>
+<li><code>GnuC11</code></li>
+<li><code>ClangC11</code></li>
+<li><code>StdC11</code></li>
+</ul>
+<p>In general:</p>
+<ul>
+<li>use <code>ClangC11</code> when the header stack is written for Clang tooling</li>
+<li>use <code>GnuC11</code> when the project assumes GCC-style C extensions</li>
+<li>use <code>StdC11</code> only when you want a stricter source profile</li>
+</ul>
+<h2 id="native-link-inputs-during-scan"><a class="header" href="#native-link-inputs-during-scan">Native Link Inputs During Scan</a></h2>
+<p>The scan phase can also record the native inputs that the extracted API expects.</p>
+<p>Examples:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = HeaderConfig::new()
+    .header("sqlite3.h")
+    .library_dir("/opt/sqlite/lib")
+    .link_lib("sqlite3")
+    .prefer_dynamic_linking()
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>Or with concrete artifacts:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = HeaderConfig::new()
+    .header("engine.h")
+    .link_object_file("build/engine_shim.o")
+    .link_static_artifact("build/libengine_support.a")
+    .link_shared_artifact("build/libengine.so")
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>These declarations are preserved in <code>package.link</code>.
+The scan does not link anything by itself.
+It records the intent and the normalized link surface.</p>
+<h2 id="frameworks-and-platform-constraints"><a class="header" href="#frameworks-and-platform-constraints">Frameworks And Platform Constraints</a></h2>
+<p>For Apple-style native surfaces:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = HeaderConfig::new()
+    .header("mykit.h")
+    .framework_dir("/Library/Frameworks")
+    .link_framework("CoreFoundation")
+    .target_constraint("x86_64-apple-darwin")
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>Platform constraints are simple strings today.
+They are preserved so downstream consumers can decide whether a package applies to the current target.</p>
+<h2 id="layout-probing-during-scan"><a class="header" href="#layout-probing-during-scan">Layout Probing During Scan</a></h2>
+<p>You can request ABI layout facts directly in the scan:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = HeaderConfig::new()
+    .header("api.h")
+    .probe_type_layout("struct api_context")
+    .probe_type_layout("struct api_config")
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>The resulting package will include <code>package.layouts</code>.</p>
+<p>This is the preferred path when the binding package needs to carry extracted declarations and layout evidence together.</p>
+<h2 id="diagnostics-and-partial-success"><a class="header" href="#diagnostics-and-partial-success">Diagnostics And Partial Success</a></h2>
+<p><code>bic</code> is intentionally diagnostic-heavy.
+A scan can succeed structurally while still recording unsupported constructs.</p>
+<p>Always inspect:</p>
+<ul>
+<li><code>package.diagnostics</code></li>
+<li><code>report.preprocessed_source</code></li>
+</ul>
+<p>Treat a “successful” scan with important diagnostics as an incomplete binding package, not a final truth.</p>
+<h2 id="raw-header-result-example"><a class="header" href="#raw-header-result-example">Raw Header Result Example</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::HeaderConfig;
+
+let result = HeaderConfig::new()
+    .header("api.h")
+    .include_dir("include")
+    .process()?;
+
+println!("compiler: {}", result.report.command);
+println!("argv: {:?}", result.report.args);
+println!("items: {}", result.package.items.len());
+println!("diagnostics: {}", result.package.diagnostics.len());
+<span class="boring">}</span></code></pre>
+<h2 id="failure-modes-to-expect"><a class="header" href="#failure-modes-to-expect">Failure Modes To Expect</a></h2>
+<p>The most common failure categories are:</p>
+<ul>
+<li>header not found</li>
+<li>compiler/preprocessor invocation mismatch</li>
+<li>missing defines or include paths</li>
+<li>unsupported source constructs reduced to diagnostics</li>
+<li>layout probe requests for names the compiler cannot resolve</li>
+</ul>
+<p>When debugging, reduce the problem in this order:</p>
+<ol>
+<li>confirm the compiler command and args</li>
+<li>inspect the preprocessed source</li>
+<li>disable origin filtering if declarations appear missing</li>
+<li>compare the extracted item set against the original header intent</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="ir-model"><a class="header" href="#ir-model">IR Model</a></h1>
+<p>The primary data model in <code>bic</code> is <code>BindingPackage</code>.</p>
+<p>This is the durable artifact intended for:</p>
+<ul>
+<li>JSON serialization</li>
+<li>downstream code generation</li>
+<li>validation against native artifacts</li>
+<li>later link-plan lowering</li>
+</ul>
+<h2 id="top-level-shape"><a class="header" href="#top-level-shape">Top-Level Shape</a></h2>
+<p>At a high level, a <code>BindingPackage</code> contains:</p>
+<ul>
+<li><code>schema_version</code></li>
+<li><code>bic_version</code></li>
+<li><code>target</code></li>
+<li><code>inputs</code></li>
+<li><code>macros</code></li>
+<li><code>layouts</code></li>
+<li><code>link</code></li>
+<li><code>source_path</code></li>
+<li><code>items</code></li>
+<li><code>diagnostics</code></li>
+</ul>
+<p>This matters because the package is not just “the declarations”.
+It is the declaration surface plus the environment needed to interpret it.</p>
+<h2 id="target"><a class="header" href="#target"><code>target</code></a></h2>
+<p><code>target</code> stores information about the scan environment.</p>
+<p>Current fields:</p>
+<ul>
+<li><code>target_triple</code></li>
+<li><code>compiler_command</code></li>
+<li><code>compiler_version</code></li>
+<li><code>flavor</code></li>
+</ul>
+<p>These fields are intentionally descriptive rather than prescriptive.
+They help downstream tooling understand what environment produced the package.</p>
+<h2 id="inputs"><a class="header" href="#inputs"><code>inputs</code></a></h2>
+<p><code>inputs</code> records the source-side configuration of the scan:</p>
+<ul>
+<li><code>entry_headers</code></li>
+<li><code>include_dirs</code></li>
+<li><code>defines</code></li>
+</ul>
+<p>This is useful for:</p>
+<ul>
+<li>reproducibility</li>
+<li>debugging</li>
+<li>downstream rebuild decisions</li>
+<li>comparing packages produced from different header environments</li>
+</ul>
+<h2 id="items"><a class="header" href="#items"><code>items</code></a></h2>
+<p><code>items</code> is the core declaration surface.</p>
+<p>Supported variants:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variant</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Function</code></td><td>C function declaration</td></tr>
+<tr><td><code>Record</code></td><td><code>struct</code> or <code>union</code></td></tr>
+<tr><td><code>Enum</code></td><td>C enum with named variants</td></tr>
+<tr><td><code>TypeAlias</code></td><td><code>typedef</code></td></tr>
+<tr><td><code>Variable</code></td><td>extern/global variable</td></tr>
+<tr><td><code>Unsupported</code></td><td>recognized but not fully representable construct</td></tr>
+</tbody>
+</table>
+</div>
+<p>Downstream tools should not ignore <code>Unsupported</code> blindly.
+Those entries are signals that the source surface contains shapes <code>bic</code> saw but could not faithfully lower.</p>
+<h2 id="bindingtype"><a class="header" href="#bindingtype"><code>BindingType</code></a></h2>
+<p><code>BindingType</code> represents the type graph used throughout functions, fields, typedefs, and variables.</p>
+<p>Primitive types include:</p>
+<ul>
+<li><code>Void</code></li>
+<li><code>Bool</code></li>
+<li><code>Char</code></li>
+<li><code>SChar</code></li>
+<li><code>UChar</code></li>
+<li><code>Short</code></li>
+<li><code>UShort</code></li>
+<li><code>Int</code></li>
+<li><code>UInt</code></li>
+<li><code>Long</code></li>
+<li><code>ULong</code></li>
+<li><code>LongLong</code></li>
+<li><code>ULongLong</code></li>
+<li><code>Float</code></li>
+<li><code>Double</code></li>
+<li><code>LongDouble</code></li>
+</ul>
+<p>Compound/reference forms include:</p>
+<ul>
+<li><code>Pointer</code></li>
+<li><code>Array</code></li>
+<li><code>FunctionPointer</code></li>
+<li><code>TypedefRef</code></li>
+<li><code>RecordRef</code></li>
+<li><code>EnumRef</code></li>
+<li><code>Opaque</code></li>
+</ul>
+<h3 id="pointer-constness"><a class="header" href="#pointer-constness">Pointer Constness</a></h3>
+<p>Pointer constness is modeled on the pointee:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>BindingType::Pointer {
+    pointee: Box::new(BindingType::Int),
+    const_pointee: true,
+}
+<span class="boring">}</span></code></pre>
+<p>This is intentionally simpler than a full C qualifier system.
+Consumers that need more qualifier fidelity should treat <code>bic</code> as an analysis source, not a fully canonical C semantic model.</p>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<p><code>FunctionBinding</code> contains:</p>
+<ul>
+<li><code>name</code></li>
+<li><code>calling_convention</code></li>
+<li><code>parameters</code></li>
+<li><code>return_type</code></li>
+<li><code>variadic</code></li>
+<li><code>source_offset</code></li>
+</ul>
+<p>Current calling convention coverage is conservative.
+Most users should assume plain C ABI unless the source or macro surface proves otherwise.</p>
+<h2 id="records"><a class="header" href="#records">Records</a></h2>
+<p><code>RecordBinding</code> represents both <code>struct</code> and <code>union</code>.</p>
+<p>It carries:</p>
+<ul>
+<li><code>kind</code></li>
+<li><code>name</code></li>
+<li><code>fields</code></li>
+<li><code>source_offset</code></li>
+</ul>
+<p>Opaque records are represented by <code>fields: None</code>.</p>
+<p>That distinction is important:</p>
+<ul>
+<li><code>Some(fields)</code> means the field surface was extracted</li>
+<li><code>None</code> means the type exists by name but layout/fields are intentionally unavailable</li>
+</ul>
+<h2 id="enums"><a class="header" href="#enums">Enums</a></h2>
+<p><code>EnumBinding</code> stores:</p>
+<ul>
+<li>enum name</li>
+<li>variants</li>
+<li>source offset</li>
+</ul>
+<p>Each variant carries:</p>
+<ul>
+<li><code>name</code></li>
+<li><code>value</code></li>
+</ul>
+<p>If a value is absent, downstream tooling should not invent one without understanding the original source and evaluation context.</p>
+<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
+<p><code>VariableBinding</code> captures global variables and extern declarations with:</p>
+<ul>
+<li><code>name</code></li>
+<li><code>ty</code></li>
+<li><code>source_offset</code></li>
+</ul>
+<p>These are validated separately from functions because symbol-kind mismatches matter.</p>
+<h2 id="unsupported-items"><a class="header" href="#unsupported-items">Unsupported Items</a></h2>
+<p><code>UnsupportedItem</code> should be treated as a first-class signal.</p>
+<p>It usually means one of these:</p>
+<ul>
+<li>the syntax was recognized</li>
+<li>extraction could not preserve enough structure</li>
+<li>a diagnostic was emitted</li>
+<li>the binding package is partial, not complete</li>
+</ul>
+<p>This is a safer design than silently dropping source constructs.</p>
+<h2 id="macros-layouts-and-link-data-are-part-of-the-ir"><a class="header" href="#macros-layouts-and-link-data-are-part-of-the-ir">Macros, Layouts, And Link Data Are Part Of The IR</a></h2>
+<p>Even though declarations are the center of the package, three other surfaces often matter just as much:</p>
+<ul>
+<li><code>macros</code></li>
+<li><code>layouts</code></li>
+<li><code>link</code></li>
+</ul>
+<p>That is why they live at the package level.
+They are package-wide evidence, not per-item add-ons.</p>
+<h2 id="serialization-rules"><a class="header" href="#serialization-rules">Serialization Rules</a></h2>
+<p>The entire package is <code>serde</code> serializable.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::{from_json, to_json};
+
+let json = to_json(&amp;package).unwrap();
+let restored = from_json(&amp;json).unwrap();
+<span class="boring">}</span></code></pre>
+<p>Important compatibility behavior:</p>
+<ul>
+<li>the package carries a <code>schema_version</code></li>
+<li>unknown future schema versions are rejected</li>
+<li>older JSON missing newer optional fields generally deserializes with defaults</li>
+</ul>
+<p>That makes the package suitable for machine-to-machine contracts.</p>
+<h2 id="what-the-ir-is-not"><a class="header" href="#what-the-ir-is-not">What The IR Is Not</a></h2>
+<p>The IR is useful, but it is intentionally not:</p>
+<ul>
+<li>a full semantic C type system</li>
+<li>a full ABI proof</li>
+<li>a final link plan</li>
+<li>a final code generation contract for every target</li>
+</ul>
+<p>Use it as the normalized source of truth for downstream decisions, not as a claim that all C semantics have been solved.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="code-generation"><a class="header" href="#code-generation">Code Generation</a></h1>
+<p>When the <code>codegen</code> feature is enabled, <code>bic</code> can emit Rust FFI from a <code>BindingPackage</code>.</p>
+<p>That emitter is intentionally straightforward.
+It is useful for bootstrapping interop, testing extraction quality, and providing a baseline Rust-facing output.</p>
+<h2 id="entry-point"><a class="header" href="#entry-point">Entry Point</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::emit_rust_ffi;
+
+let rust_code = emit_rust_ffi(&amp;package);
+<span class="boring">}</span></code></pre>
+<p>The input is the extracted IR, not raw C source.
+That means generation quality depends directly on extraction quality.</p>
+<h2 id="what-the-rust-emitter-handles-well"><a class="header" href="#what-the-rust-emitter-handles-well">What The Rust Emitter Handles Well</a></h2>
+<p>The emitter is designed for classic C FFI surface shapes:</p>
+<ul>
+<li><code>extern "C"</code> function declarations</li>
+<li>global variables</li>
+<li><code>#[repr(C)]</code> structs</li>
+<li><code>#[repr(C)]</code> unions</li>
+<li>typedefs</li>
+<li>enum constants</li>
+<li>function pointer typedefs and fields</li>
+<li>opaque forward-declared types</li>
+</ul>
+<h2 id="typical-output-shape"><a class="header" href="#typical-output-shape">Typical Output Shape</a></h2>
+<p>Generated output generally includes:</p>
+<ul>
+<li><code>pub type</code> aliases</li>
+<li><code>#[repr(C)]</code> record definitions</li>
+<li><code>extern "C"</code> blocks</li>
+<li><code>pub static</code> declarations for globals</li>
+<li>enum constants or equivalent lowered forms</li>
+</ul>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::{extract_from_source, emit_rust_ffi};
+
+let pkg = extract_from_source(
+    r#"
+    typedef unsigned int flags_t;
+    struct point { int x; int y; };
+    int add(int a, int b);
+    extern int global_counter;
+    "#,
+).unwrap();
+
+let out = emit_rust_ffi(&amp;pkg);
+println!("{out}");
+<span class="boring">}</span></code></pre>
+<h2 id="opaque-records"><a class="header" href="#opaque-records">Opaque Records</a></h2>
+<p>Forward declarations such as:</p>
+<pre><code class="language-c">struct FILE;
+</code></pre>
+<p>are emitted as opaque Rust-compatible types.</p>
+<p>This is one of the most important behaviors for real interop because many C APIs intentionally hide implementation details.</p>
+<h2 id="function-pointers"><a class="header" href="#function-pointers">Function Pointers</a></h2>
+<p><code>bic</code> preserves function-pointer types and the Rust emitter lowers them into FFI-compatible signatures.</p>
+<p>This is particularly useful for:</p>
+<ul>
+<li>callback-heavy APIs</li>
+<li>vtable-like configuration structs</li>
+<li>typedef-based function pointer patterns</li>
+</ul>
+<h2 id="limits-to-keep-in-mind"><a class="header" href="#limits-to-keep-in-mind">Limits To Keep In Mind</a></h2>
+<p>The Rust generator is not a full safe wrapper generator.
+It emits FFI declarations, not ergonomic Rust APIs.</p>
+<p>In particular, it does not solve:</p>
+<ul>
+<li>ownership</li>
+<li>lifetime modeling</li>
+<li>error translation</li>
+<li>safe wrapper construction</li>
+<li>target-conditional public API partitioning</li>
+</ul>
+<p>It also inherits the current IR limitations.
+For example, if a source construct was reduced to an unsupported item or a warning-level approximation, the emitter cannot restore missing semantics later.</p>
+<h2 id="recommended-use"><a class="header" href="#recommended-use">Recommended Use</a></h2>
+<p>Treat the Rust emitter as one of three things:</p>
+<ol>
+<li>a smoke test for extraction quality</li>
+<li>a baseline raw FFI layer</li>
+<li>a development aid while building richer downstream generators</li>
+</ol>
+<p>If you are integrating with <code>fol</code>, the JSON package and link/validation data usually matter more than the emitted Rust itself.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="symbol-inventories"><a class="header" href="#symbol-inventories">Symbol Inventories</a></h1>
+<p>When the <code>symbols</code> feature is enabled, <code>bic</code> can inspect native artifacts and produce a <code>SymbolInventory</code>.</p>
+<p>This is the artifact-side counterpart to <code>BindingPackage</code>.</p>
+<h2 id="why-symbol-inventories-matter"><a class="header" href="#why-symbol-inventories-matter">Why Symbol Inventories Matter</a></h2>
+<p>Header extraction tells you what the C surface claims exists.
+Artifact inspection tells you what a native file actually exports or imports.</p>
+<p>You need both when you want to answer questions such as:</p>
+<ul>
+<li>does this library really provide the declarations I scanned?</li>
+<li>which artifact satisfies a symbol?</li>
+<li>is the symbol hidden, weak, or duplicated?</li>
+<li>what shared-library dependencies does this artifact declare?</li>
+</ul>
+<h2 id="entry-point-1"><a class="header" href="#entry-point-1">Entry Point</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::inspect_symbols;
+
+let inventory = inspect_symbols("build/libdemo.so").unwrap();
+<span class="boring">}</span></code></pre>
+<h2 id="supported-artifact-shapes"><a class="header" href="#supported-artifact-shapes">Supported Artifact Shapes</a></h2>
+<p>Current artifact coverage includes:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Platform format</th><th>Typical files</th><th>Kinds</th></tr>
+</thead>
+<tbody>
+<tr><td>ELF</td><td><code>.o</code>, <code>.a</code>, <code>.so</code></td><td>object, static library, shared library</td></tr>
+<tr><td>Mach-O</td><td><code>.o</code>, <code>.a</code>, <code>.dylib</code></td><td>object, static library, dynamic library</td></tr>
+</tbody>
+</table>
+</div>
+<p>The inventory also classifies the artifact at a higher level.</p>
+<p>Current metadata includes:</p>
+<ul>
+<li><code>format</code></li>
+<li><code>platform</code></li>
+<li><code>kind</code></li>
+<li><code>capabilities</code></li>
+<li><code>dependency_edges</code></li>
+<li><code>symbols</code></li>
+</ul>
+<h2 id="artifact-capabilities"><a class="header" href="#artifact-capabilities">Artifact Capabilities</a></h2>
+<p><code>capabilities</code> currently capture whether an artifact:</p>
+<ul>
+<li>exports symbols</li>
+<li>imports symbols</li>
+</ul>
+<p>That distinction matters for differentiating linkable providers from dependency-only inputs.</p>
+<h2 id="symbol-entries"><a class="header" href="#symbol-entries">Symbol Entries</a></h2>
+<p>Each <code>SymbolEntry</code> carries:</p>
+<ul>
+<li>normalized <code>name</code></li>
+<li>optional <code>raw_name</code></li>
+<li><code>visibility</code></li>
+<li>whether it is a function or variable-like symbol</li>
+<li><code>binding</code></li>
+<li>optional <code>size</code></li>
+<li>optional <code>section</code></li>
+<li>optional <code>archive_member</code></li>
+</ul>
+<h3 id="normalized-vs-raw-name"><a class="header" href="#normalized-vs-raw-name">Normalized vs Raw Name</a></h3>
+<p>The normalized name is used for matching declarations.
+The raw name preserves the original artifact spelling.</p>
+<p>This is important because native artifacts may use:</p>
+<ul>
+<li>leading underscore decoration</li>
+<li>other platform-specific symbol spellings</li>
+<li>archive member-local provenance</li>
+</ul>
+<h2 id="archive-member-provenance"><a class="header" href="#archive-member-provenance">Archive Member Provenance</a></h2>
+<p>For static libraries, <code>bic</code> preserves the member path/name that provided each symbol when available.</p>
+<p>That lets downstream validation report a provider more precisely than just:</p>
+<pre><code class="language-text">libfoo.a
+</code></pre>
+<p>It can instead report:</p>
+<pre><code class="language-text">libfoo.a:bar.o
+</code></pre>
+<h2 id="shared-library-dependency-edges"><a class="header" href="#shared-library-dependency-edges">Shared-Library Dependency Edges</a></h2>
+<p>On ELF shared libraries and executables, <code>bic</code> now captures <code>DT_NEEDED</code> dependencies into <code>dependency_edges</code>.</p>
+<p>This is not a full dynamic-loader model.
+It is still useful because it exposes artifact-declared native dependencies in the inventory itself.</p>
+<p>Example values might look like:</p>
+<ul>
+<li><code>libm.so.6</code></li>
+<li><code>libc.so.6</code></li>
+<li><code>libz.so.1</code></li>
+</ul>
+<h2 id="platform-behavior-notes"><a class="header" href="#platform-behavior-notes">Platform Behavior Notes</a></h2>
+<p>Mach-O commonly prefixes external symbols with <code>_</code>.
+<code>bic</code> normalizes those names so C declarations and native symbols compare more naturally.</p>
+<p>That normalization is intentionally paired with <code>raw_name</code> preservation so no spelling evidence is lost.</p>
+<h2 id="cli-equivalent"><a class="header" href="#cli-equivalent">CLI Equivalent</a></h2>
+<pre><code class="language-sh">bic inspect-symbols --file build/libdemo.so
+</code></pre>
+<p>The command prints pretty JSON suitable for:</p>
+<ul>
+<li>debugging</li>
+<li>snapshots in tests</li>
+<li>feeding validation jobs</li>
+<li>collecting artifact metadata in a build graph</li>
+</ul>
+<h2 id="when-to-use-inventories-directly"><a class="header" href="#when-to-use-inventories-directly">When To Use Inventories Directly</a></h2>
+<p>Use <code>inspect-symbols</code> or <code>inspect_symbols(...)</code> directly when:</p>
+<ul>
+<li>you want to debug a native artifact before validating bindings</li>
+<li>you need artifact metadata without having headers available</li>
+<li>you want to compare two builds of the same native library</li>
+<li>you need archive-member or dependency-edge evidence for a linker-oriented workflow</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="origin-filtering"><a class="header" href="#origin-filtering">Origin Filtering</a></h1>
+<p>By default, <code>bic</code> does not blindly keep every declaration found after preprocessing.
+It uses source-origin information to keep the extracted surface focused on the headers you asked for.</p>
+<p>This behavior is one of the reasons scans stay usable on real systems with deep transitive header trees.</p>
+<h2 id="the-problem-filtering-solves"><a class="header" href="#the-problem-filtering-solves">The Problem Filtering Solves</a></h2>
+<p>A normal header often pulls in:</p>
+<ul>
+<li>C runtime headers</li>
+<li>platform SDK headers</li>
+<li>project-local support headers</li>
+<li>unrelated transitive declarations</li>
+</ul>
+<p>If all of that were kept by default, a scan of one library header could explode into a large, noisy package dominated by system declarations.</p>
+<h2 id="how-origin-tracking-works"><a class="header" href="#how-origin-tracking-works">How Origin Tracking Works</a></h2>
+<p>The C preprocessor emits line markers such as:</p>
+<pre><code class="language-text"># 42 "/usr/include/stdio.h" 3
+</code></pre>
+<p><code>bic</code> parses those markers into a <code>FileOriginMap</code>.
+That map is then used to classify declaration offsets.</p>
+<p>Current origin classes are:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Origin</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Entry</code></td><td>From an entry header explicitly requested by the user</td></tr>
+<tr><td><code>UserInclude</code></td><td>From a non-system header included by an entry header</td></tr>
+<tr><td><code>System</code></td><td>From a system header</td></tr>
+<tr><td><code>Unknown</code></td><td>The origin could not be determined reliably</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="default-behavior"><a class="header" href="#default-behavior">Default Behavior</a></h2>
+<p>The default <code>OriginFilter</code> keeps:</p>
+<ul>
+<li>entry-header declarations</li>
+<li>user-include declarations</li>
+</ul>
+<p>and excludes:</p>
+<ul>
+<li>system-header declarations</li>
+</ul>
+<p>This is usually the right tradeoff for binding generation because it preserves your API surface while avoiding C runtime clutter.</p>
+<h2 id="disable-filtering-entirely"><a class="header" href="#disable-filtering-entirely">Disable Filtering Entirely</a></h2>
+<p>If you want the complete preprocessed declaration world:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::HeaderConfig;
+
+let result = HeaderConfig::new()
+    .header("mylib.h")
+    .no_origin_filter()
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>This is useful for:</p>
+<ul>
+<li>debugging missing declarations</li>
+<li>validating whether a declaration really exists after preprocessing</li>
+<li>exploring the full translation unit</li>
+</ul>
+<h2 id="custom-filters"><a class="header" href="#custom-filters">Custom Filters</a></h2>
+<p>You can provide an explicit <code>OriginFilter</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::{HeaderConfig, OriginFilter};
+
+let result = HeaderConfig::new()
+    .header("mylib.h")
+    .origin_filter(OriginFilter {
+        include_entry: true,
+        include_user: true,
+        include_system: true,
+    })
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>That is useful when system declarations are intentionally part of the bindable contract.</p>
+<h2 id="practical-advice"><a class="header" href="#practical-advice">Practical Advice</a></h2>
+<p>If a declaration seems to be missing:</p>
+<ol>
+<li>rerun with <code>.no_origin_filter()</code></li>
+<li>inspect <code>report.preprocessed_source</code></li>
+<li>confirm the declaration was not removed by macro conditions</li>
+<li>confirm the declaration still maps cleanly to a known origin</li>
+</ol>
+<p>Most “missing item” surprises come from one of those four causes.</p>
+<h2 id="why-filtering-happens-after-extraction"><a class="header" href="#why-filtering-happens-after-extraction">Why Filtering Happens After Extraction</a></h2>
+<p><code>bic</code> first extracts from the parsed translation unit and then filters by origin.</p>
+<p>That design has two benefits:</p>
+<ul>
+<li>extraction logic sees the same full parse tree the compiler saw</li>
+<li>filtering policy stays configurable and separate from parsing</li>
+</ul>
+<p>It also means you can inspect the same source through multiple origin policies without changing preprocessing itself.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="link-surface"><a class="header" href="#link-surface">Link Surface</a></h1>
+<p><code>BindingPackage.link</code> is the normalized native-link surface attached to a scan.</p>
+<p>This is one of the most important additions in the current <code>bic</code> architecture because binding generation alone is not enough.
+Downstream tools also need to know what native inputs are expected at link time.</p>
+<h2 id="what-the-link-surface-contains"><a class="header" href="#what-the-link-surface-contains">What The Link Surface Contains</a></h2>
+<p><code>BindingLinkSurface</code> currently carries:</p>
+<ul>
+<li><code>preferred_mode</code></li>
+<li><code>native_surface_kind</code></li>
+<li><code>platform_constraints</code></li>
+<li><code>include_paths</code></li>
+<li><code>framework_paths</code></li>
+<li><code>library_paths</code></li>
+<li><code>libraries</code></li>
+<li><code>frameworks</code></li>
+<li><code>artifacts</code></li>
+<li><code>ordered_inputs</code></li>
+</ul>
+<p>This deliberately preserves both:</p>
+<ul>
+<li>normalized buckets, such as <code>libraries</code></li>
+<li>original ordering information, via <code>ordered_inputs</code></li>
+</ul>
+<h2 id="why-ordered-inputs-matter"><a class="header" href="#why-ordered-inputs-matter">Why Ordered Inputs Matter</a></h2>
+<p>Link order can be semantically significant, especially with:</p>
+<ul>
+<li>static archives</li>
+<li>mixed object/archive inputs</li>
+<li>linkers that resolve left-to-right</li>
+</ul>
+<p>If <code>bic</code> only preserved deduplicated buckets, a downstream tool could lose the original intended order and silently produce a different result.</p>
+<h2 id="declared-libraries"><a class="header" href="#declared-libraries">Declared Libraries</a></h2>
+<p>Library-name inputs are recorded with:</p>
+<ul>
+<li>name</li>
+<li>kind</li>
+<li>source</li>
+</ul>
+<p>Kinds:</p>
+<ul>
+<li><code>Default</code></li>
+<li><code>Static</code></li>
+<li><code>Dynamic</code></li>
+</ul>
+<p>Examples:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = HeaderConfig::new()
+    .header("api.h")
+    .link_lib("z")
+    .link_static_lib("foo")
+    .link_shared_lib("dl");
+<span class="boring">}</span></code></pre>
+<h2 id="concrete-artifacts"><a class="header" href="#concrete-artifacts">Concrete Artifacts</a></h2>
+<p>When the binding surface depends on explicit files instead of library names, use artifact inputs:</p>
+<ul>
+<li><code>link_object_file(...)</code></li>
+<li><code>link_static_artifact(...)</code></li>
+<li><code>link_shared_artifact(...)</code></li>
+</ul>
+<p>Each artifact preserves:</p>
+<ul>
+<li><code>path</code></li>
+<li><code>kind</code></li>
+<li><code>source</code></li>
+</ul>
+<p>This is important for vendored or generated native inputs that are not discoverable through a generic <code>-lfoo</code> model.</p>
+<h2 id="framework-inputs"><a class="header" href="#framework-inputs">Framework Inputs</a></h2>
+<p>For Apple-style native dependencies:</p>
+<ul>
+<li><code>framework_dir(...)</code></li>
+<li><code>link_framework(...)</code></li>
+</ul>
+<p>These are preserved separately from ordinary library names because they are resolved differently by downstream toolchains.</p>
+<h2 id="preferred-link-mode"><a class="header" href="#preferred-link-mode">Preferred Link Mode</a></h2>
+<p><code>preferred_mode</code> captures the scan-time preference between:</p>
+<ul>
+<li><code>Default</code></li>
+<li><code>PreferStatic</code></li>
+<li><code>PreferDynamic</code></li>
+</ul>
+<p>This is not the same as hard pinning every input.
+It is a policy hint attached to the package.</p>
+<p>Use:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>.prefer_static_linking()
+<span class="boring">}</span></code></pre>
+<p>or:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>.prefer_dynamic_linking()
+<span class="boring">}</span></code></pre>
+<p>when the package should carry that preference explicitly.</p>
+<h2 id="native-surface-kind"><a class="header" href="#native-surface-kind">Native Surface Kind</a></h2>
+<p><code>native_surface_kind</code> classifies the package at a higher level:</p>
+<ul>
+<li><code>HeaderOnly</code></li>
+<li><code>LibraryNames</code></li>
+<li><code>ConcreteArtifacts</code></li>
+<li><code>Mixed</code></li>
+</ul>
+<p>This gives downstream consumers a quick decision point.</p>
+<p>Examples:</p>
+<ul>
+<li>pure header extraction with no native requirements -&gt; <code>HeaderOnly</code></li>
+<li>only <code>link_lib("sqlite3")</code> -&gt; <code>LibraryNames</code></li>
+<li>only explicit <code>.a</code> / <code>.so</code> / <code>.o</code> inputs -&gt; <code>ConcreteArtifacts</code></li>
+<li>any mix of library names and explicit files/frameworks -&gt; <code>Mixed</code></li>
+</ul>
+<h2 id="requirement-provenance"><a class="header" href="#requirement-provenance">Requirement Provenance</a></h2>
+<p>Link requirements preserve a <code>source</code>:</p>
+<ul>
+<li><code>Declared</code></li>
+<li><code>Inferred</code></li>
+<li><code>Discovered</code></li>
+</ul>
+<p>That distinction matters because downstream tooling often wants to trust user declarations more than inferred guesses, while still preserving discovered evidence for reporting and future planning.</p>
+<h2 id="platform-constraints"><a class="header" href="#platform-constraints">Platform Constraints</a></h2>
+<p><code>platform_constraints</code> are package-level target applicability hints.</p>
+<p>Today they are strings rather than a rich constraint language.
+That still makes them useful for:</p>
+<ul>
+<li>simple target gating</li>
+<li>downstream filtering</li>
+<li>build-graph selection</li>
+</ul>
+<h2 id="reading-the-link-surface-from-json"><a class="header" href="#reading-the-link-surface-from-json">Reading The Link Surface From JSON</a></h2>
+<p>The CLI makes link extraction easy:</p>
+<pre><code class="language-sh">bic link-plan --bindings-json bindings.json
+</code></pre>
+<p>That command prints the normalized <code>BindingLinkSurface</code> only.</p>
+<p>This is useful when:</p>
+<ul>
+<li>you want to inspect link metadata without the full declaration payload</li>
+<li>another tool only cares about native inputs</li>
+<li>you want a compact snapshot in tests</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="macros-and-layouts"><a class="header" href="#macros-and-layouts">Macros And Layouts</a></h1>
+<p>Two of the most important “not just declarations” surfaces in <code>bic</code> are:</p>
+<ul>
+<li>macro inventory</li>
+<li>compiler-probed type layouts</li>
+</ul>
+<p>Together they close a large part of the gap between syntax-only header extraction and ABI-aware binding generation.</p>
+<h2 id="macro-inventory"><a class="header" href="#macro-inventory">Macro Inventory</a></h2>
+<p><code>BindingPackage.macros</code> captures macro definitions seen during raw-header scans.</p>
+<p>Each <code>MacroBinding</code> carries:</p>
+<ul>
+<li><code>name</code></li>
+<li><code>body</code></li>
+<li><code>function_like</code></li>
+<li><code>kind</code></li>
+<li><code>category</code></li>
+</ul>
+<h3 id="macro-kind"><a class="header" href="#macro-kind">Macro Kind</a></h3>
+<p>Current kinds are:</p>
+<ul>
+<li><code>Integer</code></li>
+<li><code>String</code></li>
+<li><code>Expression</code></li>
+<li><code>Other</code></li>
+</ul>
+<p>This is a structural classification of the macro body.</p>
+<h3 id="macro-category"><a class="header" href="#macro-category">Macro Category</a></h3>
+<p>Current categories are:</p>
+<ul>
+<li><code>BindableConstant</code></li>
+<li><code>ConfigurationFlag</code></li>
+<li><code>AbiAffecting</code></li>
+<li><code>Unsupported</code></li>
+</ul>
+<p>This is a higher-level classification intended to help downstream generators and planners decide which macros are relevant.</p>
+<h2 id="why-macro-capture-matters"><a class="header" href="#why-macro-capture-matters">Why Macro Capture Matters</a></h2>
+<p>Many real C APIs encode essential information in macros:</p>
+<ul>
+<li>integer constants</li>
+<li>version identifiers</li>
+<li>feature toggles</li>
+<li>calling-convention selectors</li>
+<li>export/import annotations</li>
+<li>ABI-affecting packing or configuration knobs</li>
+</ul>
+<p>Without macros, a binding package is often incomplete even if declaration extraction succeeded.</p>
+<h2 id="practical-macro-interpretation"><a class="header" href="#practical-macro-interpretation">Practical Macro Interpretation</a></h2>
+<p>Downstream tools should usually treat categories differently:</p>
+<ul>
+<li><code>BindableConstant</code>: good candidates for generated constants</li>
+<li><code>ConfigurationFlag</code>: environment and availability signals</li>
+<li><code>AbiAffecting</code>: do not ignore; these may change layout or calling behavior</li>
+<li><code>Unsupported</code>: evidence worth reporting, not blindly generating</li>
+</ul>
+<h2 id="layout-probing"><a class="header" href="#layout-probing">Layout Probing</a></h2>
+<p><code>TypeLayout</code> currently stores:</p>
+<ul>
+<li><code>name</code></li>
+<li><code>size</code></li>
+<li><code>align</code></li>
+</ul>
+<p>The layouts are produced by compiler-assisted probing.
+That means they reflect the configured compiler environment rather than guessed sizes.</p>
+<h2 id="probe-through-the-api"><a class="header" href="#probe-through-the-api">Probe Through The API</a></h2>
+<p>You can probe layouts during a scan:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = HeaderConfig::new()
+    .header("api.h")
+    .probe_type_layout("struct api_context")
+    .probe_type_layout("struct api_options")
+    .process()?;
+<span class="boring">}</span></code></pre>
+<p>Or directly:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::{probe_type_layouts, HeaderConfig};
+
+let cfg = HeaderConfig::new()
+    .header("api.h")
+    .include_dir("include");
+
+let report = probe_type_layouts(&amp;cfg, &amp;["struct api_context".into()])?;
+println!("{:?}", report.layouts);
+<span class="boring">}</span></code></pre>
+<h2 id="probe-through-the-cli"><a class="header" href="#probe-through-the-cli">Probe Through The CLI</a></h2>
+<pre><code class="language-sh">bic probe-layout \
+  --header api.h \
+  --include-dir include \
+  --type "struct api_context"
+</code></pre>
+<p>Or attach layouts directly during scan:</p>
+<pre><code class="language-sh">bic scan \
+  --header api.h \
+  --probe-type "struct api_context"
+</code></pre>
+<h2 id="what-layouts-solve"><a class="header" href="#what-layouts-solve">What Layouts Solve</a></h2>
+<p>Compiler-probed layouts are especially useful for:</p>
+<ul>
+<li>checking that opaque vs non-opaque modeling matches reality</li>
+<li>proving <code>sizeof</code> and <code>alignof</code> for important structs</li>
+<li>gating generation on ABI-sensitive records</li>
+<li>preserving ABI evidence in a transportable JSON package</li>
+</ul>
+<h2 id="what-layouts-do-not-yet-solve"><a class="header" href="#what-layouts-do-not-yet-solve">What Layouts Do Not Yet Solve</a></h2>
+<p>Current layout data is intentionally small.
+It does not yet provide a full field-offset or bitfield-layout model.</p>
+<p>So treat <code>TypeLayout</code> as:</p>
+<ul>
+<li>stronger than guessing</li>
+<li>not yet a complete ABI proof for all record shapes</li>
+</ul>
+<p>That distinction is important when building a “full binder/linker” layer on top.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="validation"><a class="header" href="#validation">Validation</a></h1>
+<p>Validation compares a <code>BindingPackage</code> against one or more <code>SymbolInventory</code> values.</p>
+<p>This answers a practical question:</p>
+<blockquote>
+<p>do the declarations we extracted line up with what the native artifacts actually provide?</p>
+</blockquote>
+<h2 id="api-entry-points"><a class="header" href="#api-entry-points">API Entry Points</a></h2>
+<p>Single artifact:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::validate;
+
+let report = validate(&amp;package, &amp;inventory);
+<span class="boring">}</span></code></pre>
+<p>Multiple artifacts:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use bic::validate_many;
+
+let report = validate_many(&amp;package, &amp;[inv_a, inv_b]);
+<span class="boring">}</span></code></pre>
+<p>Use <code>validate_many</code> whenever the package is expected to resolve across more than one object/archive/shared library.</p>
+<h2 id="what-validation-looks-at"><a class="header" href="#what-validation-looks-at">What Validation Looks At</a></h2>
+<p>Validation currently focuses on bindable symbol presence and kind.
+It compares:</p>
+<ul>
+<li>extracted functions</li>
+<li>extracted variables</li>
+</ul>
+<p>against:</p>
+<ul>
+<li>normalized symbol names</li>
+<li>raw/decorated symbol spellings</li>
+<li>symbol visibility</li>
+<li>symbol binding strength</li>
+<li>provider artifact provenance</li>
+</ul>
+<h2 id="match-statuses"><a class="header" href="#match-statuses">Match Statuses</a></h2>
+<p>Current statuses are:</p>
+<ul>
+<li><code>Matched</code></li>
+<li><code>Missing</code></li>
+<li><code>UnresolvedDeclaredLinkInputs</code></li>
+<li><code>DecorationMismatch</code></li>
+<li><code>NotAFunction</code></li>
+<li><code>NotAVariable</code></li>
+<li><code>Hidden</code></li>
+<li><code>WeakMatch</code></li>
+<li><code>DuplicateProviders</code></li>
+</ul>
+<p>Each status tells you something different.</p>
+<h2 id="status-semantics"><a class="header" href="#status-semantics">Status Semantics</a></h2>
+<h3 id="matched"><a class="header" href="#matched"><code>Matched</code></a></h3>
+<p>The declaration name resolved to a visible symbol of the expected kind.</p>
+<h3 id="missing"><a class="header" href="#missing"><code>Missing</code></a></h3>
+<p>No matching symbol was found and the package did not even declare native link inputs that might reasonably have provided it.</p>
+<h3 id="unresolveddeclaredlinkinputs"><a class="header" href="#unresolveddeclaredlinkinputs"><code>UnresolvedDeclaredLinkInputs</code></a></h3>
+<p>No symbol was found, but the package did declare native link inputs.</p>
+<p>This is a stronger signal than plain missing because it tells you the package expected a provider and the validation step failed to find it.</p>
+<h3 id="decorationmismatch"><a class="header" href="#decorationmismatch"><code>DecorationMismatch</code></a></h3>
+<p>No normalized symbol matched, but a decorated/raw spelling normalized to the declaration name.</p>
+<p>This is the “something probably exists, but the name spelling path does not line up cleanly” status.</p>
+<h3 id="notafunction-and-notavariable"><a class="header" href="#notafunction-and-notavariable"><code>NotAFunction</code> and <code>NotAVariable</code></a></h3>
+<p>A symbol exists, but it has the wrong broad kind for the declaration.</p>
+<h3 id="hidden"><a class="header" href="#hidden"><code>Hidden</code></a></h3>
+<p>A candidate symbol exists, but it is not visible as a usable exported provider.</p>
+<h3 id="weakmatch"><a class="header" href="#weakmatch"><code>WeakMatch</code></a></h3>
+<p>The symbol is present, but only as a weak binding.</p>
+<p>This is often acceptable evidence, but it should not be treated as equivalent to a strong exported provider in every workflow.</p>
+<h3 id="duplicateproviders"><a class="header" href="#duplicateproviders"><code>DuplicateProviders</code></a></h3>
+<p>More than one visible provider satisfies the same declaration across the validated artifact set.</p>
+<p>This is especially important when merging link surfaces from several native inputs.</p>
+<h2 id="provider-artifacts"><a class="header" href="#provider-artifacts">Provider Artifacts</a></h2>
+<p>Each <code>SymbolMatch</code> can record <code>provider_artifacts</code>.</p>
+<p>That list may include:</p>
+<ul>
+<li>plain artifact paths</li>
+<li>archive member provenance such as <code>libfoo.a:bar.o</code></li>
+</ul>
+<p>This is useful for:</p>
+<ul>
+<li>debugging multi-artifact validation</li>
+<li>surfacing duplicate providers</li>
+<li>building later link-resolution heuristics</li>
+</ul>
+<h2 id="cli-usage"><a class="header" href="#cli-usage">CLI Usage</a></h2>
+<pre><code class="language-sh">bic validate \
+  --bindings-json bindings.json \
+  --artifact build/libfoo.so \
+  --artifact build/libsupport.a
+</code></pre>
+<p>The command prints a JSON <code>ValidationReport</code>.</p>
+<h2 id="how-to-read-a-report"><a class="header" href="#how-to-read-a-report">How To Read A Report</a></h2>
+<p>The most important first pass is:</p>
+<ol>
+<li>count <code>Matched</code></li>
+<li>count <code>Missing</code> and <code>UnresolvedDeclaredLinkInputs</code></li>
+<li>inspect <code>DuplicateProviders</code></li>
+<li>inspect <code>DecorationMismatch</code></li>
+</ol>
+<p>That ordering usually tells you whether the problem is:</p>
+<ul>
+<li>missing native inputs</li>
+<li>unexpected symbol spelling</li>
+<li>duplicate/native-surface ambiguity</li>
+<li>visibility or kind mismatch</li>
+</ul>
+<h2 id="what-validation-does-not-prove"><a class="header" href="#what-validation-does-not-prove">What Validation Does Not Prove</a></h2>
+<p>Current validation is symbol-oriented, not full ABI-signature verification.</p>
+<p>A <code>Matched</code> status does not prove:</p>
+<ul>
+<li>function parameter ABI identity</li>
+<li>structure layout compatibility</li>
+<li>calling convention identity beyond the available evidence</li>
+<li>semantic compatibility across versions</li>
+</ul>
+<p>Use validation as strong symbol-level evidence, not as a complete ABI theorem.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="cli-reference"><a class="header" href="#cli-reference">CLI Reference</a></h1>
+<p>The <code>bic</code> CLI is intentionally machine-facing.
+Every subcommand prints JSON or an error message suitable for scripts and build pipelines.</p>
+<h2 id="command-overview"><a class="header" href="#command-overview">Command Overview</a></h2>
+<p>Current commands:</p>
+<ul>
+<li><code>scan</code></li>
+<li><code>scan-preprocessed</code></li>
+<li><code>inspect-symbols</code></li>
+<li><code>validate</code></li>
+<li><code>link-plan</code></li>
+<li><code>probe-layout</code></li>
+</ul>
+<h2 id="bic-scan"><a class="header" href="#bic-scan"><code>bic scan</code></a></h2>
+<p>Scans raw headers and prints a <code>BindingPackage</code>.</p>
+<p>Common options:</p>
+<ul>
+<li><code>--header &lt;path&gt;</code></li>
+<li><code>--include-dir &lt;path&gt;</code></li>
+<li><code>--framework-dir &lt;path&gt;</code></li>
+<li><code>--library-dir &lt;path&gt;</code></li>
+<li><code>--define &lt;NAME[=VALUE]&gt;</code></li>
+<li><code>--compiler &lt;cmd&gt;</code></li>
+<li><code>--flavor &lt;gnu|clang|std&gt;</code></li>
+<li><code>--probe-type &lt;name&gt;</code></li>
+<li><code>--no-origin-filter</code></li>
+</ul>
+<p>Native-link options:</p>
+<ul>
+<li><code>--link-lib &lt;name&gt;</code></li>
+<li><code>--link-static-lib &lt;name&gt;</code></li>
+<li><code>--link-shared-lib &lt;name&gt;</code></li>
+<li><code>--link-object &lt;path&gt;</code></li>
+<li><code>--link-static-artifact &lt;path&gt;</code></li>
+<li><code>--link-shared-artifact &lt;path&gt;</code></li>
+<li><code>--link-framework &lt;name&gt;</code></li>
+<li><code>--prefer-static</code></li>
+<li><code>--prefer-dynamic</code></li>
+<li><code>--target-constraint &lt;expr&gt;</code></li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh">bic scan \
+  --header api.h \
+  --include-dir include \
+  --library-dir lib \
+  --define API_FEATURE=1 \
+  --link-lib demo \
+  --probe-type "struct api_context"
+</code></pre>
+<h2 id="bic-scan-preprocessed"><a class="header" href="#bic-scan-preprocessed"><code>bic scan-preprocessed</code></a></h2>
+<p>Parses preprocessed source and prints a <code>BindingPackage</code>.</p>
+<p>Options:</p>
+<ul>
+<li><code>--file &lt;path&gt;</code></li>
+<li><code>--source-path &lt;display-path&gt;</code></li>
+<li><code>--flavor &lt;gnu|clang|std&gt;</code></li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh">bic scan-preprocessed --file api.i --source-path api.h
+</code></pre>
+<p>Use this when preprocessing is already owned elsewhere.</p>
+<h2 id="bic-inspect-symbols"><a class="header" href="#bic-inspect-symbols"><code>bic inspect-symbols</code></a></h2>
+<p>Reads a native artifact and prints a <code>SymbolInventory</code>.</p>
+<p>Options:</p>
+<ul>
+<li><code>--file &lt;path&gt;</code></li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh">bic inspect-symbols --file build/libdemo.so
+</code></pre>
+<h2 id="bic-validate"><a class="header" href="#bic-validate"><code>bic validate</code></a></h2>
+<p>Validates a saved <code>BindingPackage</code> JSON against one or more native artifacts.</p>
+<p>Options:</p>
+<ul>
+<li><code>--bindings-json &lt;path&gt;</code></li>
+<li><code>--artifact &lt;path&gt;</code> repeated</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh">bic validate \
+  --bindings-json bindings.json \
+  --artifact build/libdemo.so \
+  --artifact build/libsupport.a
+</code></pre>
+<h2 id="bic-link-plan"><a class="header" href="#bic-link-plan"><code>bic link-plan</code></a></h2>
+<p>Reads a saved <code>BindingPackage</code> JSON and prints only its normalized <code>BindingLinkSurface</code>.</p>
+<p>Options:</p>
+<ul>
+<li><code>--bindings-json &lt;path&gt;</code></li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh">bic link-plan --bindings-json bindings.json
+</code></pre>
+<p>This is a useful boundary command for downstream tools that care about link metadata but not the full declaration payload.</p>
+<h2 id="bic-probe-layout"><a class="header" href="#bic-probe-layout"><code>bic probe-layout</code></a></h2>
+<p>Runs compiler-assisted type layout probing without doing a full binding scan output.</p>
+<p>Typical options mirror scan inputs:</p>
+<ul>
+<li><code>--header &lt;path&gt;</code></li>
+<li><code>--include-dir &lt;path&gt;</code></li>
+<li><code>--define &lt;NAME[=VALUE]&gt;</code></li>
+<li><code>--compiler &lt;cmd&gt;</code></li>
+<li><code>--flavor &lt;gnu|clang|std&gt;</code></li>
+<li><code>--type &lt;name&gt;</code> repeated</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh">bic probe-layout \
+  --header api.h \
+  --include-dir include \
+  --type "struct api_context"
+</code></pre>
+<h2 id="cli-design-notes"><a class="header" href="#cli-design-notes">CLI Design Notes</a></h2>
+<p>The CLI intentionally avoids human-formatted summaries as its primary output.
+It is meant for:</p>
+<ul>
+<li>build scripts</li>
+<li>reproducible test fixtures</li>
+<li>downstream generator pipelines</li>
+<li>debugging exact machine-visible state</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="end-to-end-workflows"><a class="header" href="#end-to-end-workflows">End-To-End Workflows</a></h1>
+<p>This chapter ties the separate surfaces together into practical workflows.</p>
+<h2 id="workflow-1-scan-a-header-and-save-json"><a class="header" href="#workflow-1-scan-a-header-and-save-json">Workflow 1: Scan A Header And Save JSON</a></h2>
+<pre><code class="language-sh">bic scan \
+  --header include/demo.h \
+  --include-dir include \
+  &gt; bindings.json
+</code></pre>
+<p>This is the baseline path for most automation.</p>
+<p>The resulting file now contains:</p>
+<ul>
+<li>declarations</li>
+<li>macros</li>
+<li>layouts if requested</li>
+<li>link metadata</li>
+<li>diagnostics</li>
+</ul>
+<h2 id="workflow-2-inspect-a-native-artifact"><a class="header" href="#workflow-2-inspect-a-native-artifact">Workflow 2: Inspect A Native Artifact</a></h2>
+<pre><code class="language-sh">bic inspect-symbols --file build/libdemo.so &gt; symbols.json
+</code></pre>
+<p>Use this when you need artifact evidence first.</p>
+<p>Typical reasons:</p>
+<ul>
+<li>debugging whether a build exported the symbol you expected</li>
+<li>checking archive member provenance</li>
+<li>checking shared-library dependency edges</li>
+</ul>
+<h2 id="workflow-3-validate-bindings-against-artifacts"><a class="header" href="#workflow-3-validate-bindings-against-artifacts">Workflow 3: Validate Bindings Against Artifacts</a></h2>
+<pre><code class="language-sh">bic validate \
+  --bindings-json bindings.json \
+  --artifact build/libdemo.so
+</code></pre>
+<p>This is the first serious consistency check between header intent and native reality.</p>
+<p>For a split native surface:</p>
+<pre><code class="language-sh">bic validate \
+  --bindings-json bindings.json \
+  --artifact build/libcore.so \
+  --artifact build/libsupport.a
+</code></pre>
+<h2 id="workflow-4-extract-just-the-link-surface"><a class="header" href="#workflow-4-extract-just-the-link-surface">Workflow 4: Extract Just The Link Surface</a></h2>
+<pre><code class="language-sh">bic link-plan --bindings-json bindings.json &gt; link-surface.json
+</code></pre>
+<p>This is a useful boundary if a downstream tool only wants:</p>
+<ul>
+<li>library names</li>
+<li>concrete artifact inputs</li>
+<li>framework inputs</li>
+<li>platform constraints</li>
+<li>ordering and link preference metadata</li>
+</ul>
+<h2 id="workflow-5-preprocessed-only-debugging"><a class="header" href="#workflow-5-preprocessed-only-debugging">Workflow 5: Preprocessed-Only Debugging</a></h2>
+<p>If a raw-header scan is confusing, break the problem in two:</p>
+<ol>
+<li>produce or capture preprocessed source</li>
+<li>run <code>scan-preprocessed</code></li>
+</ol>
+<pre><code class="language-sh">bic scan-preprocessed --file debug.i --source-path debug.h
+</code></pre>
+<p>This isolates extraction behavior from compiler invocation behavior.</p>
+<h2 id="workflow-6-abi-sensitive-packages"><a class="header" href="#workflow-6-abi-sensitive-packages">Workflow 6: ABI-Sensitive Packages</a></h2>
+<p>For packages with important struct ABI:</p>
+<pre><code class="language-sh">bic scan \
+  --header include/api.h \
+  --probe-type "struct api_context" \
+  --probe-type "struct api_options" \
+  &gt; bindings.json
+</code></pre>
+<p>Then validate against the built native artifact:</p>
+<pre><code class="language-sh">bic validate \
+  --bindings-json bindings.json \
+  --artifact build/libapi.so
+</code></pre>
+<p>This gives you:</p>
+<ul>
+<li>declaration extraction</li>
+<li>macro inventory</li>
+<li>layout evidence</li>
+<li>symbol-provider evidence</li>
+</ul>
+<p>in one workflow.</p>
+<h2 id="workflow-7-downstream-fol-consumption"><a class="header" href="#workflow-7-downstream-fol-consumption">Workflow 7: Downstream <code>fol</code> Consumption</a></h2>
+<p>The intended downstream pattern is:</p>
+<ol>
+<li><code>bic scan</code> produces <code>BindingPackage</code></li>
+<li><code>fol</code> reads the package JSON</li>
+<li><code>fol</code> lowers <code>package.items</code> into generated bindings</li>
+<li><code>fol</code> reads <code>package.link</code> to construct native link inputs</li>
+<li><code>fol</code> may use validation output as a gate or diagnostic surface</li>
+</ol>
+<p>That division keeps <code>bic</code> focused on analysis and normalization rather than owning final build execution.</p>
+<h2 id="recommended-validation-gate"><a class="header" href="#recommended-validation-gate">Recommended Validation Gate</a></h2>
+<p>For serious native binding pipelines, a practical gate is:</p>
+<ul>
+<li>fail on <code>Missing</code></li>
+<li>fail on <code>UnresolvedDeclaredLinkInputs</code></li>
+<li>fail on <code>DuplicateProviders</code></li>
+<li>inspect <code>DecorationMismatch</code></li>
+<li>treat <code>WeakMatch</code> as policy-dependent</li>
+</ul>
+<p>That is a pragmatic middle ground between “trust the headers blindly” and “pretend current validation proves full ABI compatibility”.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

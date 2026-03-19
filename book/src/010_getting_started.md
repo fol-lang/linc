@@ -1,34 +1,164 @@
 # Getting Started
 
-Add BIC as a dependency:
+This chapter shows the shortest path from "I have a header" to "I have machine-readable bindings".
+
+## Add the Crate
+
+Use a local path dependency while developing in the workspace:
 
 ```toml
 [dependencies]
 bic = { path = "../bic" }
 ```
 
-## Basic usage
+If you need Rust FFI generation, enable the `codegen` feature.
+If you need native artifact inspection and validation, enable the `symbols` feature.
+
+Example:
+
+```toml
+[dependencies]
+bic = { path = "../bic", features = ["codegen", "symbols"] }
+```
+
+## Smallest Useful Example
 
 ```rust
-use bic::raw_headers::HeaderConfig;
+use bic::HeaderConfig;
 
-let result = HeaderConfig::new()
-    .header("mylib.h")
-    .process()
-    .unwrap();
+fn main() -> Result<(), String> {
+    let result = HeaderConfig::new()
+        .header("mylib.h")
+        .process()?;
 
-for item in &result.package.items {
-    println!("{:?}", item);
+    println!("items: {}", result.package.items.len());
+    println!("macros: {}", result.package.macros.len());
+    println!("layouts: {}", result.package.layouts.len());
+
+    Ok(())
 }
 ```
 
-## With include directories and defines
+`process()` returns a `RawHeaderResult` with two parts:
+
+- `package`: the durable output you usually keep or serialize
+- `report`: the immediate preprocessing invocation details and preprocessed source
+
+## Typical Scan With Real Inputs
+
+Most real scans need include paths, defines, and some native link metadata:
 
 ```rust
+use bic::HeaderConfig;
+
 let result = HeaderConfig::new()
     .header("api.h")
-    .include_dir("/usr/local/include")
-    .define("VERSION", Some("2".into()))
-    .process()
-    .unwrap();
+    .include_dir("vendor/include")
+    .library_dir("vendor/lib")
+    .define("MYLIB_FEATURE_X", Some("1".into()))
+    .link_lib("mylib")
+    .link_shared_lib("dl")
+    .probe_type_layout("struct api_context")
+    .process()?;
 ```
+
+That single scan can now carry:
+
+- extracted declarations
+- captured preprocessor macros
+- link requirements
+- probed type layouts
+- diagnostics
+
+## JSON Round Trip
+
+`BindingPackage` is designed to be exchanged across tools.
+
+```rust
+use bic::{from_json, to_json, HeaderConfig};
+
+let result = HeaderConfig::new()
+    .header("mylib.h")
+    .process()?;
+
+let json = to_json(&result.package).unwrap();
+let restored = from_json(&json).unwrap();
+
+assert_eq!(result.package, restored);
+```
+
+This is the normal handoff point to another system.
+
+## Preprocessed Input Path
+
+Sometimes you already have a `.i` file or a preprocessor pipeline elsewhere.
+In that case, skip raw-header driving and feed the preprocessed text directly.
+
+```rust
+use bic::PreprocessedInput;
+
+let pkg = PreprocessedInput::from_string("int add(int a, int b);")
+    .with_path("generated.i")
+    .extract();
+
+assert_eq!(pkg.items.len(), 1);
+```
+
+Use this mode when:
+
+- another build system already owns preprocessing
+- you want fully reproducible parser input checked into tests
+- you need to debug extraction separate from compiler invocation
+
+## Common Integration Pattern
+
+The most common downstream pattern is:
+
+1. Run `HeaderConfig::process()`
+2. Serialize the `BindingPackage`
+3. Optionally inspect artifacts with `inspect_symbols`
+4. Optionally validate the package against those artifacts
+5. Feed the package and validation results into your generator/build system
+
+That is the intended shape for `fol` integration as well.
+
+## First Things To Inspect
+
+When a scan does not look right, inspect these fields first:
+
+- `package.items`
+- `package.macros`
+- `package.layouts`
+- `package.link`
+- `package.diagnostics`
+- `report.preprocessed_source`
+
+Those six surfaces usually tell you whether the problem is:
+
+- preprocessing
+- extraction
+- macro visibility
+- ABI probing
+- link metadata declaration
+
+## Minimal CLI Equivalent
+
+Everything above has a CLI path.
+
+```sh
+bic scan --header mylib.h
+```
+
+For richer scans:
+
+```sh
+bic scan \
+  --header api.h \
+  --include-dir vendor/include \
+  --library-dir vendor/lib \
+  --define MYLIB_FEATURE_X=1 \
+  --link-lib mylib \
+  --probe-type "struct api_context"
+```
+
+The CLI prints JSON, which makes it suitable for scripting and build graph integration.
