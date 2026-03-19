@@ -1357,7 +1357,6 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 
     /// Compile a minimal C file to .o and inspect its symbols.
     #[test]
-    #[ignore] // Requires cc
     fn inspect_compiled_object() {
         let dir = std::env::temp_dir().join("bic_sym_test");
         std::fs::create_dir_all(&dir).unwrap();
@@ -1393,7 +1392,6 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 
     /// Compile to .a and inspect.
     #[test]
-    #[ignore] // Requires cc and ar
     fn inspect_static_library() {
         let dir = std::env::temp_dir().join("bic_ar_test");
         std::fs::create_dir_all(&dir).unwrap();
