@@ -605,6 +605,14 @@ pub enum RecordKind {
 pub struct FieldBinding {
     pub name: Option<String>,
     pub ty: BindingType,
+    #[serde(default)]
+    pub bit_width: Option<u64>,
+}
+
+impl FieldBinding {
+    pub fn is_bitfield(&self) -> bool {
+        self.bit_width.is_some()
+    }
 }
 
 /// Extracted record declaration.
@@ -730,6 +738,7 @@ mod tests {
             fields: Some(vec![FieldBinding {
                 name: Some("x".into()),
                 ty: BindingType::Int,
+                bit_width: None,
             }]),
             source_offset: Some(2),
         }));
@@ -947,13 +956,31 @@ mod tests {
             kind: RecordKind::Struct,
             name: Some("point".into()),
             fields: Some(vec![
-                FieldBinding { name: Some("x".into()), ty: BindingType::Int },
-                FieldBinding { name: Some("y".into()), ty: BindingType::Int },
+                FieldBinding {
+                    name: Some("x".into()),
+                    ty: BindingType::Int,
+                    bit_width: None,
+                },
+                FieldBinding {
+                    name: Some("y".into()),
+                    ty: BindingType::Int,
+                    bit_width: None,
+                },
             ]),
             source_offset: None,
         };
         assert!(!rec.is_opaque());
         assert_eq!(rec.fields.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn field_binding_tracks_partial_bitfield_metadata() {
+        let field = FieldBinding {
+            name: Some("flags".into()),
+            ty: BindingType::UInt,
+            bit_width: Some(3),
+        };
+        assert!(field.is_bitfield());
     }
 
     #[test]

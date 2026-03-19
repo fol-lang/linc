@@ -296,7 +296,11 @@ impl Extractor {
         if field.declarators.is_empty() {
             // Anonymous field (e.g. anonymous struct/union)
             let ty = self.resolve_base_type_from_type_specs(&base_type_specs);
-            out.push(FieldBinding { name: None, ty });
+            out.push(FieldBinding {
+                name: None,
+                ty,
+                bit_width: None,
+            });
             return;
         }
 
@@ -309,12 +313,19 @@ impl Extractor {
                 .as_ref()
                 .and_then(|d| self.declarator_name(&d.node));
 
+            let bit_width = sd
+                .node
+                .bit_width
+                .as_ref()
+                .and_then(|expr| eval_const_expr(&expr.node))
+                .and_then(|value| u64::try_from(value).ok());
+
             if sd.node.bit_width.is_some() {
                 let field_name = name.as_deref().unwrap_or("<anonymous>");
                 self.diagnostics.push(
                     Diagnostic::warning(
                         DiagnosticKind::DeclarationPartial,
-                        format!("bitfield width ignored on field '{}'", field_name),
+                        format!("bitfield layout partially represented on field '{}'", field_name),
                     )
                     .with_item(field_name),
                 );
@@ -330,7 +341,11 @@ impl Extractor {
             if base_is_const {
                 ty = self.mark_innermost_pointer_const(ty);
             }
-            out.push(FieldBinding { name, ty });
+            out.push(FieldBinding {
+                name,
+                ty,
+                bit_width,
+            });
         }
     }
 
@@ -1155,6 +1170,7 @@ mod tests {
         assert_eq!(fields.len(), 2);
         assert_eq!(fields[0].name.as_deref(), Some("x"));
         assert_eq!(fields[0].ty, BindingType::Int);
+        assert_eq!(fields[0].bit_width, None);
     }
 
     #[test]
@@ -1179,6 +1195,28 @@ mod tests {
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].kind, RecordKind::Union);
         assert_eq!(records[0].name.as_deref(), Some("data"));
+    }
+
+    #[test]
+    fn extract_bitfield_widths_partially() {
+        let pkg = extract("struct flags { unsigned value:3; unsigned other:5; };");
+        let record = pkg
+            .items
+            .iter()
+            .find_map(|item| match item {
+                BindingItem::Record(record) => Some(record),
+                _ => None,
+            })
+            .unwrap();
+        let fields = record.fields.as_ref().unwrap();
+        assert_eq!(fields[0].name.as_deref(), Some("value"));
+        assert_eq!(fields[0].bit_width, Some(3));
+        assert_eq!(fields[1].name.as_deref(), Some("other"));
+        assert_eq!(fields[1].bit_width, Some(5));
+        assert!(pkg
+            .diagnostics
+            .iter()
+            .any(|diag| diag.message.contains("bitfield layout partially represented")));
     }
 
     #[test]

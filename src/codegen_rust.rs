@@ -385,10 +385,12 @@ mod tests {
                     crate::ir::FieldBinding {
                         name: None,
                         ty: crate::ir::BindingType::Int,
+                        bit_width: None,
                     },
                     crate::ir::FieldBinding {
                         name: Some("x".into()),
                         ty: crate::ir::BindingType::Int,
+                        bit_width: None,
                     },
                 ]),
                 source_offset: None,
@@ -417,8 +419,19 @@ mod tests {
                 kind: crate::ir::RecordKind::Struct,
                 name: Some("buf".into()),
                 fields: Some(vec![
-                    crate::ir::FieldBinding { name: Some("len".into()), ty: crate::ir::BindingType::Int },
-                    crate::ir::FieldBinding { name: Some("data".into()), ty: crate::ir::BindingType::Array(Box::new(crate::ir::BindingType::UChar), None) },
+                    crate::ir::FieldBinding {
+                        name: Some("len".into()),
+                        ty: crate::ir::BindingType::Int,
+                        bit_width: None,
+                    },
+                    crate::ir::FieldBinding {
+                        name: Some("data".into()),
+                        ty: crate::ir::BindingType::Array(
+                            Box::new(crate::ir::BindingType::UChar),
+                            None,
+                        ),
+                        bit_width: None,
+                    },
                 ]),
                 source_offset: None,
             })],
