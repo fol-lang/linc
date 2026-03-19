@@ -103,6 +103,7 @@
 //! - typed data structures on success
 //! - diagnostics carried in returned packages and reports
 //! - `BicError` for JSON and schema transport concerns
+//! - validation findings returned as structured report data
 //!
 //! Future plan slices will convert the remaining string-based operational failures
 //! into typed crate errors.
@@ -118,6 +119,22 @@
 //!   their exact long-term shape
 //! - validation and symbol inventories are structured evidence, not proof that every ABI detail
 //!   is fully modeled
+//!
+//! # Current Failure Model
+//!
+//! The library currently distinguishes three kinds of outcomes:
+//!
+//! - hard operational failures returned as `Err(...)`
+//! - successful analysis with diagnostics attached to returned data
+//! - successful validation that may still report mismatches in structured result objects
+//!
+//! In practical terms:
+//!
+//! - transport and schema problems should be treated as hard errors
+//! - source/toolchain issues that prevent useful analysis may return an error
+//! - unsupported or partially represented source constructs should usually appear in
+//!   `package.diagnostics`
+//! - declaration-vs-artifact mismatches should appear in `ValidationReport`, not as thrown errors
 //!
 pub mod diagnostics;
 pub mod error;
