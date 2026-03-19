@@ -1005,7 +1005,6 @@ Dynamic section at offset 0x2de0 contains 3 entries:
     }
 
     #[test]
-    #[ignore] // Requires cc and ar
     fn inspect_static_library_preserves_member_provenance() {
         let dir = std::env::temp_dir().join("bic_ar_members_test");
         std::fs::create_dir_all(&dir).unwrap();
@@ -1060,7 +1059,6 @@ Dynamic section at offset 0x2de0 contains 3 entries:
     }
 
     #[test]
-    #[ignore] // Requires cc and readelf
     fn inspect_shared_library_captures_dependency_edges() {
         let dir = std::env::temp_dir().join("bic_shared_dep_test");
         std::fs::create_dir_all(&dir).unwrap();

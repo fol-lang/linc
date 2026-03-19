@@ -660,7 +660,6 @@ mod tests {
 
     /// End-to-end: parse C, compile it, validate symbols.
     #[test]
-    #[ignore] // Requires cc
     fn end_to_end_validation() {
         let c_src = "int add(int a, int b) { return a + b; }\nint mul(int a, int b) { return a * b; }\n";
         let dir = std::env::temp_dir().join("bic_validate_test");

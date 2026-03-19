@@ -43,6 +43,10 @@ Ignored tests are acceptable when they cover:
 
 They are not a substitute for protecting the main public contract.
 
+As environment assumptions become realistic for normal development, higher-value tests should move
+out of ignored status. That now includes several native-path checks such as archive-member
+provenance, dependency-edge capture, macro capture, layout attachment, and end-to-end validation.
+
 ## Downstream Implication
 
 For `fol` and other consumers, the most reliable fixtures to depend on are:

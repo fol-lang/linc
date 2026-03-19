@@ -1611,7 +1611,6 @@ int compute(int x);
     }
 
     #[test]
-    #[ignore] // Requires gcc/clang
     fn process_captures_header_macros() {
         let dir = setup_test_dir("t");
         let header = dir.join("macros.h");
@@ -1648,7 +1647,6 @@ int compute(int x);
     }
 
     #[test]
-    #[ignore] // Requires gcc/clang
     fn process_attaches_requested_type_layouts() {
         let dir = setup_test_dir("t");
         let header = dir.join("layout.h");
