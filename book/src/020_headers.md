@@ -80,6 +80,46 @@ These options decide how much of the parsed declaration world survives into the 
 
 This is a post-extraction policy layer, not a preprocessing input.
 
+## Defaults And Precedence Rules
+
+For stable downstream use, `HeaderConfig` should be read as an append-oriented builder with a
+small set of important defaults.
+
+Current defaults:
+
+- `origin_filter` starts as `Some(OriginFilter::default())`
+- `preferred_link_mode` starts as `LinkResolutionMode::Default`
+- `flavor` starts effectively as `GnuC11`
+- `compiler` starts effectively as:
+  - `clang` when the effective flavor is `ClangC11`
+  - `gcc` otherwise
+- all path, define, link, constraint, and probe lists start empty
+
+Current precedence and accumulation rules:
+
+- repeated calls to `header(...)`, `include_dir(...)`, `define(...)`, link-declaration methods,
+  `target_constraint(...)`, and `probe_type_layout(...)` append in declaration order
+- bulk builders such as `headers(...)` and `include_dirs(...)` use the same append semantics as
+  repeated single-item builders
+- no current builder method performs deduplication for you; if order or duplicates matter to
+  your downstream flow, treat the builder input as authoritative
+- `compiler(...)` overrides the compiler command that would otherwise be inferred from flavor
+- `flavor(...)` overrides the default dialect assumption and also changes compiler inference when
+  no explicit compiler has been provided
+- `origin_filter(...)` installs an explicit filter policy
+- `no_origin_filter()` disables filtering entirely, which is materially different from using the
+  default filter
+
+These rules matter because the configuration is preserved into multiple outputs:
+
+- the actual preprocess/probe invocation
+- `package.target`
+- `package.inputs`
+- `package.link`
+
+In other words, `HeaderConfig` is not only execution input.
+It is also provenance metadata.
+
 ## What `process()` Does
 
 Calling `.process()` performs this sequence:
@@ -182,6 +222,12 @@ In general:
 - use `GnuC11` when the project assumes GCC-style C extensions
 - use `StdC11` only when you want a stricter source profile
 
+If `compiler(...)` is not set explicitly, `bic` currently infers the driver from the effective
+flavor:
+
+- `ClangC11` -> `clang`
+- `GnuC11` / `StdC11` -> `gcc`
+
 ## Native Link Inputs During Scan
 
 The scan phase can also record the native inputs that the extracted API expects.
@@ -211,6 +257,10 @@ let result = HeaderConfig::new()
 These declarations are preserved in `package.link`.
 The scan does not link anything by itself.
 It records the intent and the normalized link surface.
+
+Link declarations are append-only and declaration-ordered.
+If you mix library names, frameworks, and concrete artifacts, that original declared order is
+preserved in `package.link.ordered_inputs`.
 
 ## Frameworks And Platform Constraints
 
@@ -243,6 +293,9 @@ let result = HeaderConfig::new()
 The resulting package will include `package.layouts`.
 
 This is the preferred path when the binding package needs to carry extracted declarations and layout evidence together.
+
+Repeated probe requests append in order.
+No implicit deduplication is performed today.
 
 ## Diagnostics And Partial Success
 

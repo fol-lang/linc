@@ -93,6 +93,22 @@ impl HeaderConfig {
     /// The implementation is still a single builder type, but downstream users
     /// should reason about configuration through those subdomains rather than as
     /// one flat bag of options.
+    ///
+    /// Defaults and precedence rules:
+    ///
+    /// - `origin_filter` defaults to `Some(OriginFilter::default())`
+    /// - `preferred_link_mode` defaults to `LinkResolutionMode::Default`
+    /// - `flavor` defaults to `Flavor::GnuC11`
+    /// - `compiler` defaults to `clang` when the effective flavor is `ClangC11`,
+    ///   otherwise `gcc`
+    /// - repeated builder calls append in declaration order rather than replacing
+    ///   previous values
+    /// - explicit single-item builders and bulk builders follow the same append-only
+    ///   semantics
+    /// - `no_origin_filter()` disables filtering entirely and therefore takes precedence
+    ///   over the implicit default filter
+    /// - explicit `compiler(...)` and `flavor(...)` values are reflected in the produced
+    ///   package target metadata and probe/preprocess invocation
     pub fn new() -> Self {
         Self {
             entry_headers: Vec::new(),
