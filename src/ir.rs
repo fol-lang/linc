@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostics::Diagnostic;
+use crate::line_markers::SourceLocation;
 
 pub const SCHEMA_VERSION: u32 = 1;
 
@@ -248,6 +249,8 @@ pub struct BindingPackage {
     pub layouts: Vec<TypeLayout>,
     #[serde(default)]
     pub link: BindingLinkSurface,
+    #[serde(default)]
+    pub provenance: Vec<DeclarationProvenance>,
     pub source_path: Option<String>,
     pub items: Vec<BindingItem>,
     pub diagnostics: Vec<Diagnostic>,
@@ -271,6 +274,7 @@ impl BindingPackage {
             macros: Vec::new(),
             layouts: Vec::new(),
             link: BindingLinkSurface::default(),
+            provenance: Vec::new(),
             source_path: None,
             items: Vec::new(),
             diagnostics: Vec::new(),
@@ -291,8 +295,11 @@ impl BindingPackage {
         origin_map: &crate::line_markers::FileOriginMap,
         filter: &crate::line_markers::OriginFilter,
     ) {
-        self.items.retain(|item| {
-            let offset = match item {
+        let mut filtered_items = Vec::new();
+        let mut filtered_provenance = Vec::new();
+
+        for (index, item) in self.items.drain(..).enumerate() {
+            let offset = match &item {
                 BindingItem::Function(f) => f.source_offset,
                 BindingItem::Record(r) => r.source_offset,
                 BindingItem::Enum(e) => e.source_offset,
@@ -300,11 +307,20 @@ impl BindingPackage {
                 BindingItem::Variable(v) => v.source_offset,
                 BindingItem::Unsupported(u) => u.source_offset,
             };
-            match offset {
+            let keep = match offset {
                 Some(off) => filter.accepts(&origin_map.origin_at(off)),
-                None => true, // Keep items without offsets
+                None => true,
+            };
+            if keep {
+                filtered_items.push(item);
+                if let Some(prov) = self.provenance.get(index).cloned() {
+                    filtered_provenance.push(prov);
+                }
             }
-        });
+        }
+
+        self.items = filtered_items;
+        self.provenance = filtered_provenance;
     }
 
     pub fn diagnostics_count_by_kind(&self) -> std::collections::HashMap<String, usize> {
@@ -325,6 +341,10 @@ impl BindingPackage {
 
     pub fn has_diagnostics(&self) -> bool {
         !self.diagnostics.is_empty()
+    }
+
+    pub fn item_provenance(&self, index: usize) -> Option<&DeclarationProvenance> {
+        self.provenance.get(index)
     }
 
     pub fn item_count(&self) -> usize {
@@ -421,6 +441,18 @@ impl BindingPackage {
     pub fn unsupported_count(&self) -> usize {
         self.unsupported_items().count()
     }
+}
+
+/// Per-declaration source provenance attached at the package layer.
+///
+/// Invariant: entries are stored in item order and should remain index-aligned with
+/// `BindingPackage.items`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct DeclarationProvenance {
+    #[serde(default)]
+    pub source_offset: Option<usize>,
+    #[serde(default)]
+    pub source_location: Option<SourceLocation>,
 }
 
 /// One extracted declaration or unsupported declaration placeholder.
@@ -606,6 +638,7 @@ mod tests {
         assert!(pkg.macros.is_empty());
         assert!(pkg.layouts.is_empty());
         assert_eq!(pkg.link, BindingLinkSurface::default());
+        assert!(pkg.provenance.is_empty());
     }
 
     #[test]
@@ -749,6 +782,23 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["bitfield"]
         );
+    }
+
+    #[test]
+    fn binding_package_item_provenance_helper_returns_entry() {
+        let mut pkg = BindingPackage::new();
+        pkg.provenance.push(DeclarationProvenance {
+            source_offset: Some(12),
+            source_location: Some(SourceLocation {
+                file: "demo.h".into(),
+                line: Some(3),
+                column: Some(5),
+            }),
+        });
+
+        let prov = pkg.item_provenance(0).unwrap();
+        assert_eq!(prov.source_offset, Some(12));
+        assert_eq!(prov.source_location.as_ref().unwrap().file, "demo.h");
     }
 
     #[test]

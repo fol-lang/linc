@@ -6,11 +6,10 @@ use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::error::BicError;
 use crate::extract::Extractor;
 use crate::ir::{
-    BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
-    LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind,
-    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroForm, MacroKind,
-    MacroValue,
-    NativeSurfaceKind,
+    BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget,
+    DeclarationProvenance, LinkArtifact, LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary,
+    LinkLibraryKind, LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory,
+    MacroForm, MacroKind, MacroValue, NativeSurfaceKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::probe_type_layouts;
@@ -607,14 +606,15 @@ impl HeaderConfig {
                     ..BindingPackage::new()
                 };
 
+                let origin_map = FileOriginMap::parse(&parsed.source, &self.entry_headers);
+                package.provenance = build_item_provenance(&package.items, &origin_map);
+
                 if !self.probe_types.is_empty() {
                     package.layouts = probe_type_layouts(self, &self.probe_types)?.layouts;
                 }
 
                 // Apply origin filtering if configured
                 if let Some(ref filter) = self.origin_filter {
-                    let origin_map =
-                        FileOriginMap::parse(&parsed.source, &self.entry_headers);
                     package.filter_by_origin(&origin_map, filter);
                 }
 
@@ -819,6 +819,29 @@ impl HeaderConfig {
             Flavor::StdC11 => "std-c11".into(),
         }
     }
+}
+
+fn build_item_provenance(
+    items: &[crate::ir::BindingItem],
+    origin_map: &FileOriginMap,
+) -> Vec<DeclarationProvenance> {
+    items.iter()
+        .map(|item| {
+            let source_offset = match item {
+                crate::ir::BindingItem::Function(f) => f.source_offset,
+                crate::ir::BindingItem::Record(r) => r.source_offset,
+                crate::ir::BindingItem::Enum(e) => e.source_offset,
+                crate::ir::BindingItem::TypeAlias(t) => t.source_offset,
+                crate::ir::BindingItem::Variable(v) => v.source_offset,
+                crate::ir::BindingItem::Unsupported(u) => u.source_offset,
+            };
+
+            DeclarationProvenance {
+                source_offset,
+                source_location: source_offset.and_then(|offset| origin_map.location_at(offset)),
+            }
+        })
+        .collect()
 }
 
 fn detect_target_triple(compiler_command: &str) -> Option<String> {
@@ -1673,6 +1696,12 @@ int compute(int x);
             .layouts
             .iter()
             .any(|layout| layout.name == "struct widget"));
+        assert_eq!(result.package.provenance.len(), result.package.items.len());
+        assert!(result
+            .package
+            .item_provenance(0)
+            .and_then(|prov| prov.source_location.as_ref())
+            .is_some());
 
         cleanup(&dir);
     }

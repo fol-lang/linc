@@ -15,6 +15,16 @@ pub enum SourceOrigin {
     Unknown,
 }
 
+/// File/line/column location derived from preprocessor line markers where available.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceLocation {
+    pub file: String,
+    #[serde(default)]
+    pub line: Option<usize>,
+    #[serde(default)]
+    pub column: Option<usize>,
+}
+
 /// Controls which declarations to keep based on origin.
 #[derive(Debug, Clone)]
 pub struct OriginFilter {
@@ -49,15 +59,17 @@ impl OriginFilter {
 struct LineMarker {
     file: String,
     is_system: bool,
+    line_num: usize,
 }
 
 /// Tracks which file is active at each byte range in preprocessed source.
 #[derive(Debug, Clone)]
 pub struct FileOriginMap {
-    /// Sorted by byte_offset: (start_offset, file_path, is_system)
-    ranges: Vec<(usize, String, bool)>,
+    /// Sorted by byte_offset: (start_offset, file_path, is_system, line_num)
+    ranges: Vec<(usize, String, bool, usize)>,
     /// Set of entry header paths (normalized)
     entry_headers: Vec<String>,
+    source: String,
 }
 
 impl FileOriginMap {
@@ -76,13 +88,14 @@ impl FileOriginMap {
             offset += line.len() + 1; // +1 for newline
 
             if let Some(marker) = parse_line_marker(line) {
-                ranges.push((line_start, marker.file, marker.is_system));
+                ranges.push((line_start, marker.file, marker.is_system, marker.line_num));
             }
         }
 
         FileOriginMap {
             ranges,
             entry_headers,
+            source: source.to_string(),
         }
     }
 
@@ -93,10 +106,10 @@ impl FileOriginMap {
             .ranges
             .iter()
             .rev()
-            .find(|(start, _, _)| *start <= byte_offset);
+            .find(|(start, _, _, _)| *start <= byte_offset);
 
         match active {
-            Some((_, file, is_system)) => {
+            Some((_, file, is_system, _)) => {
                 if *is_system {
                     SourceOrigin::System
                 } else if self.is_entry_header(file) {
@@ -107,6 +120,29 @@ impl FileOriginMap {
             }
             None => SourceOrigin::Unknown,
         }
+    }
+
+    /// Determine the source location of a declaration at the given byte offset.
+    pub fn location_at(&self, byte_offset: usize) -> Option<SourceLocation> {
+        let active = self
+            .ranges
+            .iter()
+            .rev()
+            .find(|(start, _, _, _)| *start <= byte_offset)?;
+        let (marker_offset, file, _, line_num) = active;
+        let prefix = self.source.get(*marker_offset..byte_offset)?;
+        let newline_count = prefix.bytes().filter(|b| *b == b'\n').count();
+        let line = line_num + newline_count.saturating_sub(1);
+        let column = prefix
+            .rsplit_once('\n')
+            .map(|(_, tail)| tail.chars().count() + 1)
+            .unwrap_or(1);
+
+        Some(SourceLocation {
+            file: file.clone(),
+            line: Some(line),
+            column: Some(column),
+        })
     }
 
     fn is_entry_header(&self, file: &str) -> bool {
@@ -129,7 +165,7 @@ fn parse_line_marker(line: &str) -> Option<LineMarker> {
 
     // Parse line number
     let space_idx = rest.find(' ')?;
-    let _line_num: usize = rest[..space_idx].parse().ok()?;
+    let line_num: usize = rest[..space_idx].parse().ok()?;
 
     // Parse quoted filename
     let after_space = &rest[space_idx + 1..];
@@ -149,7 +185,11 @@ fn parse_line_marker(line: &str) -> Option<LineMarker> {
     // Flag 3 = system header
     let is_system = flags.contains(&3);
 
-    Some(LineMarker { file, is_system })
+    Some(LineMarker {
+        file,
+        is_system,
+        line_num,
+    })
 }
 
 fn normalize_path(p: &Path) -> String {
@@ -171,6 +211,7 @@ mod tests {
         let m = parse_line_marker("# 1 \"zlib.h\"").unwrap();
         assert_eq!(m.file, "zlib.h");
         assert!(!m.is_system);
+        assert_eq!(m.line_num, 1);
     }
 
     #[test]
@@ -224,6 +265,27 @@ mod tests {
         // inflate is back in zlib.h (entry)
         let offset_inflate = source.find("int inflate").unwrap();
         assert_eq!(map.origin_at(offset_inflate), SourceOrigin::Entry);
+    }
+
+    #[test]
+    fn file_origin_map_reports_source_locations() {
+        let source = concat!(
+            "# 7 \"mylib.h\"\n",
+            "int foo(void);\n",
+            "int bar(void);\n",
+        );
+        let map = FileOriginMap::parse(source, &["mylib.h"]);
+
+        let offset_foo = source.find("foo").unwrap();
+        let foo = map.location_at(offset_foo).unwrap();
+        assert_eq!(foo.file, "mylib.h");
+        assert_eq!(foo.line, Some(7));
+        assert_eq!(foo.column, Some(5));
+
+        let offset_bar = source.find("bar").unwrap();
+        let bar = map.location_at(offset_bar).unwrap();
+        assert_eq!(bar.line, Some(8));
+        assert_eq!(bar.column, Some(5));
     }
 
     #[test]
