@@ -1,5 +1,5 @@
 use bic::{
-    AbiConfidence, AbiProbeReport, BicError, BindingItem, BindingPackage, BindingType,
+    AbiConfidence, AbiProbeReport, AliasResolution, BicError, BindingItem, BindingPackage, BindingType,
     CallingConvention, EvidenceKind, FunctionBinding, HeaderConfig, LinkResolutionMode,
     MacroBinding, MacroCategory, MacroForm, MacroKind, MacroValue, MatchConfidence,
     ParameterBinding, ProbeConfidence, ProbeSubjectKind, ProbeSubjectReport, ProbedFieldLayout,
@@ -24,6 +24,7 @@ fn binding_package_public_helpers_are_available_from_root() {
     package.items.push(BindingItem::TypeAlias(TypeAliasBinding {
         name: "size_t".into(),
         target: BindingType::ULong,
+        canonical_resolution: None,
         abi_confidence: None,
         source_offset: Some(1),
     }));
@@ -201,6 +202,17 @@ fn abi_confidence_root_type_roundtrip() {
     let json = serde_json::to_string(&AbiConfidence::FieldOffsetsProbed).unwrap();
     let decoded: AbiConfidence = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, AbiConfidence::FieldOffsetsProbed);
+}
+
+#[test]
+fn alias_resolution_root_type_roundtrip() {
+    let resolution = AliasResolution {
+        alias_chain: vec!["size_t".into()],
+        terminal_target: BindingType::ULong,
+    };
+    let json = serde_json::to_string(&resolution).unwrap();
+    let decoded: AliasResolution = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, resolution);
 }
 
 #[test]

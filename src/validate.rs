@@ -637,6 +637,7 @@ mod tests {
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name: "my_type".into(),
             target: BindingType::Int,
+            canonical_resolution: None,
             abi_confidence: None,
             source_offset: None,
         }));

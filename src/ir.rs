@@ -690,8 +690,17 @@ pub struct TypeAliasBinding {
     pub name: String,
     pub target: BindingType,
     #[serde(default)]
+    pub canonical_resolution: Option<AliasResolution>,
+    #[serde(default)]
     pub abi_confidence: Option<AbiConfidence>,
     pub source_offset: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AliasResolution {
+    #[serde(default)]
+    pub alias_chain: Vec<String>,
+    pub terminal_target: BindingType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -803,6 +812,7 @@ mod tests {
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name: "size_t".into(),
             target: BindingType::ULong,
+            canonical_resolution: None,
             abi_confidence: None,
             source_offset: Some(4),
         }));
@@ -860,6 +870,7 @@ mod tests {
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name: "size_t".into(),
             target: BindingType::ULong,
+            canonical_resolution: None,
             abi_confidence: None,
             source_offset: Some(4),
         }));
@@ -951,6 +962,7 @@ mod tests {
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name: "size_t".into(),
             target: BindingType::ULong,
+            canonical_resolution: None,
             abi_confidence: None,
             source_offset: Some(4),
         }));
@@ -1155,6 +1167,7 @@ mod tests {
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name: "size_t".into(),
             target: BindingType::ULong,
+            canonical_resolution: None,
             abi_confidence: None,
             source_offset: Some(0),
         }));
@@ -1327,6 +1340,17 @@ mod tests {
         let json = serde_json::to_string(&AbiConfidence::PartialBitfieldLayout).unwrap();
         let decoded: AbiConfidence = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, AbiConfidence::PartialBitfieldLayout);
+    }
+
+    #[test]
+    fn alias_resolution_roundtrip() {
+        let resolution = AliasResolution {
+            alias_chain: vec!["size_t".into()],
+            terminal_target: BindingType::ULong,
+        };
+        let json = serde_json::to_string(&resolution).unwrap();
+        let decoded: AliasResolution = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, resolution);
     }
 
     #[test]

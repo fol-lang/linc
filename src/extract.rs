@@ -174,6 +174,7 @@ impl Extractor {
         self.items.push(BindingItem::TypeAlias(TypeAliasBinding {
             name,
             target,
+            canonical_resolution: None,
             abi_confidence: None,
             source_offset: Some(offset),
         }));

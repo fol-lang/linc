@@ -615,6 +615,7 @@ impl HeaderConfig {
 
                 let origin_map = FileOriginMap::parse(&parsed.source, &self.entry_headers);
                 package.provenance = build_item_provenance(&package.items, &origin_map);
+                attach_canonical_alias_resolution(&mut package.items);
 
                 if !self.probe_types.is_empty() {
                     let probe_report = probe_type_layouts(self, &self.probe_types)?;
@@ -827,6 +828,97 @@ impl HeaderConfig {
             Flavor::ClangC11 => "clang-c11".into(),
             Flavor::StdC11 => "std-c11".into(),
         }
+    }
+}
+
+fn attach_canonical_alias_resolution(items: &mut [BindingItem]) {
+    let alias_map = items
+        .iter()
+        .filter_map(|item| match item {
+            BindingItem::TypeAlias(alias) => Some((alias.name.clone(), alias.target.clone())),
+            _ => None,
+        })
+        .collect::<std::collections::HashMap<_, _>>();
+
+    for item in items {
+        let BindingItem::TypeAlias(alias) = item else {
+            continue;
+        };
+        alias.canonical_resolution = resolve_alias_resolution(&alias.target, &alias_map);
+    }
+}
+
+fn resolve_alias_resolution(
+    ty: &crate::ir::BindingType,
+    alias_map: &std::collections::HashMap<String, crate::ir::BindingType>,
+) -> Option<crate::ir::AliasResolution> {
+    let mut alias_chain = Vec::new();
+    let terminal_target =
+        canonicalize_binding_type(ty, alias_map, &mut alias_chain, &mut std::collections::HashSet::new())?;
+    if alias_chain.is_empty() {
+        None
+    } else {
+        Some(crate::ir::AliasResolution {
+            alias_chain,
+            terminal_target,
+        })
+    }
+}
+
+fn canonicalize_binding_type(
+    ty: &crate::ir::BindingType,
+    alias_map: &std::collections::HashMap<String, crate::ir::BindingType>,
+    alias_chain: &mut Vec<String>,
+    seen_aliases: &mut std::collections::HashSet<String>,
+) -> Option<crate::ir::BindingType> {
+    match ty {
+        crate::ir::BindingType::TypedefRef(name) => {
+            let resolved = alias_map.get(name)?;
+            if !seen_aliases.insert(name.clone()) {
+                return None;
+            }
+            alias_chain.push(name.clone());
+            canonicalize_binding_type(resolved, alias_map, alias_chain, seen_aliases)
+                .or_else(|| Some(resolved.clone()))
+        }
+        crate::ir::BindingType::Pointer {
+            pointee,
+            const_pointee,
+        } => canonicalize_binding_type(pointee, alias_map, alias_chain, seen_aliases).map(
+            |resolved| crate::ir::BindingType::Pointer {
+                pointee: Box::new(resolved),
+                const_pointee: *const_pointee,
+            },
+        ),
+        crate::ir::BindingType::Array(inner, len) => canonicalize_binding_type(
+            inner,
+            alias_map,
+            alias_chain,
+            seen_aliases,
+        )
+        .map(|resolved| crate::ir::BindingType::Array(Box::new(resolved), *len)),
+        crate::ir::BindingType::FunctionPointer {
+            return_type,
+            parameters,
+            variadic,
+        } => {
+            let resolved_return =
+                canonicalize_binding_type(return_type, alias_map, alias_chain, seen_aliases)
+                    .unwrap_or((**return_type).clone());
+            let resolved_parameters = parameters
+                .iter()
+                .map(|parameter| {
+                    canonicalize_binding_type(parameter, alias_map, alias_chain, seen_aliases)
+                        .unwrap_or_else(|| parameter.clone())
+                })
+                .collect();
+            Some(crate::ir::BindingType::FunctionPointer {
+                return_type: Box::new(resolved_return),
+                parameters: resolved_parameters,
+                variadic: *variadic,
+            })
+        }
+        other => Some(other.clone()),
     }
 }
 
@@ -1988,6 +2080,37 @@ int compute(int x);
         assert_eq!(
             enum_binding.abi_confidence,
             Some(AbiConfidence::RepresentationProbed)
+        );
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn process_attaches_canonical_alias_resolution() {
+        let dir = setup_test_dir("alias_resolution");
+        let header = dir.join("aliases.h");
+        std::fs::write(
+            &header,
+            "typedef unsigned long size_t;\ntypedef size_t my_size_t;\ntypedef const my_size_t *my_size_ptr;\n",
+        )
+        .unwrap();
+
+        let result = HeaderConfig::new().header(&header).process().unwrap();
+
+        let alias = result.package.find_type_alias("my_size_t").unwrap();
+        let resolution = alias.canonical_resolution.as_ref().unwrap();
+        assert_eq!(resolution.alias_chain, vec!["size_t"]);
+        assert_eq!(resolution.terminal_target, crate::ir::BindingType::ULong);
+
+        let ptr_alias = result.package.find_type_alias("my_size_ptr").unwrap();
+        let ptr_resolution = ptr_alias.canonical_resolution.as_ref().unwrap();
+        assert_eq!(ptr_resolution.alias_chain, vec!["my_size_t", "size_t"]);
+        assert_eq!(
+            ptr_resolution.terminal_target,
+            crate::ir::BindingType::Pointer {
+                pointee: Box::new(crate::ir::BindingType::ULong),
+                const_pointee: true,
+            }
         );
 
         cleanup(&dir);
