@@ -461,6 +461,62 @@ mod integration_tests {
         assert!(pkg.link.libraries.is_empty());
     }
 
+    #[test]
+    fn schema_compatibility_matrix() {
+        enum Expectation {
+            OkCurrent,
+            OkSchema(u32),
+            FutureSchemaError,
+        }
+
+        let cases = [
+            (
+                "missing schema version defaults",
+                r#"{"source_path": null, "items": [], "diagnostics": []}"#,
+                Expectation::OkCurrent,
+            ),
+            (
+                "v0 fixture",
+                include_str!("../test/contracts/v0_minimal_binding_package.json"),
+                Expectation::OkCurrent,
+            ),
+            (
+                "v1 empty nested objects fixture",
+                include_str!("../test/contracts/v1_empty_nested_objects.json"),
+                Expectation::OkSchema(1),
+            ),
+            (
+                "future schema rejected",
+                r#"{"schema_version": 999, "bic_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#,
+                Expectation::FutureSchemaError,
+            ),
+        ];
+
+        for (label, json, expectation) in cases {
+            match expectation {
+                Expectation::OkCurrent => {
+                    let pkg = from_json(json).unwrap_or_else(|err| {
+                        panic!("{label} should deserialize successfully: {err}")
+                    });
+                    assert_eq!(pkg.schema_version, SCHEMA_VERSION, "{label}");
+                }
+                Expectation::OkSchema(expected) => {
+                    let pkg = from_json(json).unwrap_or_else(|err| {
+                        panic!("{label} should deserialize successfully: {err}")
+                    });
+                    assert_eq!(pkg.schema_version, expected, "{label}");
+                }
+                Expectation::FutureSchemaError => {
+                    let err = from_json(json).unwrap_err();
+                    assert!(
+                        matches!(err, BicError::SchemaVersion { .. }),
+                        "{label} should reject future schema versions"
+                    );
+                }
+            }
+        }
+    }
+
     // Phase 25: error path and edge case tests
 
     #[test]
