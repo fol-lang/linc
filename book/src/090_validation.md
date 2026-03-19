@@ -172,6 +172,13 @@ Each `ValidationEntry` preserves:
 - `abi_shape` for variable-size evidence
 - `routine_abi` for conservative routine-shape evidence
 
+Routine ABI evidence now carries its own explicit shape classification and confidence ladder so
+consumers can distinguish:
+
+- partial routine evidence such as parameter count only
+- stronger routine evidence such as count plus return/parameter shape
+- mismatched routine evidence where the symbol exists but the observed routine shape disagrees
+
 The older `matches` list remains available as the flatter compatibility surface.
 
 ## Confidence

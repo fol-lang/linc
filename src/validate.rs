@@ -119,6 +119,10 @@ pub struct AbiShapeEvidence {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoutineAbiEvidence {
     #[serde(default)]
+    pub evidence_kind: Option<RoutineAbiEvidenceKind>,
+    #[serde(default)]
+    pub confidence: Option<RoutineAbiConfidence>,
+    #[serde(default)]
     pub expected_parameter_count: Option<usize>,
     #[serde(default)]
     pub observed_parameter_count: Option<usize>,
@@ -130,6 +134,25 @@ pub struct RoutineAbiEvidence {
     pub expected_parameter_sizes: Vec<Option<u64>>,
     #[serde(default)]
     pub observed_parameter_sizes: Vec<Option<u64>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoutineAbiEvidenceKind {
+    ParameterCountOnly,
+    ReturnShapeOnly,
+    ParameterShapesOnly,
+    ParameterCountAndReturnShape,
+    ParameterCountAndParameterShapes,
+    ReturnShapeAndParameterShapes,
+    FullyShaped,
+    Mismatch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoutineAbiConfidence {
+    Partial,
+    Strong,
+    Mismatch,
 }
 
 /// Renamed from FunctionMatch to support both functions and variables.
@@ -413,30 +436,66 @@ pub fn validate_many(
                 .or_else(|| return_size.map(|_| (0, 0)))
                 .or_else(|| parameter_sizes.as_ref().map(|_| (0, 0)))
                 .map(|_| {
-                    if parameter_count
-                        .is_some_and(|(expected_parameter_count, observed_parameter_count)| {
+                    let has_parameter_count = parameter_count.is_some();
+                    let has_return_shape = return_size.is_some();
+                    let has_parameter_shapes = parameter_sizes.is_some();
+                    let mismatch = parameter_count.is_some_and(
+                        |(expected_parameter_count, observed_parameter_count)| {
                             expected_parameter_count != observed_parameter_count
-                        })
-                        || return_size
-                            .is_some_and(|(expected_return_size, observed_return_size)| {
-                                expected_return_size != observed_return_size
+                        },
+                    ) || return_size.is_some_and(|(expected_return_size, observed_return_size)| {
+                        expected_return_size != observed_return_size
+                    }) || parameter_sizes.as_ref().is_some_and(|(expected, observed)| {
+                        expected
+                            .iter()
+                            .zip(observed.iter())
+                            .any(|(expected_size, observed_size)| {
+                                expected_size
+                                    .zip(*observed_size)
+                                    .is_some_and(|(expected_size, observed_size)| {
+                                        expected_size != observed_size
+                                    })
                             })
-                        || parameter_sizes.as_ref().is_some_and(|(expected, observed)| {
-                            expected
-                                .iter()
-                                .zip(observed.iter())
-                                .any(|(expected_size, observed_size)| {
-                                    expected_size
-                                        .zip(*observed_size)
-                                        .is_some_and(|(expected_size, observed_size)| {
-                                            expected_size != observed_size
-                                        })
-                                })
-                        })
-                    {
+                    });
+                    if mismatch {
                         status = MatchStatus::AbiShapeMismatch;
                     }
                     RoutineAbiEvidence {
+                        evidence_kind: Some(if mismatch {
+                            RoutineAbiEvidenceKind::Mismatch
+                        } else {
+                            match (
+                                has_parameter_count,
+                                has_return_shape,
+                                has_parameter_shapes,
+                            ) {
+                                (true, false, false) => {
+                                    RoutineAbiEvidenceKind::ParameterCountOnly
+                                }
+                                (false, true, false) => RoutineAbiEvidenceKind::ReturnShapeOnly,
+                                (false, false, true) => {
+                                    RoutineAbiEvidenceKind::ParameterShapesOnly
+                                }
+                                (true, true, false) => {
+                                    RoutineAbiEvidenceKind::ParameterCountAndReturnShape
+                                }
+                                (true, false, true) => {
+                                    RoutineAbiEvidenceKind::ParameterCountAndParameterShapes
+                                }
+                                (false, true, true) => {
+                                    RoutineAbiEvidenceKind::ReturnShapeAndParameterShapes
+                                }
+                                (true, true, true) => RoutineAbiEvidenceKind::FullyShaped,
+                                (false, false, false) => RoutineAbiEvidenceKind::ParameterCountOnly,
+                            }
+                        }),
+                        confidence: Some(if mismatch {
+                            RoutineAbiConfidence::Mismatch
+                        } else if has_parameter_shapes || (has_parameter_count && has_return_shape) {
+                            RoutineAbiConfidence::Strong
+                        } else {
+                            RoutineAbiConfidence::Partial
+                        }),
                         expected_parameter_count: parameter_count
                             .map(|(expected_parameter_count, _)| expected_parameter_count),
                         observed_parameter_count: parameter_count
@@ -1437,6 +1496,8 @@ mod tests {
         assert_eq!(
             report.entries[0].evidence.routine_abi,
             Some(RoutineAbiEvidence {
+                evidence_kind: Some(RoutineAbiEvidenceKind::FullyShaped),
+                confidence: Some(RoutineAbiConfidence::Strong),
                 expected_parameter_count: Some(2),
                 observed_parameter_count: Some(2),
                 expected_return_size: Some(4),
@@ -1510,6 +1571,8 @@ mod tests {
         assert_eq!(
             report.entries[0].evidence.routine_abi,
             Some(RoutineAbiEvidence {
+                evidence_kind: Some(RoutineAbiEvidenceKind::Mismatch),
+                confidence: Some(RoutineAbiConfidence::Mismatch),
                 expected_parameter_count: Some(2),
                 observed_parameter_count: Some(1),
                 expected_return_size: Some(4),
@@ -1572,6 +1635,8 @@ mod tests {
         assert_eq!(
             report.entries[0].evidence.routine_abi,
             Some(RoutineAbiEvidence {
+                evidence_kind: Some(RoutineAbiEvidenceKind::Mismatch),
+                confidence: Some(RoutineAbiConfidence::Mismatch),
                 expected_parameter_count: Some(0),
                 observed_parameter_count: Some(0),
                 expected_return_size: Some(4),
@@ -1642,12 +1707,80 @@ mod tests {
         assert_eq!(
             report.entries[0].evidence.routine_abi,
             Some(RoutineAbiEvidence {
+                evidence_kind: Some(RoutineAbiEvidenceKind::Mismatch),
+                confidence: Some(RoutineAbiConfidence::Mismatch),
                 expected_parameter_count: Some(2),
                 observed_parameter_count: Some(2),
                 expected_return_size: Some(4),
                 observed_return_size: Some(4),
                 expected_parameter_sizes: vec![Some(4), Some(4)],
                 observed_parameter_sizes: vec![Some(4), Some(8)],
+            })
+        );
+    }
+
+    #[test]
+    fn function_parameter_count_only_evidence_is_marked_partial() {
+        let inv = SymbolInventory {
+            artifact_path: "test.o".into(),
+            format: ArtifactFormat::ElfObject,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::Object,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
+            dependency_edges: Vec::new(),
+            symbols: vec![SymbolEntry {
+                name: "ping".into(),
+                raw_name: None,
+                version: None,
+                direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(),
+                alias_of: None,
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: Some(".text".into()),
+                archive_member: None,
+                function_abi: Some(FunctionAbiHint {
+                    parameter_count: Some(1),
+                    return_size: None,
+                    parameter_sizes: Vec::new(),
+                }),
+            }],
+        };
+        let pkg = BindingPackage {
+            source_path: None,
+            items: vec![BindingItem::Function(FunctionBinding {
+                name: "ping".into(),
+                calling_convention: CallingConvention::C,
+                parameters: vec![ParameterBinding {
+                    name: Some("value".into()),
+                    ty: BindingType::Int,
+                }],
+                return_type: BindingType::Void,
+                variadic: false,
+                source_offset: None,
+            })],
+            diagnostics: Vec::new(),
+            ..BindingPackage::new()
+        };
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches[0].status, MatchStatus::Matched);
+        assert_eq!(
+            report.entries[0].evidence.routine_abi,
+            Some(RoutineAbiEvidence {
+                evidence_kind: Some(RoutineAbiEvidenceKind::ParameterCountOnly),
+                confidence: Some(RoutineAbiConfidence::Partial),
+                expected_parameter_count: Some(1),
+                observed_parameter_count: Some(1),
+                expected_return_size: None,
+                observed_return_size: None,
+                expected_parameter_sizes: Vec::new(),
+                observed_parameter_sizes: Vec::new(),
             })
         );
     }

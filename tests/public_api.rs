@@ -4,7 +4,8 @@ use bic::{
     MacroBinding, MacroCategory, MacroForm, MacroKind, MacroValue, MatchConfidence,
     ParameterBinding, ProbeConfidence, ProbeSubjectKind, ProbeSubjectReport, ProbedFieldLayout,
     RecordCompleteness, TypeAliasBinding, TypeLayout, TypeQualifiers, ValidationDeclaration, ValidationEntry,
-    ValidationEvidence, ValidationPhase, ValidationPhaseReport, ValidationSummary, RoutineAbiEvidence,
+    ValidationEvidence, ValidationPhase, ValidationPhaseReport, ValidationSummary, RoutineAbiConfidence,
+    RoutineAbiEvidence, RoutineAbiEvidenceKind,
     EnumRepresentation, FieldLayout,
     RecordRepresentation, probe_type_layouts,
 };
@@ -207,6 +208,8 @@ fn abi_confidence_root_type_roundtrip() {
 #[test]
 fn routine_abi_evidence_root_type_roundtrip() {
     let evidence = RoutineAbiEvidence {
+        evidence_kind: Some(RoutineAbiEvidenceKind::FullyShaped),
+        confidence: Some(RoutineAbiConfidence::Strong),
         expected_parameter_count: Some(2),
         observed_parameter_count: Some(2),
         expected_return_size: Some(4),
