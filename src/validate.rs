@@ -13,6 +13,7 @@ pub enum ItemKind {
 pub enum MatchStatus {
     Matched,
     Missing,
+    UnresolvedDeclaredLinkInputs,
     NotAFunction,
     NotAVariable,
     Hidden,
@@ -142,7 +143,14 @@ pub fn validate_many(
                     }
                 }
             }
-            None => (MatchStatus::Missing, None),
+            None => {
+                let status = if has_declared_link_inputs(package) {
+                    MatchStatus::UnresolvedDeclaredLinkInputs
+                } else {
+                    MatchStatus::Missing
+                };
+                (status, None)
+            }
         };
 
         matches.push(SymbolMatch {
@@ -162,6 +170,13 @@ fn format_provider(inventory: &SymbolInventory, symbol: &crate::symbols::SymbolE
         Some(member) => format!("{}:{}", inventory.artifact_path, member),
         None => inventory.artifact_path.clone(),
     }
+}
+
+fn has_declared_link_inputs(package: &BindingPackage) -> bool {
+    !package.link.libraries.is_empty()
+        || !package.link.frameworks.is_empty()
+        || !package.link.artifacts.is_empty()
+        || !package.link.ordered_inputs.is_empty()
 }
 
 #[cfg(test)]
@@ -282,6 +297,29 @@ mod tests {
         assert!(!report.all_matched());
         assert_eq!(report.matched().len(), 1);
         assert_eq!(report.missing().len(), 2);
+    }
+
+    #[test]
+    fn missing_symbol_with_declared_link_inputs_is_distinguished() {
+        let inv = make_inventory(&[], &[]);
+        let mut pkg = make_package(&["foo"]);
+        pkg.link.libraries.push(LinkLibrary {
+            name: "demo".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        });
+        pkg.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
+            name: "demo".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches.len(), 1);
+        assert_eq!(
+            report.matches[0].status,
+            MatchStatus::UnresolvedDeclaredLinkInputs
+        );
     }
 
     #[test]
