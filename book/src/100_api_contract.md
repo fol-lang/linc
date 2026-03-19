@@ -137,6 +137,20 @@ If you are integrating `bic` into another crate, treat the following as your saf
 If you need more than that, document exactly which lower-level modules you rely on.
 That will make later stabilization work much easier.
 
+## Type Invariants
+
+Public structs and enums now carry invariant-oriented docs in the source.
+
+Those notes are part of the library contract.
+They explain things like:
+
+- which fields are identity keys versus optional evidence
+- which vectors preserve declaration order
+- which normalized values are not full linker or ABI truth
+- which report types represent successful analysis with findings rather than hard failures
+
+For durable integrations, read those source-level invariant notes as part of the supported API.
+
 ## Explicit Non-Guarantees
 
 The current contract does not yet guarantee:

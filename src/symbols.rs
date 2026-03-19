@@ -6,6 +6,7 @@ use object::read::archive::ArchiveFile;
 use object::{ObjectSymbol, SymbolKind};
 use serde::{Deserialize, Serialize};
 
+/// Native artifact format recognized by the symbol inventory layer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ArtifactFormat {
     ElfObject,
@@ -17,6 +18,7 @@ pub enum ArtifactFormat {
     Unknown(String),
 }
 
+/// Coarse platform family associated with an inspected artifact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ArtifactPlatform {
     Elf,
@@ -24,6 +26,7 @@ pub enum ArtifactPlatform {
     Unknown,
 }
 
+/// Coarse artifact kind associated with an inspected native file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ArtifactKind {
     Object,
@@ -33,6 +36,10 @@ pub enum ArtifactKind {
     Unknown,
 }
 
+/// Capability summary for an inspected artifact.
+///
+/// Invariant: these booleans are conservative operational summaries, not a full linker-semantics
+/// model.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ArtifactCapabilities {
     #[serde(default)]
@@ -41,6 +48,7 @@ pub struct ArtifactCapabilities {
     pub imports_symbols: bool,
 }
 
+/// Visibility reported for one symbol entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SymbolVisibility {
     Default,
@@ -50,6 +58,7 @@ pub enum SymbolVisibility {
     Unknown,
 }
 
+/// Binding strength reported for one symbol entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SymbolBinding {
     Local,
@@ -58,6 +67,10 @@ pub enum SymbolBinding {
     Unknown,
 }
 
+/// One discovered symbol entry.
+///
+/// Invariant: `name` is the normalized match key, while `raw_name` preserves the original spelling
+/// when available.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SymbolEntry {
     pub name: String,
@@ -72,6 +85,10 @@ pub struct SymbolEntry {
     pub archive_member: Option<String>,
 }
 
+/// Symbol inventory produced from one native artifact input.
+///
+/// Invariant: `symbols` and `dependency_edges` describe the inspected artifact only; they are not a
+/// fully resolved transitive dependency graph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SymbolInventory {
     pub artifact_path: String,

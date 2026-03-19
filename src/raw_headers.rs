@@ -15,6 +15,10 @@ use crate::ir::{
 use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::probe_type_layouts;
 
+/// High-level scan configuration for turning headers into a `BindingPackage`.
+///
+/// Invariant: builder methods append in declaration order, and validation is expected to run before
+/// preprocessing, extraction, or probing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeaderConfig {
     /// Entry-point headers that define the intended bind surface.
@@ -50,6 +54,7 @@ pub struct HeaderConfig {
     pub origin_filter: Option<OriginFilter>,
 }
 
+/// Preprocessing/parser flavor used for scan and probe operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Flavor {
     GnuC11,
@@ -67,6 +72,10 @@ impl Flavor {
     }
 }
 
+/// Effective preprocessing invocation details for one scan.
+///
+/// Invariant: this is execution provenance for the returned result, not a complete replayable build
+/// graph.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreprocessingReport {
     pub command: String,
@@ -74,12 +83,17 @@ pub struct PreprocessingReport {
     pub preprocessed_source: String,
 }
 
+/// Successful output of a raw-header scan.
+///
+/// Invariant: `package` is the durable machine contract while `report` is the execution evidence
+/// that produced it.
 #[derive(Debug)]
 pub struct RawHeaderResult {
     pub package: BindingPackage,
     pub report: PreprocessingReport,
 }
 
+/// Borrowed view over the preprocessing-related portion of `HeaderConfig`.
 #[derive(Debug, Clone, Copy)]
 pub struct PreprocessingConfigRef<'a> {
     pub include_dirs: &'a [PathBuf],
@@ -88,11 +102,13 @@ pub struct PreprocessingConfigRef<'a> {
     pub flavor: Option<Flavor>,
 }
 
+/// Borrowed view over the entry-header surface of `HeaderConfig`.
 #[derive(Debug, Clone, Copy)]
 pub struct BindingSurfaceConfigRef<'a> {
     pub entry_headers: &'a [PathBuf],
 }
 
+/// Borrowed view over the native-link portion of `HeaderConfig`.
 #[derive(Debug, Clone, Copy)]
 pub struct LinkConfigRef<'a> {
     pub framework_dirs: &'a [PathBuf],
@@ -105,6 +121,7 @@ pub struct LinkConfigRef<'a> {
     pub platform_constraints: &'a [String],
 }
 
+/// Borrowed view over the probe request portion of `HeaderConfig`.
 #[derive(Debug, Clone, Copy)]
 pub struct ProbeConfigRef<'a> {
     pub probe_types: &'a [String],

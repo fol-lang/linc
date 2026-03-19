@@ -6,6 +6,10 @@ use crate::error::BicError;
 use crate::ir::{BindingTarget, TypeLayout};
 use crate::raw_headers::{Flavor, HeaderConfig};
 
+/// Result of an ABI layout probe run.
+///
+/// Invariant: `layouts` is only populated for subjects that were explicitly requested and
+/// successfully compiled/executed under the captured target/compiler identity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AbiProbeReport {
     #[serde(default)]

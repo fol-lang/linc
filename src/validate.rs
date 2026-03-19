@@ -3,12 +3,14 @@ use serde::{Deserialize, Serialize};
 use crate::ir::{BindingItem, BindingPackage};
 use crate::symbols::{SymbolBinding, SymbolInventory, SymbolVisibility};
 
+/// Declaration category that validation currently reasons about.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ItemKind {
     Function,
     Variable,
 }
 
+/// Validation outcome for one declaration/provider comparison.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MatchStatus {
     Matched,
@@ -25,6 +27,10 @@ pub enum MatchStatus {
 /// Renamed from FunctionMatch to support both functions and variables.
 pub type FunctionMatch = SymbolMatch;
 
+/// Validation evidence for one declaration name.
+///
+/// Invariant: this is report data, not an error channel, so non-matched states still represent a
+/// successful validation run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SymbolMatch {
     pub name: String,
@@ -35,6 +41,7 @@ pub struct SymbolMatch {
     pub provider_artifacts: Vec<String>,
 }
 
+/// Aggregate validation report for a package against one or more inventories.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationReport {
     pub matches: Vec<SymbolMatch>,

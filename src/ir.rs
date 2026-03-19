@@ -4,6 +4,10 @@ use crate::diagnostics::Diagnostic;
 
 pub const SCHEMA_VERSION: u32 = 1;
 
+/// Compiler/target identity captured alongside a produced package or probe report.
+///
+/// Invariant: all fields are optional evidence and may be absent on older snapshots or when the
+/// upstream toolchain does not expose a value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BindingTarget {
     #[serde(default)]
@@ -16,12 +20,20 @@ pub struct BindingTarget {
     pub flavor: Option<String>,
 }
 
+/// One preprocessor define as seen by the binding scan.
+///
+/// Invariant: `name` is the logical macro identifier and `value == None` represents flag-style
+/// defines such as `-DDEBUG`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BindingDefine {
     pub name: String,
     pub value: Option<String>,
 }
 
+/// Input provenance for how a package was produced.
+///
+/// Invariant: these vectors preserve declaration order and are additive metadata rather than a
+/// fully normalized build graph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BindingInputs {
     #[serde(default)]
@@ -32,6 +44,7 @@ pub struct BindingInputs {
     pub defines: Vec<BindingDefine>,
 }
 
+/// High-level interpretation of a captured macro body.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MacroKind {
     Integer,
@@ -40,6 +53,7 @@ pub enum MacroKind {
     Other,
 }
 
+/// Whether a macro is object-like or function-like at the preprocessor level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MacroForm {
     #[default]
@@ -47,6 +61,7 @@ pub enum MacroForm {
     FunctionLike,
 }
 
+/// Stable consumer-facing classification for how a macro should be treated downstream.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MacroCategory {
     #[default]
@@ -56,12 +71,17 @@ pub enum MacroCategory {
     Unsupported,
 }
 
+/// Parsed constant value for macros that are safe to lower directly.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MacroValue {
     Integer(i128),
     String(String),
 }
 
+/// One captured preprocessor macro.
+///
+/// Invariant: `function_like` is preserved for compatibility, while `form` is the preferred
+/// normalized representation for new consumers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MacroBinding {
     pub name: String,
@@ -86,6 +106,10 @@ impl MacroBinding {
     }
 }
 
+/// Compiler-probed layout evidence for a named type.
+///
+/// Invariant: `name` is the consumer-visible identity key and `size`/`align` are only present when
+/// probing succeeded for that exact subject.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeLayout {
     pub name: String,
@@ -93,6 +117,7 @@ pub struct TypeLayout {
     pub align: u64,
 }
 
+/// Declared preference for how a library-name input should be linked.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LinkLibraryKind {
     Default,
@@ -100,6 +125,7 @@ pub enum LinkLibraryKind {
     Dynamic,
 }
 
+/// Package-level preference for static vs dynamic resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum LinkResolutionMode {
     #[default]
@@ -108,6 +134,7 @@ pub enum LinkResolutionMode {
     PreferDynamic,
 }
 
+/// Coarse classification of the native surface attached to a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum NativeSurfaceKind {
     #[default]
@@ -117,6 +144,7 @@ pub enum NativeSurfaceKind {
     Mixed,
 }
 
+/// Provenance of one native requirement in the normalized link surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum LinkRequirementSource {
     #[default]
@@ -125,6 +153,9 @@ pub enum LinkRequirementSource {
     Discovered,
 }
 
+/// One library-name link requirement.
+///
+/// Invariant: `name` is the linker-visible library identifier without platform search resolution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LinkLibrary {
     pub name: String,
@@ -133,6 +164,7 @@ pub struct LinkLibrary {
     pub source: LinkRequirementSource,
 }
 
+/// Concrete kind of a declared native artifact requirement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LinkArtifactKind {
     Object,
@@ -140,6 +172,10 @@ pub enum LinkArtifactKind {
     SharedLibrary,
 }
 
+/// One concrete native artifact requirement.
+///
+/// Invariant: `path` is consumer-provided metadata and is not rewritten into a canonical resolved
+/// filesystem path by this type alone.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LinkArtifact {
     pub path: String,
@@ -148,6 +184,7 @@ pub struct LinkArtifact {
     pub source: LinkRequirementSource,
 }
 
+/// One Apple framework requirement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LinkFramework {
     pub name: String,
@@ -155,6 +192,7 @@ pub struct LinkFramework {
     pub source: LinkRequirementSource,
 }
 
+/// Ordered native input as originally declared.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LinkInput {
     Library(LinkLibrary),
@@ -162,6 +200,10 @@ pub enum LinkInput {
     Framework(LinkFramework),
 }
 
+/// Normalized native link surface attached to a binding package.
+///
+/// Invariant: bucketed collections and `ordered_inputs` are both preserved because ordering and
+/// categorization serve different downstream uses.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BindingLinkSurface {
     #[serde(default)]
@@ -186,6 +228,10 @@ pub struct BindingLinkSurface {
     pub ordered_inputs: Vec<LinkInput>,
 }
 
+/// Primary machine-readable package emitted by `bic`.
+///
+/// Invariant: additive metadata fields default on deserialize so older snapshots remain consumable,
+/// while `items` and `diagnostics` remain the core declaration/result surface.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BindingPackage {
     #[serde(default = "default_schema_version")]
@@ -377,6 +423,7 @@ impl BindingPackage {
     }
 }
 
+/// One extracted declaration or unsupported declaration placeholder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingItem {
     Function(FunctionBinding),
@@ -387,6 +434,9 @@ pub enum BindingItem {
     Unsupported(UnsupportedItem),
 }
 
+/// Type representation used by the extracted IR.
+///
+/// Invariant: this is a language-neutral binding model, not a fully lossless C type system.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingType {
     Void,
@@ -437,11 +487,16 @@ impl BindingType {
     }
 }
 
+/// Calling convention attached to an extracted function declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CallingConvention {
     C,
 }
 
+/// Extracted function declaration.
+///
+/// Invariant: `name` is always present and `source_offset` is best-effort provenance rather than a
+/// standalone source location contract.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionBinding {
     pub name: String,
@@ -452,24 +507,32 @@ pub struct FunctionBinding {
     pub source_offset: Option<usize>,
 }
 
+/// One function parameter.
+///
+/// Invariant: unnamed parameters are represented with `name == None`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ParameterBinding {
     pub name: Option<String>,
     pub ty: BindingType,
 }
 
+/// Kind of record declaration represented by `RecordBinding`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecordKind {
     Struct,
     Union,
 }
 
+/// One field inside a non-opaque record.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FieldBinding {
     pub name: Option<String>,
     pub ty: BindingType,
 }
 
+/// Extracted record declaration.
+///
+/// Invariant: `fields == None` means the record is opaque or otherwise field-incomplete.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordBinding {
     pub kind: RecordKind,
@@ -484,12 +547,17 @@ impl RecordBinding {
     }
 }
 
+/// One enum constant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnumVariant {
     pub name: String,
     pub value: Option<i128>,
 }
 
+/// Extracted enum declaration.
+///
+/// Invariant: anonymous enums are represented with `name == None`, while `variants` preserves
+/// declaration order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnumBinding {
     pub name: Option<String>,
@@ -497,6 +565,7 @@ pub struct EnumBinding {
     pub source_offset: Option<usize>,
 }
 
+/// Extracted typedef or alias declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeAliasBinding {
     pub name: String,
@@ -504,6 +573,7 @@ pub struct TypeAliasBinding {
     pub source_offset: Option<usize>,
 }
 
+/// Extracted external variable declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariableBinding {
     pub name: String,
@@ -511,6 +581,7 @@ pub struct VariableBinding {
     pub source_offset: Option<usize>,
 }
 
+/// Placeholder for a declaration that `bic` recognized but could not model directly.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnsupportedItem {
     pub name: Option<String>,
