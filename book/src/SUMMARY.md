@@ -29,3 +29,4 @@
 - [Reproducibility](./270_reproducibility.md)
 - [Link Resolution Boundary](./280_link_resolution_boundary.md)
 - [Release Checklist](./290_release_checklist.md)
+- [Readiness Scorecard](./300_readiness_scorecard.md)
