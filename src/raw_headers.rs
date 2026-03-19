@@ -79,6 +79,36 @@ pub struct RawHeaderResult {
     pub report: PreprocessingReport,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct PreprocessingConfigRef<'a> {
+    pub include_dirs: &'a [PathBuf],
+    pub defines: &'a [(String, Option<String>)],
+    pub compiler: Option<&'a str>,
+    pub flavor: Option<Flavor>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BindingSurfaceConfigRef<'a> {
+    pub entry_headers: &'a [PathBuf],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct LinkConfigRef<'a> {
+    pub framework_dirs: &'a [PathBuf],
+    pub library_dirs: &'a [PathBuf],
+    pub link_libraries: &'a [LinkLibrary],
+    pub link_frameworks: &'a [LinkFramework],
+    pub link_artifacts: &'a [LinkArtifact],
+    pub ordered_link_inputs: &'a [LinkInput],
+    pub preferred_link_mode: LinkResolutionMode,
+    pub platform_constraints: &'a [String],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ProbeConfigRef<'a> {
+    pub probe_types: &'a [String],
+}
+
 impl HeaderConfig {
     /// Create a new scan configuration.
     ///
@@ -134,6 +164,10 @@ impl HeaderConfig {
         self
     }
 
+    pub fn entry_header(self, path: impl Into<PathBuf>) -> Self {
+        self.header(path)
+    }
+
     pub fn headers<I, P>(mut self, paths: I) -> Self
     where
         I: IntoIterator<Item = P>,
@@ -146,6 +180,10 @@ impl HeaderConfig {
     pub fn include_dir(mut self, path: impl Into<PathBuf>) -> Self {
         self.include_dirs.push(path.into());
         self
+    }
+
+    pub fn add_include_dir(self, path: impl Into<PathBuf>) -> Self {
+        self.include_dir(path)
     }
 
     pub fn include_dirs<I, P>(mut self, paths: I) -> Self
@@ -162,6 +200,10 @@ impl HeaderConfig {
         self
     }
 
+    pub fn add_framework_dir(self, path: impl Into<PathBuf>) -> Self {
+        self.framework_dir(path)
+    }
+
     pub fn framework_dirs<I, P>(mut self, paths: I) -> Self
     where
         I: IntoIterator<Item = P>,
@@ -176,6 +218,10 @@ impl HeaderConfig {
         self
     }
 
+    pub fn add_library_dir(self, path: impl Into<PathBuf>) -> Self {
+        self.library_dir(path)
+    }
+
     pub fn library_dirs<I, P>(mut self, paths: I) -> Self
     where
         I: IntoIterator<Item = P>,
@@ -188,6 +234,14 @@ impl HeaderConfig {
     pub fn define(mut self, name: impl Into<String>, value: Option<String>) -> Self {
         self.defines.push((name.into(), value));
         self
+    }
+
+    pub fn define_value(self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.define(name, Some(value.into()))
+    }
+
+    pub fn define_flag(self, name: impl Into<String>) -> Self {
+        self.define(name, None)
     }
 
     pub fn defines<I, N>(mut self, defines: I) -> Self
@@ -210,6 +264,10 @@ impl HeaderConfig {
             .push(LinkInput::Library(library.clone()));
         self.link_libraries.push(library);
         self
+    }
+
+    pub fn link_library(self, name: impl Into<String>) -> Self {
+        self.link_lib(name)
     }
 
     pub fn link_static_lib(mut self, name: impl Into<String>) -> Self {
@@ -257,6 +315,10 @@ impl HeaderConfig {
             .push(LinkInput::Framework(framework.clone()));
         self.link_frameworks.push(framework);
         self
+    }
+
+    pub fn request_probe_type_layout(self, name: impl Into<String>) -> Self {
+        self.probe_type_layout(name)
     }
 
     pub fn link_static_artifact(mut self, path: impl Into<PathBuf>) -> Self {
@@ -342,10 +404,122 @@ impl HeaderConfig {
         self
     }
 
-    pub fn process(&self) -> Result<RawHeaderResult, BicError> {
+    pub fn preprocessing(&self) -> PreprocessingConfigRef<'_> {
+        PreprocessingConfigRef {
+            include_dirs: &self.include_dirs,
+            defines: &self.defines,
+            compiler: self.compiler.as_deref(),
+            flavor: self.flavor,
+        }
+    }
+
+    pub fn binding_surface(&self) -> BindingSurfaceConfigRef<'_> {
+        BindingSurfaceConfigRef {
+            entry_headers: &self.entry_headers,
+        }
+    }
+
+    pub fn linking(&self) -> LinkConfigRef<'_> {
+        LinkConfigRef {
+            framework_dirs: &self.framework_dirs,
+            library_dirs: &self.library_dirs,
+            link_libraries: &self.link_libraries,
+            link_frameworks: &self.link_frameworks,
+            link_artifacts: &self.link_artifacts,
+            ordered_link_inputs: &self.ordered_link_inputs,
+            preferred_link_mode: self.preferred_link_mode,
+            platform_constraints: &self.platform_constraints,
+        }
+    }
+
+    pub fn probing(&self) -> ProbeConfigRef<'_> {
+        ProbeConfigRef {
+            probe_types: &self.probe_types,
+        }
+    }
+
+    pub fn filtering(&self) -> Option<&OriginFilter> {
+        self.origin_filter.as_ref()
+    }
+
+    pub fn validate(&self) -> Result<(), BicError> {
         if self.entry_headers.is_empty() {
             return Err(BicError::NoHeaders);
         }
+
+        fn invalid(reason: impl Into<String>) -> BicError {
+            BicError::InvalidConfig {
+                reason: reason.into(),
+            }
+        }
+
+        if self
+            .entry_headers
+            .iter()
+            .any(|path| path.as_os_str().is_empty())
+        {
+            return Err(invalid("entry header path must not be empty"));
+        }
+        if self
+            .include_dirs
+            .iter()
+            .any(|path| path.as_os_str().is_empty())
+        {
+            return Err(invalid("include directory path must not be empty"));
+        }
+        if self
+            .framework_dirs
+            .iter()
+            .any(|path| path.as_os_str().is_empty())
+        {
+            return Err(invalid("framework directory path must not be empty"));
+        }
+        if self
+            .library_dirs
+            .iter()
+            .any(|path| path.as_os_str().is_empty())
+        {
+            return Err(invalid("library directory path must not be empty"));
+        }
+        if self.compiler.as_deref().is_some_and(str::is_empty) {
+            return Err(invalid("compiler command must not be empty"));
+        }
+        if self.defines.iter().any(|(name, _)| name.is_empty()) {
+            return Err(invalid("define name must not be empty"));
+        }
+        if self.probe_types.iter().any(String::is_empty) {
+            return Err(invalid("probe type name must not be empty"));
+        }
+        if self.platform_constraints.iter().any(String::is_empty) {
+            return Err(invalid("target constraint must not be empty"));
+        }
+        if self
+            .link_libraries
+            .iter()
+            .any(|library| library.name.is_empty())
+        {
+            return Err(invalid("link library name must not be empty"));
+        }
+        if self
+            .link_frameworks
+            .iter()
+            .any(|framework| framework.name.is_empty())
+        {
+            return Err(invalid("link framework name must not be empty"));
+        }
+        if self
+            .link_artifacts
+            .iter()
+            .any(|artifact| artifact.path.is_empty())
+        {
+            return Err(invalid("link artifact path must not be empty"));
+        }
+
+        Ok(())
+    }
+
+    pub fn process(&self) -> Result<RawHeaderResult, BicError> {
+        self.validate()?;
 
         // Build a combined header source that includes all entry headers
         let combined = self.build_combined_source();
@@ -929,6 +1103,65 @@ mod tests {
         let link_a = cfg.binding_link_surface();
         let link_b = cfg.binding_link_surface();
         assert_eq!(link_a, link_b);
+    }
+
+    #[test]
+    fn config_domain_views_reflect_shared_config() {
+        let cfg = HeaderConfig::new()
+            .entry_header("api.h")
+            .add_include_dir("/usr/include")
+            .add_framework_dir("/System/Library/Frameworks")
+            .add_library_dir("/usr/lib")
+            .define_flag("DEBUG")
+            .define_value("VERSION", "2")
+            .link_library("z")
+            .link_framework("Security")
+            .link_shared_artifact("/usr/lib/libssl.so")
+            .target_constraint("linux")
+            .request_probe_type_layout("size_t");
+
+        let preprocessing = cfg.preprocessing();
+        assert_eq!(preprocessing.include_dirs, &[PathBuf::from("/usr/include")]);
+        assert_eq!(
+            preprocessing.defines,
+            &[
+                ("DEBUG".to_string(), None),
+                ("VERSION".to_string(), Some("2".to_string()))
+            ]
+        );
+
+        let binding = cfg.binding_surface();
+        assert_eq!(binding.entry_headers, &[PathBuf::from("api.h")]);
+
+        let linking = cfg.linking();
+        assert_eq!(linking.framework_dirs, &[PathBuf::from("/System/Library/Frameworks")]);
+        assert_eq!(linking.library_dirs, &[PathBuf::from("/usr/lib")]);
+        assert_eq!(linking.link_libraries.len(), 1);
+        assert_eq!(linking.link_frameworks.len(), 1);
+        assert_eq!(linking.link_artifacts.len(), 1);
+        assert_eq!(linking.platform_constraints, &["linux".to_string()]);
+
+        let probing = cfg.probing();
+        assert_eq!(probing.probe_types, &["size_t".to_string()]);
+        assert!(cfg.filtering().is_some());
+    }
+
+    #[test]
+    fn config_validation_rejects_empty_values() {
+        let bad_header = HeaderConfig::new().header("");
+        let err = bad_header.validate().unwrap_err();
+        assert!(matches!(err, BicError::InvalidConfig { .. }));
+        assert!(err.to_string().contains("entry header path"));
+
+        let bad_define = HeaderConfig::new().header("api.h").define("", None);
+        let err = bad_define.validate().unwrap_err();
+        assert!(matches!(err, BicError::InvalidConfig { .. }));
+        assert!(err.to_string().contains("define name"));
+
+        let bad_probe = HeaderConfig::new().header("api.h").probe_type_layout("");
+        let err = bad_probe.validate().unwrap_err();
+        assert!(matches!(err, BicError::InvalidConfig { .. }));
+        assert!(err.to_string().contains("probe type name"));
     }
 
     #[test]

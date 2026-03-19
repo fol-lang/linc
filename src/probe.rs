@@ -17,9 +17,7 @@ pub fn probe_type_layouts(
     config: &HeaderConfig,
     type_names: &[impl AsRef<str>],
 ) -> Result<AbiProbeReport, BicError> {
-    if config.entry_headers.is_empty() {
-        return Err(BicError::NoHeaders);
-    }
+    config.validate()?;
     if type_names.is_empty() {
         return Err(BicError::NoProbeTypes);
     }
@@ -248,5 +246,15 @@ mod tests {
         assert!(matches!(err, BicError::NoProbeTypes));
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_rejects_invalid_config_before_execution() {
+        let err = probe_type_layouts(
+            &HeaderConfig::new().header("").probe_type_layout("size_t"),
+            &["size_t"],
+        )
+        .unwrap_err();
+        assert!(matches!(err, BicError::InvalidConfig { .. }));
     }
 }

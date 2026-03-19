@@ -22,6 +22,8 @@ use std::path::PathBuf;
 pub enum BicError {
     /// A scan-like operation was invoked without any entry headers.
     NoHeaders,
+    /// A scan configuration was internally contradictory or nonsensical.
+    InvalidConfig { reason: String },
     /// A probe-like operation was invoked without any requested type names.
     NoProbeTypes,
     /// ABI probe compilation failed before layouts could be produced.
@@ -50,6 +52,7 @@ impl fmt::Display for BicError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BicError::NoHeaders => write!(f, "no entry headers specified"),
+            BicError::InvalidConfig { reason } => write!(f, "invalid configuration: {}", reason),
             BicError::NoProbeTypes => write!(f, "no type names specified for probing"),
             BicError::ProbeCompile { compiler, stderr } => {
                 write!(f, "layout probe compilation with '{}' failed: {}", compiler, stderr)
@@ -129,6 +132,15 @@ mod tests {
             stderr: "file not found".into(),
         };
         assert!(e.to_string().contains("gcc"));
+    }
+
+    #[test]
+    fn error_display_invalid_config() {
+        let e = BicError::InvalidConfig {
+            reason: "entry header path must not be empty".into(),
+        };
+        assert!(e.to_string().contains("invalid configuration"));
+        assert!(e.to_string().contains("entry header path"));
     }
 
     #[test]
