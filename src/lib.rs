@@ -193,7 +193,7 @@ pub use extract::{extract_from_source, extract_from_translation_unit};
 pub use ir::{
     BindingDefine, BindingInputs, BindingItem, BindingItemKind, BindingLinkSurface, BindingPackage,
     BindingTarget, BindingType, CallingConvention, DeclarationProvenance, EnumBinding,
-    EnumVariant, FieldBinding, FieldLayout, FunctionBinding, LinkArtifact, LinkArtifactKind, LinkFramework,
+    EnumRepresentation, EnumVariant, FieldBinding, FieldLayout, FunctionBinding, LinkArtifact, LinkArtifactKind, LinkFramework,
     LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource, LinkResolutionMode,
     MacroBinding, MacroCategory, MacroEnvironmentEntry, MacroForm, MacroKind, MacroProvenance,
     MacroValue,

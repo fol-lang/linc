@@ -915,37 +915,52 @@ fn attach_probe_field_offsets(
         .collect::<std::collections::HashMap<_, _>>();
 
     for item in items {
-        let BindingItem::Record(record) = item else {
-            continue;
-        };
-        let Some(record_name) = record.name.as_deref() else {
-            continue;
-        };
-        let subject_name = match record.kind {
-            crate::ir::RecordKind::Struct => format!("struct {}", record_name),
-            crate::ir::RecordKind::Union => format!("union {}", record_name),
-        };
-        let Some(subject) = subject_map.get(subject_name.as_str()) else {
-            continue;
-        };
-        let Some(fields) = record.fields.as_mut() else {
-            continue;
-        };
-        let field_map = subject
-            .fields
-            .iter()
-            .map(|field| (field.name.as_str(), field))
-            .collect::<std::collections::HashMap<_, _>>();
-        for field in fields {
-            let Some(field_name) = field.name.as_deref() else {
-                continue;
-            };
-            let Some(probed) = field_map.get(field_name) else {
-                continue;
-            };
-            field.layout = Some(crate::ir::FieldLayout {
-                offset_bytes: probed.offset_bytes,
-            });
+        match item {
+            BindingItem::Record(record) => {
+                let Some(record_name) = record.name.as_deref() else {
+                    continue;
+                };
+                let subject_name = match record.kind {
+                    crate::ir::RecordKind::Struct => format!("struct {}", record_name),
+                    crate::ir::RecordKind::Union => format!("union {}", record_name),
+                };
+                let Some(subject) = subject_map.get(subject_name.as_str()) else {
+                    continue;
+                };
+                let Some(fields) = record.fields.as_mut() else {
+                    continue;
+                };
+                let field_map = subject
+                    .fields
+                    .iter()
+                    .map(|field| (field.name.as_str(), field))
+                    .collect::<std::collections::HashMap<_, _>>();
+                for field in fields {
+                    let Some(field_name) = field.name.as_deref() else {
+                        continue;
+                    };
+                    let Some(probed) = field_map.get(field_name) else {
+                        continue;
+                    };
+                    field.layout = Some(crate::ir::FieldLayout {
+                        offset_bytes: probed.offset_bytes,
+                    });
+                }
+            }
+            BindingItem::Enum(enum_binding) => {
+                let Some(enum_name) = enum_binding.name.as_deref() else {
+                    continue;
+                };
+                let subject_name = format!("enum {}", enum_name);
+                let Some(subject) = subject_map.get(subject_name.as_str()) else {
+                    continue;
+                };
+                enum_binding.representation = Some(crate::ir::EnumRepresentation {
+                    underlying_size: subject.enum_underlying_size,
+                    is_signed: subject.enum_is_signed,
+                });
+            }
+            _ => {}
         }
     }
 }
@@ -1887,6 +1902,30 @@ int compute(int x);
             .layout
             .as_ref()
             .and_then(|layout| layout.offset_bytes)
+            .is_some());
+        let enum_header = dir.join("enum_layout.h");
+        std::fs::write(&enum_header, "enum mode { MODE_A = 0, MODE_B = 7 };\n").unwrap();
+        let enum_result = HeaderConfig::new()
+            .header(&enum_header)
+            .probe_type_layout("enum mode")
+            .process()
+            .unwrap();
+        let enum_binding = enum_result
+            .package
+            .enums()
+            .find(|enum_binding| enum_binding.name.as_deref() == Some("mode"))
+            .unwrap();
+        assert_eq!(
+            enum_binding
+                .representation
+                .as_ref()
+                .and_then(|representation| representation.underlying_size),
+            Some(4)
+        );
+        assert!(enum_binding
+            .representation
+            .as_ref()
+            .and_then(|representation| representation.is_signed)
             .is_some());
 
         cleanup(&dir);

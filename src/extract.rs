@@ -365,6 +365,7 @@ impl Extractor {
         self.items.push(BindingItem::Enum(EnumBinding {
             name,
             variants,
+            representation: None,
             source_offset: Some(offset),
         }));
     }
@@ -1149,6 +1150,7 @@ mod tests {
         let e = &enums[0];
         assert_eq!(e.name.as_deref(), Some("color"));
         assert_eq!(e.variants.len(), 3);
+        assert!(e.representation.is_none());
         assert_eq!(e.variants[0].name, "RED");
         assert_eq!(e.variants[0].value, None);
         assert_eq!(e.variants[1].name, "GREEN");

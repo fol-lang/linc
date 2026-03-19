@@ -655,7 +655,17 @@ pub struct EnumVariant {
 pub struct EnumBinding {
     pub name: Option<String>,
     pub variants: Vec<EnumVariant>,
+    #[serde(default)]
+    pub representation: Option<EnumRepresentation>,
     pub source_offset: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnumRepresentation {
+    #[serde(default)]
+    pub underlying_size: Option<u64>,
+    #[serde(default)]
+    pub is_signed: Option<bool>,
 }
 
 /// Extracted typedef or alias declaration.
@@ -757,6 +767,7 @@ mod tests {
                 name: "MODE_A".into(),
                 value: Some(0),
             }],
+            representation: None,
             source_offset: Some(3),
         }));
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
@@ -809,6 +820,7 @@ mod tests {
                 name: "MODE_A".into(),
                 value: Some(0),
             }],
+            representation: None,
             source_offset: Some(3),
         }));
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
@@ -895,6 +907,7 @@ mod tests {
                 name: "MODE_A".into(),
                 value: Some(0),
             }],
+            representation: None,
             source_offset: Some(3),
         }));
         pkg.items.push(BindingItem::TypeAlias(TypeAliasBinding {
@@ -1234,10 +1247,22 @@ mod tests {
                 EnumVariant { name: "GREEN".into(), value: Some(1) },
                 EnumVariant { name: "BLUE".into(), value: Some(2) },
             ],
+            representation: None,
             source_offset: None,
         };
         assert_eq!(e.variants.len(), 3);
         assert_eq!(e.variants[0].value, Some(0));
+    }
+
+    #[test]
+    fn enum_representation_roundtrip() {
+        let representation = EnumRepresentation {
+            underlying_size: Some(4),
+            is_signed: Some(true),
+        };
+        let json = serde_json::to_string(&representation).unwrap();
+        let decoded: EnumRepresentation = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, representation);
     }
 
     #[test]
