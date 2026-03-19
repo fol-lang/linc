@@ -92,6 +92,7 @@ fn cli_scan_emits_inputs_and_link_metadata() {
     assert_eq!(json["link"]["framework_paths"][0], "/System/Library/Frameworks");
     assert_eq!(json["link"]["library_paths"][0], dir.to_str().unwrap());
     assert_eq!(json["link"]["preferred_mode"], "PreferStatic");
+    assert_eq!(json["link"]["native_surface_kind"], "Mixed");
     assert_eq!(json["link"]["platform_constraints"][0], "linux");
     assert_eq!(json["link"]["platform_constraints"][1], "x86_64");
     assert_eq!(json["link"]["frameworks"][0]["name"], "Security");
@@ -413,6 +414,7 @@ fn cli_link_plan_emits_link_surface_json() {
             "macros": [],
             "link": {
                 "preferred_mode": "PreferDynamic",
+                "native_surface_kind": "Mixed",
                 "platform_constraints": ["macos", "aarch64"],
                 "include_paths": ["include"],
                 "framework_paths": ["/System/Library/Frameworks"],
@@ -460,6 +462,7 @@ fn cli_link_plan_emits_link_surface_json() {
     let stdout = String::from_utf8(output.stdout).unwrap();
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     assert_eq!(json["preferred_mode"], "PreferDynamic");
+    assert_eq!(json["native_surface_kind"], "Mixed");
     assert_eq!(json["platform_constraints"][0], "macos");
     assert_eq!(json["platform_constraints"][1], "aarch64");
     assert_eq!(json["include_paths"][0], "include");

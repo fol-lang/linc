@@ -8,6 +8,7 @@ use crate::ir::{
     BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
     LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind,
     LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroKind,
+    NativeSurfaceKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::probe_type_layouts;
@@ -413,6 +414,7 @@ impl HeaderConfig {
     fn binding_link_surface(&self) -> BindingLinkSurface {
         BindingLinkSurface {
             preferred_mode: self.preferred_link_mode,
+            native_surface_kind: self.native_surface_kind(),
             platform_constraints: self.platform_constraints.clone(),
             include_paths: self
                 .include_dirs
@@ -433,6 +435,15 @@ impl HeaderConfig {
             frameworks: self.link_frameworks.clone(),
             artifacts: self.link_artifacts.clone(),
             ordered_inputs: self.ordered_link_inputs.clone(),
+        }
+    }
+
+    fn native_surface_kind(&self) -> NativeSurfaceKind {
+        match (self.link_libraries.is_empty() && self.link_frameworks.is_empty(), self.link_artifacts.is_empty()) {
+            (true, true) => NativeSurfaceKind::HeaderOnly,
+            (false, true) => NativeSurfaceKind::LibraryNames,
+            (true, false) => NativeSurfaceKind::ConcreteArtifacts,
+            (false, false) => NativeSurfaceKind::Mixed,
         }
     }
 
@@ -681,6 +692,7 @@ mod tests {
         assert_eq!(cfg.link_artifacts.len(), 3);
         assert_eq!(cfg.preferred_link_mode, LinkResolutionMode::PreferStatic);
         assert_eq!(cfg.platform_constraints, vec!["linux".to_string()]);
+        assert_eq!(cfg.native_surface_kind(), NativeSurfaceKind::Mixed);
         assert_eq!(cfg.probe_types.len(), 1);
         assert_eq!(cfg.compiler.as_deref(), Some("gcc"));
         assert_eq!(cfg.flavor, Some(Flavor::GnuC11));
@@ -777,6 +789,7 @@ mod tests {
         assert_eq!(link.framework_paths, vec!["frameworks".to_string()]);
         assert_eq!(link.library_paths, vec!["lib".to_string()]);
         assert_eq!(link.preferred_mode, LinkResolutionMode::PreferStatic);
+        assert_eq!(link.native_surface_kind, NativeSurfaceKind::Mixed);
         assert_eq!(
             link.platform_constraints,
             vec!["linux".to_string(), "x86_64".to_string()]
@@ -805,6 +818,24 @@ mod tests {
             other => panic!("expected third ordered input to be artifact, got {:?}", other),
         }
         assert_eq!(cfg.probe_types, vec!["struct widget".to_string()]);
+    }
+
+    #[test]
+    fn native_surface_kind_inference() {
+        let header_only = HeaderConfig::new().header("api.h");
+        let library_names = HeaderConfig::new().header("api.h").link_lib("m");
+        let concrete = HeaderConfig::new()
+            .header("api.h")
+            .link_static_artifact("lib/libdemo.a");
+        let mixed = HeaderConfig::new()
+            .header("api.h")
+            .link_lib("m")
+            .link_static_artifact("lib/libdemo.a");
+
+        assert_eq!(header_only.native_surface_kind(), NativeSurfaceKind::HeaderOnly);
+        assert_eq!(library_names.native_surface_kind(), NativeSurfaceKind::LibraryNames);
+        assert_eq!(concrete.native_surface_kind(), NativeSurfaceKind::ConcreteArtifacts);
+        assert_eq!(mixed.native_surface_kind(), NativeSurfaceKind::Mixed);
     }
 
     #[test]

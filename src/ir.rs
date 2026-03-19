@@ -82,6 +82,15 @@ pub enum LinkResolutionMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum NativeSurfaceKind {
+    #[default]
+    HeaderOnly,
+    LibraryNames,
+    ConcreteArtifacts,
+    Mixed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum LinkRequirementSource {
     #[default]
     Declared,
@@ -130,6 +139,8 @@ pub enum LinkInput {
 pub struct BindingLinkSurface {
     #[serde(default)]
     pub preferred_mode: LinkResolutionMode,
+    #[serde(default)]
+    pub native_surface_kind: NativeSurfaceKind,
     #[serde(default)]
     pub platform_constraints: Vec<String>,
     #[serde(default)]
@@ -482,6 +493,7 @@ mod tests {
         }];
         pkg.link = BindingLinkSurface {
             preferred_mode: LinkResolutionMode::PreferDynamic,
+            native_surface_kind: NativeSurfaceKind::Mixed,
             platform_constraints: vec!["macos".into()],
             include_paths: vec!["/usr/include".into()],
             framework_paths: vec!["/System/Library/Frameworks".into()],
@@ -688,6 +700,7 @@ mod tests {
     fn link_library_serialization_roundtrip() {
         let link = BindingLinkSurface {
             preferred_mode: LinkResolutionMode::PreferStatic,
+            native_surface_kind: NativeSurfaceKind::Mixed,
             platform_constraints: vec!["linux".into(), "x86_64".into()],
             include_paths: vec!["include".into()],
             framework_paths: vec!["frameworks".into()],
@@ -766,6 +779,7 @@ mod tests {
         }"#;
         let decoded: BindingLinkSurface = serde_json::from_str(json).unwrap();
         assert_eq!(decoded.preferred_mode, LinkResolutionMode::Default);
+        assert_eq!(decoded.native_surface_kind, NativeSurfaceKind::HeaderOnly);
         assert!(decoded.platform_constraints.is_empty());
         assert_eq!(decoded.libraries[0].source, LinkRequirementSource::Declared);
         assert_eq!(decoded.artifacts[0].source, LinkRequirementSource::Declared);
