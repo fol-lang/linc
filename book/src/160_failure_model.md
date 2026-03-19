@@ -72,6 +72,53 @@ Downstream code should currently interpret the library like this:
 - diagnostics mean the operation succeeded, but the returned analysis may be partial or lossy
 - validation findings mean the operation succeeded and produced evidence that the native surface does not match expectations cleanly
 
+## Partial-Success Semantics
+
+The important production rule is that successful return and acceptable return are different questions.
+
+A practical consumer decision flow is:
+
+1. if the operation returned `Err(...)`, treat it as an execution failure
+2. if the operation succeeded, inspect `BindingPackage.diagnostics`
+3. if layouts were expected, verify that the expected `package.layouts` evidence is present
+4. if native artifacts matter, run validation and inspect the resulting `ValidationReport`
+5. only then decide whether generation should continue
+
+This means a robust downstream integration should not collapse everything into a single boolean
+"success" value.
+
+### When Diagnostics Should Block Generation
+
+In most real pipelines, diagnostics should be treated as blocking when they indicate:
+
+- unsupported declarations that are required by the generated binding surface
+- partial extraction of ABI-relevant constructs
+- preprocessing or parse recovery that leaves the package materially incomplete
+
+Diagnostics may be non-blocking when they affect declarations that the downstream generator does
+not intend to expose.
+
+### When Validation Findings Should Block Linking Or Publication
+
+Validation findings should usually block the next stage when they show:
+
+- missing required symbols
+- duplicate visible providers for the same declaration
+- unresolved declared native inputs
+- visibility or decoration mismatches that make the selected provider ambiguous
+
+Validation findings are still structured output rather than execution failure, but they are often
+release-blocking evidence.
+
+## Consumer Decision Table
+
+| Outcome | Meaning | Typical downstream response |
+|---|---|---|
+| `Err(...)` | operation could not produce a usable result | stop immediately |
+| success + no important diagnostics | analysis succeeded cleanly enough | continue |
+| success + diagnostics | analysis completed, but may be partial or lossy | review or gate |
+| success + validation findings | artifact comparison completed and found mismatches | block publish/link until resolved |
+
 ## Why This Distinction Matters
 
 Without this distinction, downstream consumers tend to make one of two mistakes:

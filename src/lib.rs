@@ -155,6 +155,12 @@
 //!   `package.diagnostics`
 //! - declaration-vs-artifact mismatches should appear in `ValidationReport`, not as thrown errors
 //!
+//! Consumers should therefore use a two-step acceptance model:
+//!
+//! 1. check whether the operation itself returned `Err(...)`
+//! 2. if it succeeded, inspect diagnostics, layouts, and validation findings before
+//!    treating the result as generation-ready
+//!
 pub mod diagnostics;
 pub mod error;
 pub mod extract;
