@@ -107,6 +107,18 @@
 //! Future plan slices will convert the remaining string-based operational failures
 //! into typed crate errors.
 //!
+//! # Current Data-Contract Stability Guide
+//!
+//! For downstream consumers, the current package contract is best read with these rules:
+//!
+//! - identity/version fields such as `schema_version` and `bic_version` are contract-level metadata
+//! - top-level package sections such as `target`, `inputs`, `macros`, `layouts`, `link`,
+//!   `items`, and `diagnostics` are stable container concepts
+//! - many nested fields are still best treated as additive/defaultable rather than frozen in
+//!   their exact long-term shape
+//! - validation and symbol inventories are structured evidence, not proof that every ABI detail
+//!   is fully modeled
+//!
 pub mod diagnostics;
 pub mod error;
 pub mod extract;
