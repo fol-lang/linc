@@ -17,6 +17,19 @@ The intended downstream pattern is:
 
 Consumers should prefer the crate root over deep module imports whenever possible.
 
+## Normative Rules For Consumers
+
+If you are building on top of `bic`, the current intended rules are:
+
+1. prefer crate-root re-exports over deep module imports
+2. use `HeaderConfig` or `PreprocessedInput` as the normal producer entry points
+3. treat `BindingPackage`, `SymbolInventory`, and `ValidationReport` as the primary transport-level contracts
+4. treat diagnostics and validation results as normal structured output, not as ad hoc log text
+5. do not rely on exact `String` error text for durable control flow
+6. do not treat extracted declarations alone as sufficient ABI proof for layout-sensitive generation
+
+These rules are the safest current downstream posture until later API and error-model slices land.
+
 ## Stability Tiers
 
 The public surface is best understood in three tiers.
@@ -77,6 +90,12 @@ Prefer:
 - root-level JSON helpers
 - root-level validation and symbol APIs
 
+For long-lived downstream integrations, also prefer:
+
+- documented behavior over inferred behavior
+- package-level metadata over reconstructing intent from raw declarations alone
+- package diagnostics and validation output as explicit decision inputs
+
 Avoid reaching for deep modules first unless:
 
 - you are building advanced integration code
@@ -105,3 +124,14 @@ If you are integrating `bic` into another crate, treat the following as your saf
 
 If you need more than that, document exactly which lower-level modules you rely on.
 That will make later stabilization work much easier.
+
+## Explicit Non-Guarantees
+
+The current contract does not yet guarantee:
+
+- typed operational errors across the whole crate
+- full ABI completeness for all C constructs
+- full cross-platform parity across ELF, Mach-O, and Windows-native artifact formats
+- that every public module is equally stable as a consumer boundary
+
+These are roadmap items, not present-tense promises.

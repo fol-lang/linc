@@ -4,6 +4,26 @@
 //! The goal is to keep common workflows available from the root while allowing
 //! advanced consumers to opt into lower-level modules when necessary.
 //!
+//! # Normative Consumer Guidance
+//!
+//! Downstream consumers should treat the following as the intended stable usage model:
+//!
+//! 1. Prefer crate-root re-exports over deep module imports.
+//! 2. Use [`HeaderConfig`] or [`PreprocessedInput`] to produce a [`BindingPackage`].
+//! 3. Treat serialized [`BindingPackage`], `SymbolInventory`, and `ValidationReport`
+//!    values as the primary machine-to-machine contract.
+//! 4. Treat diagnostics and validation findings as part of normal analysis output,
+//!    not as exceptional control flow.
+//! 5. Avoid depending on exact `String` error text from operational APIs.
+//!
+//! Downstream consumers should avoid:
+//!
+//! - depending on undocumented formatting details in serialized JSON
+//! - matching on incidental implementation details from support-oriented modules
+//! - assuming every public module has the same long-term stability expectations
+//! - treating best-effort extracted data as full ABI proof without checking diagnostics,
+//!   layouts, and validation evidence
+//!
 //! # Public API Tiers
 //!
 //! The current library surface is intentionally split into practical stability tiers.
@@ -25,6 +45,7 @@
 //! - [`emit_rust_ffi`] for baseline Rust FFI emission when the `codegen` feature is enabled
 //!
 //! These root-level APIs are the intended long-term consumer surface.
+//! New documentation and integration guidance should assume this tier first.
 //!
 //! ## Advanced But Less Stable Module APIs
 //!
