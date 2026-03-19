@@ -36,6 +36,8 @@ pub enum SymbolBinding {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SymbolEntry {
     pub name: String,
+    #[serde(default)]
+    pub raw_name: Option<String>,
     pub visibility: SymbolVisibility,
     pub is_function: bool,
     pub binding: SymbolBinding,
@@ -235,6 +237,7 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
 
         symbols.push(SymbolEntry {
             name,
+            raw_name: Some(raw_name.to_string()),
             visibility,
             is_function,
             binding,
@@ -386,6 +389,7 @@ mod tests {
         let data = minimal_macho_object();
         let inv = inspect_bytes(&data, "test.o".into()).unwrap();
         let sym = inv.symbols.iter().find(|s| s.name == "foo").unwrap();
+        assert_eq!(sym.raw_name.as_deref(), Some("_foo"));
         assert_eq!(sym.visibility, SymbolVisibility::Default);
         assert_eq!(sym.binding, SymbolBinding::Global);
         assert!(sym.is_function);
@@ -416,6 +420,7 @@ mod tests {
             symbols: vec![
                 SymbolEntry {
                     name: "foo".into(),
+                    raw_name: None,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -425,6 +430,7 @@ mod tests {
                 },
                 SymbolEntry {
                     name: "bar".into(),
+                    raw_name: None,
                     visibility: SymbolVisibility::Default,
                     is_function: false,
                     binding: SymbolBinding::Global,
@@ -447,6 +453,7 @@ mod tests {
             symbols: vec![
                 SymbolEntry {
                     name: "func1".into(),
+                    raw_name: None,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -456,6 +463,7 @@ mod tests {
                 },
                 SymbolEntry {
                     name: "data1".into(),
+                    raw_name: None,
                     visibility: SymbolVisibility::Default,
                     is_function: false,
                     binding: SymbolBinding::Global,
@@ -465,6 +473,7 @@ mod tests {
                 },
                 SymbolEntry {
                     name: "func2".into(),
+                    raw_name: None,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
@@ -485,6 +494,7 @@ mod tests {
             format: ArtifactFormat::ElfStaticLibrary,
             symbols: vec![SymbolEntry {
                 name: "foo_init".into(),
+                raw_name: Some("foo_init".into()),
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Global,
@@ -527,6 +537,8 @@ mod tests {
         assert!(matches!(inv.format, ArtifactFormat::ElfObject));
         assert!(inv.has_symbol("foo"));
         assert!(inv.has_symbol("bar"));
+        let foo = inv.symbols.iter().find(|sym| sym.name == "foo").unwrap();
+        assert_eq!(foo.raw_name.as_deref(), Some("foo"));
 
         let funcs = inv.function_names();
         assert!(funcs.contains(&"foo"));
@@ -568,6 +580,7 @@ mod tests {
         assert_eq!(inv.format, ArtifactFormat::ElfStaticLibrary);
         assert!(inv.has_symbol("add"));
         let add = inv.symbols.iter().find(|sym| sym.name == "add").unwrap();
+        assert_eq!(add.raw_name.as_deref(), Some("add"));
         assert_eq!(add.archive_member.as_deref(), Some("lib.o"));
 
         std::fs::remove_file(&c_path).ok();
@@ -618,6 +631,8 @@ mod tests {
         let inv = inspect_file(&a_path).unwrap();
         let alpha = inv.symbols.iter().find(|sym| sym.name == "alpha").unwrap();
         let beta = inv.symbols.iter().find(|sym| sym.name == "beta").unwrap();
+        assert_eq!(alpha.raw_name.as_deref(), Some("alpha"));
+        assert_eq!(beta.raw_name.as_deref(), Some("beta"));
         assert_eq!(alpha.archive_member.as_deref(), Some("alpha.o"));
         assert_eq!(beta.archive_member.as_deref(), Some("beta.o"));
 

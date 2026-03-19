@@ -135,6 +135,7 @@ mod integration_tests {
             format: symbols::ArtifactFormat::ElfObject,
             symbols: vec![SymbolEntry {
                 name: "foo".into(),
+                raw_name: None,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: symbols::SymbolBinding::Global,

@@ -146,7 +146,9 @@ fn cli_inspect_symbols_emits_symbol_inventory_json() {
     let stdout = String::from_utf8(output.stdout).unwrap();
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     let symbols = json["symbols"].as_array().unwrap();
-    assert!(symbols.iter().any(|sym| sym["name"] == "foo"));
+    assert!(symbols
+        .iter()
+        .any(|sym| sym["name"] == "foo" && sym["raw_name"] == "foo"));
 
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -187,7 +189,11 @@ fn cli_inspect_symbols_emits_archive_member_provenance() {
     let symbols = json["symbols"].as_array().unwrap();
     assert!(symbols
         .iter()
-        .any(|sym| sym["name"] == "foo" && sym["archive_member"] == "lib.o"));
+        .any(|sym| {
+            sym["name"] == "foo"
+                && sym["raw_name"] == "foo"
+                && sym["archive_member"] == "lib.o"
+        }));
 
     std::fs::remove_dir_all(&dir).ok();
 }

@@ -117,6 +117,7 @@ mod tests {
             .iter()
             .map(|(name, is_func, vis)| SymbolEntry {
                 name: name.to_string(),
+                raw_name: None,
                 visibility: vis.clone(),
                 is_function: *is_func,
                 binding: SymbolBinding::Global,
@@ -328,6 +329,7 @@ mod tests {
             format: ArtifactFormat::ElfObject,
             symbols: vec![SymbolEntry {
                 name: "foo".into(),
+                raw_name: None,
                 visibility: SymbolVisibility::Default,
                 is_function: true,
                 binding: SymbolBinding::Weak,
