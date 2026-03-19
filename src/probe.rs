@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::BicError;
 use crate::ir::TypeLayout;
 use crate::raw_headers::{Flavor, HeaderConfig};
 
@@ -15,23 +16,21 @@ pub struct AbiProbeReport {
 pub fn probe_type_layouts(
     config: &HeaderConfig,
     type_names: &[impl AsRef<str>],
-) -> Result<AbiProbeReport, String> {
+) -> Result<AbiProbeReport, BicError> {
     if config.entry_headers.is_empty() {
-        return Err("no entry headers specified".into());
+        return Err(BicError::NoHeaders);
     }
     if type_names.is_empty() {
-        return Err("no type names specified for probing".into());
+        return Err(BicError::NoProbeTypes);
     }
 
     let compiler = compiler_command(config);
     let temp_root = temp_probe_root();
-    std::fs::create_dir_all(&temp_root)
-        .map_err(|e| format!("failed to create probe temp dir: {}", e))?;
+    std::fs::create_dir_all(&temp_root)?;
     let source_path = temp_root.join("probe.c");
     let exe_path = temp_root.join("probe-bin");
 
-    std::fs::write(&source_path, build_probe_source(config, type_names))
-        .map_err(|e| format!("failed to write probe source: {}", e))?;
+    std::fs::write(&source_path, build_probe_source(config, type_names))?;
 
     let mut compile = std::process::Command::new(&compiler);
     compile.arg("-std=c11");
@@ -52,24 +51,36 @@ pub fn probe_type_layouts(
 
     let compile_output = compile
         .output()
-        .map_err(|e| format!("failed to invoke compiler '{}': {}", compiler, e))?;
+        .map_err(|e| BicError::ProbeCompile {
+            compiler: compiler.clone(),
+            stderr: e.to_string(),
+        })?;
     if !compile_output.status.success() {
         let stderr = String::from_utf8_lossy(&compile_output.stderr);
         cleanup_probe_root(&temp_root);
-        return Err(format!("layout probe compilation failed: {}", stderr.trim()));
+        return Err(BicError::ProbeCompile {
+            compiler,
+            stderr: stderr.trim().to_string(),
+        });
     }
 
     let run_output = std::process::Command::new(&exe_path)
         .output()
-        .map_err(|e| format!("failed to run layout probe program: {}", e))?;
+        .map_err(|e| BicError::ProbeExecution {
+            reason: e.to_string(),
+        })?;
     if !run_output.status.success() {
         let stderr = String::from_utf8_lossy(&run_output.stderr);
         cleanup_probe_root(&temp_root);
-        return Err(format!("layout probe execution failed: {}", stderr.trim()));
+        return Err(BicError::ProbeExecution {
+            reason: stderr.trim().to_string(),
+        });
     }
 
     let stdout = String::from_utf8(run_output.stdout)
-        .map_err(|e| format!("layout probe produced invalid UTF-8: {}", e))?;
+        .map_err(|e| BicError::ProbeOutput {
+            reason: e.to_string(),
+        })?;
     let layouts = parse_layout_output(&stdout)?;
     cleanup_probe_root(&temp_root);
 
@@ -117,7 +128,7 @@ fn c_string_literal(raw: &str) -> String {
     raw.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-fn parse_layout_output(stdout: &str) -> Result<Vec<TypeLayout>, String> {
+fn parse_layout_output(stdout: &str) -> Result<Vec<TypeLayout>, BicError> {
     stdout
         .lines()
         .filter(|line| !line.trim().is_empty())
@@ -125,17 +136,27 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<TypeLayout>, String> {
             let mut parts = line.split('\t');
             let name = parts
                 .next()
-                .ok_or_else(|| format!("invalid probe output line: {}", line))?;
+                .ok_or_else(|| BicError::ProbeOutput {
+                    reason: format!("invalid probe output line: {}", line),
+                })?;
             let size = parts
                 .next()
-                .ok_or_else(|| format!("invalid probe output line: {}", line))?
+                .ok_or_else(|| BicError::ProbeOutput {
+                    reason: format!("invalid probe output line: {}", line),
+                })?
                 .parse::<u64>()
-                .map_err(|e| format!("invalid size in probe output '{}': {}", line, e))?;
+                .map_err(|e| BicError::ProbeOutput {
+                    reason: format!("invalid size in probe output '{}': {}", line, e),
+                })?;
             let align = parts
                 .next()
-                .ok_or_else(|| format!("invalid probe output line: {}", line))?
+                .ok_or_else(|| BicError::ProbeOutput {
+                    reason: format!("invalid probe output line: {}", line),
+                })?
                 .parse::<u64>()
-                .map_err(|e| format!("invalid align in probe output '{}': {}", line, e))?;
+                .map_err(|e| BicError::ProbeOutput {
+                    reason: format!("invalid align in probe output '{}': {}", line, e),
+                })?;
             Ok(TypeLayout {
                 name: name.to_string(),
                 size,
@@ -212,6 +233,19 @@ mod tests {
         assert!(report.layouts.iter().any(|layout| {
             layout.name == "struct widget" && layout.size >= 16 && layout.align >= 8
         }));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_requires_type_names() {
+        let dir = temp_dir("empty_probe");
+        let header = dir.join("api.h");
+        std::fs::write(&header, "struct widget { int a; };\n").unwrap();
+
+        let err = probe_type_layouts(&HeaderConfig::new().header(&header), &[] as &[&str])
+            .unwrap_err();
+        assert!(matches!(err, BicError::NoProbeTypes));
 
         std::fs::remove_dir_all(&dir).ok();
     }

@@ -318,9 +318,7 @@ impl HeaderConfig {
                 };
 
                 if !self.probe_types.is_empty() {
-                    package.layouts = probe_type_layouts(self, &self.probe_types)
-                        .map_err(|reason| BicError::ProbeFailed { reason })?
-                        .layouts;
+                    package.layouts = probe_type_layouts(self, &self.probe_types)?.layouts;
                 }
 
                 // Apply origin filtering if configured

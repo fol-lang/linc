@@ -22,8 +22,14 @@ use std::path::PathBuf;
 pub enum BicError {
     /// A scan-like operation was invoked without any entry headers.
     NoHeaders,
+    /// A probe-like operation was invoked without any requested type names.
+    NoProbeTypes,
+    /// ABI probe compilation failed before layouts could be produced.
+    ProbeCompile { compiler: String, stderr: String },
     /// ABI probe execution failed before layouts could be produced.
-    ProbeFailed { reason: String },
+    ProbeExecution { reason: String },
+    /// ABI probe output could not be interpreted.
+    ProbeOutput { reason: String },
     /// A compiler/preprocessor invocation failed before a usable translation unit was produced.
     PreprocessorFailed { command: String, stderr: String },
     /// Source parsing failed after preprocessing.
@@ -44,8 +50,15 @@ impl fmt::Display for BicError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BicError::NoHeaders => write!(f, "no entry headers specified"),
-            BicError::ProbeFailed { reason } => {
-                write!(f, "probe failed: {}", reason)
+            BicError::NoProbeTypes => write!(f, "no type names specified for probing"),
+            BicError::ProbeCompile { compiler, stderr } => {
+                write!(f, "layout probe compilation with '{}' failed: {}", compiler, stderr)
+            }
+            BicError::ProbeExecution { reason } => {
+                write!(f, "layout probe execution failed: {}", reason)
+            }
+            BicError::ProbeOutput { reason } => {
+                write!(f, "invalid layout probe output: {}", reason)
             }
             BicError::PreprocessorFailed { command, stderr } => {
                 write!(f, "preprocessor '{}' failed: {}", command, stderr)
@@ -119,11 +132,28 @@ mod tests {
     }
 
     #[test]
-    fn error_display_probe_failed() {
-        let e = BicError::ProbeFailed {
-            reason: "compiler missing".into(),
+    fn error_display_probe_compile() {
+        let e = BicError::ProbeCompile {
+            compiler: "cc".into(),
+            stderr: "compiler missing".into(),
         };
         assert!(e.to_string().contains("compiler missing"));
+    }
+
+    #[test]
+    fn error_display_probe_execution() {
+        let e = BicError::ProbeExecution {
+            reason: "signal".into(),
+        };
+        assert!(e.to_string().contains("signal"));
+    }
+
+    #[test]
+    fn error_display_probe_output() {
+        let e = BicError::ProbeOutput {
+            reason: "bad line".into(),
+        };
+        assert!(e.to_string().contains("bad line"));
     }
 
     #[test]

@@ -91,7 +91,6 @@
 //! Today, the remaining public APIs that still return `Result<_, String>` are:
 //!
 //! - [`extract_from_source`]
-//! - [`probe_type_layouts`]
 //! - [`HeaderConfig::process`]
 //! - [`inspect_symbols`]
 //!

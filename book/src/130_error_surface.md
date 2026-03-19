@@ -30,7 +30,6 @@ The current public APIs still returning `Result<_, String>` are:
 |---|---|---|
 | `extract_from_source` | direct extraction | parser/extractor plumbing still uses stringly operational failures |
 | `HeaderConfig::process` | raw-header scan | preprocessing, parsing, probe, and scan orchestration errors are not yet normalized |
-| `probe_type_layouts` | ABI probe | compiler/probe execution still reports stringly operational failures |
 | `inspect_symbols` | artifact inspection | file/format/tooling failures are not yet modeled with a typed taxonomy |
 
 These are precisely the APIs targeted by the next error-model workstream.
