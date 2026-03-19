@@ -826,6 +826,17 @@ mod tests {
     }
 
     #[test]
+    fn decorated_symbol_inventory_fixture_is_consumable() {
+        let json = include_str!("../test/contracts/decorated_symbol_inventory_fixture.json");
+        let inv: SymbolInventory = serde_json::from_str(json).unwrap();
+        assert_eq!(inv.kind, ArtifactKind::StaticLibrary);
+        assert_eq!(inv.symbols.len(), 1);
+        assert_eq!(inv.symbols[0].name, "demo_init");
+        assert_eq!(inv.symbols[0].raw_name.as_deref(), Some("_demo_init@8"));
+        assert_eq!(inv.symbols[0].archive_member.as_deref(), Some("demo.obj"));
+    }
+
+    #[test]
     fn linux_elf_support_matrix_formats_roundtrip() {
         for fmt in [
             ArtifactFormat::ElfObject,

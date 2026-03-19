@@ -44,6 +44,9 @@ That includes:
 For current production-oriented internal use, ELF should be treated as the primary supported
 native-artifact environment.
 
+The fixture suite also now carries explicit decorated-name regression coverage so cross-platform
+symbol matching behavior stays pinned even when the full Windows artifact path is still incomplete.
+
 ## Apple / Mach-O
 
 Mach-O support exists and is useful, but it is still behind ELF in overall maturity.

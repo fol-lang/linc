@@ -393,6 +393,20 @@ mod tests {
     }
 
     #[test]
+    fn decorated_symbol_fixture_matches_normalized_name() {
+        let pkg = make_package(&["demo_init"]);
+        let inv: SymbolInventory = serde_json::from_str(include_str!(
+            "../test/contracts/decorated_symbol_inventory_fixture.json"
+        ))
+        .unwrap();
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches.len(), 1);
+        assert_eq!(report.matches[0].status, MatchStatus::Matched);
+        assert_eq!(report.matches[0].provider_artifacts, vec!["demo.lib:demo.obj"]);
+    }
+
+    #[test]
     fn symbol_exists_but_not_function() {
         let inv = make_inventory(&[], &["data_sym"]);
         let pkg = make_package(&["data_sym"]);
