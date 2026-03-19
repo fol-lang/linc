@@ -151,6 +151,52 @@ Mach-O commonly prefixes external symbols with `_`.
 
 That normalization is intentionally paired with `raw_name` preservation so no spelling evidence is lost.
 
+Mach-O support should still be read conservatively:
+
+- imported symbols are useful dependency evidence, not proof of final loader behavior
+- re-export inferences are intentionally narrower than a full dyld model
+- framework and install-name semantics remain downstream policy concerns
+- normalized names are for matching, while `raw_name` stays the authoritative original spelling
+
+In other words, Mach-O inventories are strong enough for serious validation and planning workflows,
+but they are still evidence surfaces rather than a full Apple linker/loader simulation.
+
+## Mach-O Limits And Conservative Provider Policy
+
+Downstream consumers should treat Mach-O provider evidence more conservatively than straightforward
+ELF export evidence.
+
+That is not because the current inventories are weak.
+It is because Mach-O linking and loading semantics often depend on more context than a plain symbol
+table can prove by itself.
+
+Important examples:
+
+- install names are loader identity, not just filenames
+- frameworks are resolved through a different search model than plain libraries
+- re-export chains can involve dependency structure outside the immediate artifact
+- symbol spelling and visibility evidence are useful, but not a complete dyld decision procedure
+
+For that reason, the recommended `bic` consumer policy is:
+
+- treat direct exported-symbol evidence as the strongest provider signal
+- treat imported symbols as dependency evidence, not as providers
+- treat `reexported_via` as conservative evidence of a possible forwarding path
+- avoid collapsing multiple visible candidates into one "obvious" provider without additional policy
+- keep artifact path, raw symbol spelling, and dependency edges available to downstream reporting
+
+In practice this means:
+
+- `Resolved` should mean "the current evidence set has one conservative provider candidate"
+- `Ambiguous` should remain ambiguous when multiple visible candidates plausibly satisfy the same
+  declaration
+- lack of a Mach-O-specific signal should not be reinterpreted as proof that a symbol is
+  unavailable on Apple platforms
+
+`bic` is intentionally modeling inventory and validation evidence here.
+It is not attempting to be a full replacement for `ld64`, `dyld`, framework lookup rules, or
+platform-specific packaging conventions.
+
 ## When To Use Inventories Directly
 
 Use `inspect_symbols(...)` directly when:
