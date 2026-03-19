@@ -123,6 +123,8 @@ impl Extractor {
             return;
         }
 
+        let calling_convention =
+            detect_calling_convention(&fdef.declarator.node.extensions).unwrap_or(CallingConvention::C);
         self.emit_extension_diagnostics(&fdef.declarator.node.extensions, &name, offset);
         self.emit_specifier_diagnostics(&fdef.specifiers, &name, offset);
         self.emit_derived_diagnostics(&fdef.declarator.node, &name, offset);
@@ -138,7 +140,7 @@ impl Extractor {
 
         self.items.push(BindingItem::Function(FunctionBinding {
             name,
-            calling_convention: CallingConvention::C,
+            calling_convention,
             parameters: params,
             return_type,
             variadic,
@@ -202,6 +204,8 @@ impl Extractor {
             None => return,
         };
 
+        let calling_convention =
+            detect_calling_convention(&declarator.extensions).unwrap_or(CallingConvention::C);
         self.emit_extension_diagnostics(&declarator.extensions, &name, offset);
         self.emit_specifier_diagnostics(specifiers, &name, offset);
         self.emit_derived_diagnostics(declarator, &name, offset);
@@ -217,7 +221,7 @@ impl Extractor {
 
         self.items.push(BindingItem::Function(FunctionBinding {
             name,
-            calling_convention: CallingConvention::C,
+            calling_convention,
             parameters: params,
             return_type,
             variadic,
@@ -944,7 +948,13 @@ impl Extractor {
         let attr_names: Vec<String> = extensions
             .iter()
             .filter_map(|e| match &e.node {
-                pac::ast::Extension::Attribute(a) => Some(a.name.node.clone()),
+                pac::ast::Extension::Attribute(a) => {
+                    if calling_convention_from_attr_name(&a.name.node).is_some() {
+                        None
+                    } else {
+                        Some(a.name.node.clone())
+                    }
+                }
                 pac::ast::Extension::AsmLabel(_) => Some("asm_label".into()),
                 pac::ast::Extension::AvailabilityAttribute(_) => {
                     Some("availability".into())
@@ -969,6 +979,29 @@ fn type_has_pointer_layer(ty: &BindingType) -> bool {
         BindingType::Pointer { .. } => true,
         BindingType::Qualified { ty, .. } => type_has_pointer_layer(ty),
         _ => false,
+    }
+}
+
+fn detect_calling_convention(
+    extensions: &[Node<pac::ast::Extension>],
+) -> Option<CallingConvention> {
+    extensions.iter().find_map(|extension| match &extension.node {
+        pac::ast::Extension::Attribute(attribute) => {
+            calling_convention_from_attr_name(&attribute.name.node)
+        }
+        _ => None,
+    })
+}
+
+fn calling_convention_from_attr_name(name: &str) -> Option<CallingConvention> {
+    let normalized = name.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "cdecl" | "__cdecl" => Some(CallingConvention::Cdecl),
+        "stdcall" | "__stdcall" => Some(CallingConvention::Stdcall),
+        "fastcall" | "__fastcall" => Some(CallingConvention::Fastcall),
+        "vectorcall" | "__vectorcall" => Some(CallingConvention::Vectorcall),
+        "thiscall" | "__thiscall" => Some(CallingConvention::Thiscall),
+        _ => None,
     }
 }
 
@@ -1486,6 +1519,21 @@ mod tests {
             .collect();
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].kind, DiagnosticKind::DeclarationPartial);
+    }
+
+    #[test]
+    fn captures_calling_convention_attribute() {
+        let pkg = extract("int api(void) __attribute__((stdcall));");
+        match &pkg.items[0] {
+            BindingItem::Function(function) => {
+                assert_eq!(function.calling_convention, CallingConvention::Stdcall);
+            }
+            other => panic!("expected Function, got {:?}", other),
+        }
+        assert!(pkg
+            .diagnostics
+            .iter()
+            .all(|diagnostic| !diagnostic.message.contains("stdcall")));
     }
 
     #[test]

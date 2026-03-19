@@ -48,13 +48,17 @@ impl RustEmitter {
         // Emit extern block with functions and variables
         if !functions.is_empty() || !variables.is_empty() {
             self.output.push_str("extern \"C\" {\n");
-            for f in &functions {
+            for f in functions.iter().filter(|f| f.calling_convention == CallingConvention::C) {
                 self.emit_function(f);
             }
             for v in &variables {
                 self.emit_variable(v);
             }
             self.output.push_str("}\n");
+
+            for f in functions.iter().filter(|f| f.calling_convention != CallingConvention::C) {
+                self.emit_function_block(f);
+            }
         }
 
         self.output
@@ -128,6 +132,19 @@ impl RustEmitter {
     }
 
     fn emit_function(&mut self, f: &FunctionBinding) {
+        self.emit_function_signature("    ", f);
+    }
+
+    fn emit_function_block(&mut self, f: &FunctionBinding) {
+        self.output.push_str(&format!(
+            "extern \"{}\" {{\n",
+            self.render_calling_convention(&f.calling_convention)
+        ));
+        self.emit_function_signature("    ", f);
+        self.output.push_str("}\n");
+    }
+
+    fn emit_function_signature(&mut self, indent: &str, f: &FunctionBinding) {
         let ret = if f.return_type.is_void() {
             String::new()
         } else {
@@ -151,7 +168,7 @@ impl RustEmitter {
         }
 
         self.output.push_str(&format!(
-            "    pub fn {}({}){};\n",
+            "{indent}pub fn {}({}){};\n",
             f.name,
             params.join(", "),
             ret
@@ -227,6 +244,16 @@ impl RustEmitter {
             BindingType::RecordRef(name) => name.clone(),
             BindingType::EnumRef(name) => name.clone(),
             BindingType::Opaque(name) => format!("() /* opaque: {} */", name),
+        }
+    }
+
+    fn render_calling_convention(&self, calling_convention: &CallingConvention) -> &'static str {
+        match calling_convention {
+            CallingConvention::C | CallingConvention::Cdecl | CallingConvention::Unknown(_) => "C",
+            CallingConvention::Stdcall => "stdcall",
+            CallingConvention::Fastcall => "fastcall",
+            CallingConvention::Vectorcall => "vectorcall",
+            CallingConvention::Thiscall => "thiscall",
         }
     }
 }

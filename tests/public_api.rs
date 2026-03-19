@@ -229,6 +229,13 @@ fn type_qualifiers_root_type_roundtrip() {
 }
 
 #[test]
+fn calling_convention_root_type_roundtrip() {
+    let json = serde_json::to_string(&bic::CallingConvention::Stdcall).unwrap();
+    let decoded: bic::CallingConvention = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, bic::CallingConvention::Stdcall);
+}
+
+#[test]
 fn probe_subject_report_supports_enum_representation_metadata() {
     let subject = ProbeSubjectReport {
         name: "enum mode".into(),

@@ -608,6 +608,12 @@ impl BindingType {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CallingConvention {
     C,
+    Cdecl,
+    Stdcall,
+    Fastcall,
+    Vectorcall,
+    Thiscall,
+    Unknown(String),
 }
 
 /// Extracted function declaration.
