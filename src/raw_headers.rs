@@ -148,6 +148,14 @@ impl HeaderConfig {
     /// - [`HeaderConfig::linking`]
     /// - [`HeaderConfig::probing`]
     /// - [`HeaderConfig::filtering`]
+    ///
+    /// Naming policy:
+    ///
+    /// - `new()` remains the constructor
+    /// - short historical builders such as `header(...)`, `include_dir(...)`, and `link_lib(...)`
+    ///   remain supported
+    /// - clearer aliases such as `entry_header(...)`, `add_include_dir(...)`, `link_library(...)`,
+    ///   `define_flag(...)`, and `define_value(...)` are the preferred naming style for new code
     pub fn new() -> Self {
         Self {
             entry_headers: Vec::new(),

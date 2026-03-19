@@ -168,6 +168,35 @@ The most important builder methods are:
 For downstream API design, it is often cleaner to inspect one of the borrowed domain views than
 to pass the full `HeaderConfig` everywhere.
 
+## Builder Naming Policy
+
+`HeaderConfig` still carries some short historical builder names, but the intended naming direction
+is now explicit.
+
+Preferred style for new downstream code:
+
+- `entry_header(...)`
+- `add_include_dir(...)`
+- `add_framework_dir(...)`
+- `add_library_dir(...)`
+- `define_flag(...)`
+- `define_value(...)`
+- `link_library(...)`
+- `request_probe_type_layout(...)`
+
+Still supported for compatibility:
+
+- `header(...)`
+- `include_dir(...)`
+- `framework_dir(...)`
+- `library_dir(...)`
+- `define(...)`
+- `link_lib(...)`
+- `probe_type_layout(...)`
+
+The rule is simple: old short names remain valid, but clearer names are preferred for new code and
+new examples.
+
 ## Entry Headers
 
 Entry headers define the top-level API surface you are scanning.
