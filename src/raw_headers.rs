@@ -6,10 +6,11 @@ use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::error::BicError;
 use crate::extract::Extractor;
 use crate::ir::{
-    BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget,
-    DeclarationProvenance, LinkArtifact, LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary,
-    LinkLibraryKind, LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory,
-    MacroForm, MacroKind, MacroValue, NativeSurfaceKind,
+    BindingDefine, BindingInputs, BindingItem, BindingItemKind, BindingLinkSurface,
+    BindingPackage, BindingTarget, DeclarationProvenance, LinkArtifact, LinkArtifactKind,
+    LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource,
+    LinkResolutionMode, MacroBinding, MacroCategory, MacroForm, MacroKind, MacroValue,
+    NativeSurfaceKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::probe_type_layouts;
@@ -822,22 +823,49 @@ impl HeaderConfig {
 }
 
 fn build_item_provenance(
-    items: &[crate::ir::BindingItem],
+    items: &[BindingItem],
     origin_map: &FileOriginMap,
 ) -> Vec<DeclarationProvenance> {
     items.iter()
         .map(|item| {
-            let source_offset = match item {
-                crate::ir::BindingItem::Function(f) => f.source_offset,
-                crate::ir::BindingItem::Record(r) => r.source_offset,
-                crate::ir::BindingItem::Enum(e) => e.source_offset,
-                crate::ir::BindingItem::TypeAlias(t) => t.source_offset,
-                crate::ir::BindingItem::Variable(v) => v.source_offset,
-                crate::ir::BindingItem::Unsupported(u) => u.source_offset,
+            let (item_name, item_kind, source_offset) = match item {
+                BindingItem::Function(f) => (
+                    Some(f.name.clone()),
+                    BindingItemKind::Function,
+                    f.source_offset,
+                ),
+                BindingItem::Record(r) => (
+                    r.name.clone(),
+                    BindingItemKind::Record,
+                    r.source_offset,
+                ),
+                BindingItem::Enum(e) => (
+                    e.name.clone(),
+                    BindingItemKind::Enum,
+                    e.source_offset,
+                ),
+                BindingItem::TypeAlias(t) => (
+                    Some(t.name.clone()),
+                    BindingItemKind::TypeAlias,
+                    t.source_offset,
+                ),
+                BindingItem::Variable(v) => (
+                    Some(v.name.clone()),
+                    BindingItemKind::Variable,
+                    v.source_offset,
+                ),
+                BindingItem::Unsupported(u) => (
+                    u.name.clone(),
+                    BindingItemKind::Unsupported,
+                    u.source_offset,
+                ),
             };
 
             DeclarationProvenance {
+                item_name,
+                item_kind: Some(item_kind),
                 source_offset,
+                source_origin: source_offset.map(|offset| origin_map.origin_at(offset)),
                 source_location: source_offset.and_then(|offset| origin_map.location_at(offset)),
             }
         })
@@ -1697,11 +1725,11 @@ int compute(int x);
             .iter()
             .any(|layout| layout.name == "struct widget"));
         assert_eq!(result.package.provenance.len(), result.package.items.len());
-        assert!(result
-            .package
-            .item_provenance(0)
-            .and_then(|prov| prov.source_location.as_ref())
-            .is_some());
+        let provenance = result.package.item_provenance(0).unwrap();
+        assert_eq!(provenance.item_kind, Some(BindingItemKind::TypeAlias));
+        assert_eq!(provenance.item_name.as_deref(), Some("value_t"));
+        assert_eq!(provenance.source_origin, Some(crate::SourceOrigin::Entry));
+        assert!(provenance.source_location.is_some());
 
         cleanup(&dir);
     }

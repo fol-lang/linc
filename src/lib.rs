@@ -191,12 +191,13 @@ pub use error::BicError;
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 pub use extract::{extract_from_source, extract_from_translation_unit};
 pub use ir::{
-    BindingDefine, BindingInputs, BindingItem, BindingLinkSurface, BindingPackage, BindingTarget,
-    BindingType, CallingConvention, DeclarationProvenance, EnumBinding, EnumVariant, FieldBinding,
-    FunctionBinding, LinkArtifact, LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary,
-    LinkLibraryKind, LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory,
-    MacroForm, MacroKind, MacroValue, NativeSurfaceKind, ParameterBinding, RecordBinding,
-    RecordKind, TypeAliasBinding, TypeLayout, UnsupportedItem, VariableBinding, SCHEMA_VERSION,
+    BindingDefine, BindingInputs, BindingItem, BindingItemKind, BindingLinkSurface, BindingPackage,
+    BindingTarget, BindingType, CallingConvention, DeclarationProvenance, EnumBinding,
+    EnumVariant, FieldBinding, FunctionBinding, LinkArtifact, LinkArtifactKind, LinkFramework,
+    LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource, LinkResolutionMode,
+    MacroBinding, MacroCategory, MacroForm, MacroKind, MacroValue, NativeSurfaceKind,
+    ParameterBinding, RecordBinding, RecordKind, TypeAliasBinding, TypeLayout, UnsupportedItem,
+    VariableBinding, SCHEMA_VERSION,
 };
 pub use line_markers::{FileOriginMap, OriginFilter, SourceLocation, SourceOrigin};
 pub use link_plan::{

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostics::Diagnostic;
-use crate::line_markers::SourceLocation;
+use crate::line_markers::{SourceLocation, SourceOrigin};
 
 pub const SCHEMA_VERSION: u32 = 1;
 
@@ -450,7 +450,13 @@ impl BindingPackage {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct DeclarationProvenance {
     #[serde(default)]
+    pub item_name: Option<String>,
+    #[serde(default)]
+    pub item_kind: Option<BindingItemKind>,
+    #[serde(default)]
     pub source_offset: Option<usize>,
+    #[serde(default)]
+    pub source_origin: Option<SourceOrigin>,
     #[serde(default)]
     pub source_location: Option<SourceLocation>,
 }
@@ -464,6 +470,16 @@ pub enum BindingItem {
     TypeAlias(TypeAliasBinding),
     Variable(VariableBinding),
     Unsupported(UnsupportedItem),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BindingItemKind {
+    Function,
+    Record,
+    Enum,
+    TypeAlias,
+    Variable,
+    Unsupported,
 }
 
 /// Type representation used by the extracted IR.
@@ -788,7 +804,10 @@ mod tests {
     fn binding_package_item_provenance_helper_returns_entry() {
         let mut pkg = BindingPackage::new();
         pkg.provenance.push(DeclarationProvenance {
+            item_name: Some("demo".into()),
+            item_kind: Some(BindingItemKind::Function),
             source_offset: Some(12),
+            source_origin: Some(SourceOrigin::Entry),
             source_location: Some(SourceLocation {
                 file: "demo.h".into(),
                 line: Some(3),
@@ -797,7 +816,10 @@ mod tests {
         });
 
         let prov = pkg.item_provenance(0).unwrap();
+        assert_eq!(prov.item_name.as_deref(), Some("demo"));
+        assert_eq!(prov.item_kind, Some(BindingItemKind::Function));
         assert_eq!(prov.source_offset, Some(12));
+        assert_eq!(prov.source_origin, Some(SourceOrigin::Entry));
         assert_eq!(prov.source_location.as_ref().unwrap().file, "demo.h");
     }
 
