@@ -142,6 +142,7 @@ mod integration_tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "foo".into(),
                 raw_name: None,

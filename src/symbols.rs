@@ -79,6 +79,8 @@ pub struct SymbolInventory {
     pub kind: ArtifactKind,
     #[serde(default)]
     pub capabilities: ArtifactCapabilities,
+    #[serde(default)]
+    pub dependency_edges: Vec<String>,
     pub symbols: Vec<SymbolEntry>,
 }
 
@@ -114,6 +116,7 @@ pub fn inspect_bytes(data: &[u8], artifact_path: String) -> Result<SymbolInvento
 
     let format = classify_format(&obj);
     let symbols = extract_symbols_from_object(&obj);
+    let dependency_edges = detect_dependency_edges(&artifact_path, &obj);
 
     Ok(SymbolInventory {
         artifact_path,
@@ -121,6 +124,7 @@ pub fn inspect_bytes(data: &[u8], artifact_path: String) -> Result<SymbolInvento
         platform: classify_platform(&obj),
         kind: classify_kind(&obj),
         capabilities: classify_capabilities(&obj),
+        dependency_edges,
         symbols,
     })
 }
@@ -175,8 +179,45 @@ fn inspect_archive(
             exports_symbols: true,
             imports_symbols: false,
         },
+        dependency_edges: Vec::new(),
         symbols,
     })
+}
+
+fn detect_dependency_edges(artifact_path: &str, obj: &object::File<'_>) -> Vec<String> {
+    if obj.format() != object::BinaryFormat::Elf {
+        return Vec::new();
+    }
+    if !matches!(obj.kind(), object::ObjectKind::Dynamic | object::ObjectKind::Executable) {
+        return Vec::new();
+    }
+
+    let Ok(output) = std::process::Command::new("readelf")
+        .args(["-d", artifact_path])
+        .output()
+    else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    let Ok(stdout) = String::from_utf8(output.stdout) else {
+        return Vec::new();
+    };
+    parse_elf_needed_entries(&stdout)
+}
+
+fn parse_elf_needed_entries(stdout: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let needed_index = line.find("(NEEDED)")?;
+            let after_needed = &line[needed_index..];
+            let start = after_needed.find('[')? + 1;
+            let end = after_needed[start..].find(']')? + start;
+            Some(after_needed[start..end].to_string())
+        })
+        .collect()
 }
 
 fn classify_platform(obj: &object::File<'_>) -> ArtifactPlatform {
@@ -455,6 +496,7 @@ mod tests {
         assert_eq!(inv.platform, ArtifactPlatform::MachO);
         assert_eq!(inv.kind, ArtifactKind::Object);
         assert!(inv.capabilities.exports_symbols);
+        assert!(inv.dependency_edges.is_empty());
         // Leading '_' should be stripped
         assert!(inv.has_symbol("foo"), "symbols: {:?}", inv.symbols);
         assert!(!inv.has_symbol("_foo"), "underscore should be stripped");
@@ -500,6 +542,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![
                 SymbolEntry {
                     name: "foo".into(),
@@ -539,6 +582,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![
                 SymbolEntry {
                     name: "func1".into(),
@@ -587,6 +631,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "foo_init".into(),
                 raw_name: Some("foo_init".into()),
@@ -607,6 +652,19 @@ mod tests {
     fn inspect_nonexistent_file() {
         let result = inspect_file("/nonexistent/path.o");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_elf_needed_entries_extracts_dependencies() {
+        let parsed = parse_elf_needed_entries(
+            r#"
+Dynamic section at offset 0x2de0 contains 3 entries:
+  Tag        Type                         Name/Value
+ 0x0000000000000001 (NEEDED)             Shared library: [libm.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+"#,
+        );
+        assert_eq!(parsed, vec!["libm.so.6".to_string(), "libc.so.6".to_string()]);
     }
 
     /// Compile a minimal C file to .o and inspect its symbols.
@@ -740,6 +798,34 @@ mod tests {
         std::fs::remove_file(&b_c_path).ok();
         std::fs::remove_file(&b_o_path).ok();
         std::fs::remove_file(&a_path).ok();
+        std::fs::remove_dir(&dir).ok();
+    }
+
+    #[test]
+    #[ignore] // Requires cc and readelf
+    fn inspect_shared_library_captures_dependency_edges() {
+        let dir = std::env::temp_dir().join("bic_shared_dep_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let c_path = dir.join("lib.c");
+        let so_path = dir.join("libdep.so");
+
+        std::fs::write(&c_path, "double call_cos(double x) { extern double cos(double); return cos(x); }\n").unwrap();
+
+        let cc = std::process::Command::new("cc")
+            .args(["-shared", "-fPIC", "-o"])
+            .arg(&so_path)
+            .arg(&c_path)
+            .arg("-lm")
+            .status()
+            .expect("cc not found");
+        assert!(cc.success());
+
+        let inv = inspect_file(&so_path).unwrap();
+        assert_eq!(inv.kind, ArtifactKind::SharedLibrary);
+        assert!(inv.dependency_edges.iter().any(|edge| edge.contains("libm")));
+
+        std::fs::remove_file(&c_path).ok();
+        std::fs::remove_file(&so_path).ok();
         std::fs::remove_dir(&dir).ok();
     }
 }

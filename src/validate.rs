@@ -242,6 +242,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols,
         }
     }
@@ -366,6 +367,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "_foo".into(),
                 raw_name: Some("_foo".into()),
@@ -438,6 +440,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "bar".into(),
                 raw_name: Some("bar".into()),
@@ -472,6 +475,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "foo".into(),
                 raw_name: Some("foo".into()),
@@ -492,6 +496,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "foo".into(),
                 raw_name: Some("foo".into()),
@@ -590,6 +595,7 @@ mod tests {
                 exports_symbols: true,
                 imports_symbols: false,
             },
+            dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "foo".into(),
                 raw_name: None,

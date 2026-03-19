@@ -225,6 +225,45 @@ fn cli_inspect_symbols_emits_archive_member_provenance() {
 }
 
 #[test]
+fn cli_inspect_symbols_emits_dependency_edges() {
+    let dir = temp_dir("shared_symbols");
+    let c_path = dir.join("lib.c");
+    let so_path = dir.join("libdep.so");
+    std::fs::write(
+        &c_path,
+        "double call_cos(double x) { extern double cos(double); return cos(x); }\n",
+    )
+    .unwrap();
+
+    let status = Command::new("cc")
+        .args(["-shared", "-fPIC", "-o"])
+        .arg(&so_path)
+        .arg(&c_path)
+        .arg("-lm")
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_bic"))
+        .args(["inspect-symbols", "--file", so_path.to_str().unwrap()])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "{:?}", output);
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(json["kind"], "SharedLibrary");
+    assert!(json["dependency_edges"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|edge| edge.as_str().unwrap().contains("libm")));
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn cli_validate_emits_validation_report_json() {
     let dir = temp_dir("validate");
     let bindings = dir.join("bindings.json");
