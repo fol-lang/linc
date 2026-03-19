@@ -2,6 +2,7 @@ pub mod codegen_rust;
 pub mod diagnostics;
 pub mod extract;
 pub mod ir;
+pub mod line_markers;
 pub mod preprocess;
 pub mod raw_headers;
 pub mod symbols;
@@ -15,6 +16,7 @@ pub use ir::{
     FieldBinding, FunctionBinding, ParameterBinding, RecordBinding, RecordKind, TypeAliasBinding,
     UnsupportedItem, VariableBinding,
 };
+pub use line_markers::{FileOriginMap, OriginFilter, SourceOrigin};
 pub use preprocess::PreprocessedInput;
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};
 pub use symbols::{

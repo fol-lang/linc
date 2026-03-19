@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::extract::Extractor;
 use crate::ir::BindingPackage;
+use crate::line_markers::{FileOriginMap, OriginFilter};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeaderConfig {
@@ -13,6 +14,8 @@ pub struct HeaderConfig {
     pub defines: Vec<(String, Option<String>)>,
     pub compiler: Option<String>,
     pub flavor: Option<Flavor>,
+    #[serde(skip)]
+    pub origin_filter: Option<OriginFilter>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,6 +56,7 @@ impl HeaderConfig {
             defines: Vec::new(),
             compiler: None,
             flavor: None,
+            origin_filter: Some(OriginFilter::default()),
         }
     }
 
@@ -78,6 +82,16 @@ impl HeaderConfig {
 
     pub fn flavor(mut self, flavor: Flavor) -> Self {
         self.flavor = Some(flavor);
+        self
+    }
+
+    pub fn origin_filter(mut self, filter: OriginFilter) -> Self {
+        self.origin_filter = Some(filter);
+        self
+    }
+
+    pub fn no_origin_filter(mut self) -> Self {
+        self.origin_filter = None;
         self
     }
 
@@ -127,11 +141,18 @@ impl HeaderConfig {
                     .collect::<Vec<_>>()
                     .join(", ");
 
-                let package = BindingPackage {
+                let mut package = BindingPackage {
                     source_path: Some(source_desc),
                     items,
                     diagnostics,
                 };
+
+                // Apply origin filtering if configured
+                if let Some(ref filter) = self.origin_filter {
+                    let origin_map =
+                        FileOriginMap::parse(&parsed.source, &self.entry_headers);
+                    package.filter_by_origin(&origin_map, filter);
+                }
 
                 Ok(RawHeaderResult { package, report })
             }
@@ -450,6 +471,55 @@ int compute(int x);
 
         assert!(result.report.args.iter().any(|a| a.contains("-I/some/path")));
         assert!(result.report.args.iter().any(|a| a.contains("-DFOO=1")));
+
+        cleanup(&dir);
+    }
+
+    /// Test that origin filtering removes system header declarations.
+    #[test]
+    #[ignore] // Requires gcc/clang
+    fn origin_filter_removes_system_headers() {
+        let dir = setup_test_dir("t");
+        let header = dir.join("mylib.h");
+        // Include stdio.h (system header) and define our own function
+        std::fs::write(
+            &header,
+            "#include <stdio.h>\nint my_func(int x);\n",
+        )
+        .unwrap();
+
+        // With default filter (exclude system)
+        let filtered = HeaderConfig::new()
+            .header(&header)
+            .process()
+            .unwrap();
+
+        let filtered_names: Vec<_> = filtered.package.items.iter().filter_map(|i| match i {
+            BindingItem::Function(f) => Some(f.name.as_str()),
+            _ => None,
+        }).collect();
+
+        // my_func should be present, printf should be filtered out
+        assert!(filtered_names.contains(&"my_func"));
+        assert!(!filtered_names.contains(&"printf"), "system functions should be filtered");
+
+        // Without filter — should include system declarations
+        let unfiltered = HeaderConfig::new()
+            .header(&header)
+            .no_origin_filter()
+            .process()
+            .unwrap();
+
+        let unfiltered_names: Vec<_> = unfiltered.package.items.iter().filter_map(|i| match i {
+            BindingItem::Function(f) => Some(f.name.as_str()),
+            _ => None,
+        }).collect();
+
+        // Both should be present without filtering
+        assert!(unfiltered_names.contains(&"my_func"));
+        // System header functions should now appear
+        assert!(unfiltered_names.len() > filtered_names.len(),
+            "unfiltered should have more items than filtered");
 
         cleanup(&dir);
     }

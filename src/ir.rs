@@ -26,6 +26,28 @@ impl Default for BindingPackage {
 }
 
 impl BindingPackage {
+    /// Filter items by origin using a file-origin map and filter configuration.
+    pub fn filter_by_origin(
+        &mut self,
+        origin_map: &crate::line_markers::FileOriginMap,
+        filter: &crate::line_markers::OriginFilter,
+    ) {
+        self.items.retain(|item| {
+            let offset = match item {
+                BindingItem::Function(f) => f.source_offset,
+                BindingItem::Record(r) => r.source_offset,
+                BindingItem::Enum(e) => e.source_offset,
+                BindingItem::TypeAlias(t) => t.source_offset,
+                BindingItem::Variable(v) => v.source_offset,
+                BindingItem::Unsupported(u) => u.source_offset,
+            };
+            match offset {
+                Some(off) => filter.accepts(&origin_map.origin_at(off)),
+                None => true, // Keep items without offsets
+            }
+        });
+    }
+
     pub fn diagnostics_count_by_kind(&self) -> std::collections::HashMap<String, usize> {
         let mut counts = std::collections::HashMap::new();
         for d in &self.diagnostics {
