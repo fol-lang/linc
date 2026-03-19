@@ -671,11 +671,21 @@ fn expected_abi_size_inner(
         }
         BindingType::RecordRef(name) => {
             let qualified = format!("struct {}", name);
-            find_layout_size(package, &[qualified.as_str(), name.as_str()])
+            find_layout_size(package, &[qualified.as_str(), name.as_str()]).or_else(|| {
+                package
+                    .find_record(name)
+                    .and_then(|record| record.representation.as_ref())
+                    .and_then(|representation| representation.size)
+            })
         }
         BindingType::EnumRef(name) => {
             let qualified = format!("enum {}", name);
-            find_layout_size(package, &[qualified.as_str(), name.as_str()])
+            find_layout_size(package, &[qualified.as_str(), name.as_str()]).or_else(|| {
+                package
+                    .find_enum(name)
+                    .and_then(|item| item.representation.as_ref())
+                    .and_then(|representation| representation.underlying_size)
+            })
         }
         BindingType::Opaque(name) => find_layout_size(package, &[name]),
         BindingType::TypedefRef(name) => {
@@ -1867,6 +1877,102 @@ mod tests {
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::Matched);
         assert_eq!(report.matches[0].evidence_kind, EvidenceKind::AbiShapeVerified);
+    }
+
+    #[test]
+    fn record_and_enum_representation_sizes_drive_abi_checks_without_layouts() {
+        let inv = SymbolInventory {
+            artifact_path: "test.o".into(),
+            format: ArtifactFormat::ElfObject,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::Object,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
+            dependency_edges: Vec::new(),
+            symbols: vec![
+                SymbolEntry {
+                    name: "widget".into(),
+                    raw_name: None,
+                    version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: false,
+                    binding: SymbolBinding::Global,
+                    size: Some(24),
+                    section: Some(".data".into()),
+                    archive_member: None,
+                    function_abi: None,
+                },
+                SymbolEntry {
+                    name: "mode".into(),
+                    raw_name: None,
+                    version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: false,
+                    binding: SymbolBinding::Global,
+                    size: Some(4),
+                    section: Some(".data".into()),
+                    archive_member: None,
+                    function_abi: None,
+                },
+            ],
+        };
+        let pkg = BindingPackage {
+            source_path: None,
+            items: vec![
+                BindingItem::Record(RecordBinding {
+                    kind: RecordKind::Struct,
+                    name: Some("widget".into()),
+                    fields: None,
+                    representation: Some(RecordRepresentation {
+                        size: Some(24),
+                        align: Some(8),
+                        completeness: Some("Complete".into()),
+                    }),
+                    abi_confidence: Some(AbiConfidence::RepresentationProbed),
+                    source_offset: None,
+                }),
+                BindingItem::Enum(EnumBinding {
+                    name: Some("mode".into()),
+                    variants: Vec::new(),
+                    representation: Some(EnumRepresentation {
+                        underlying_size: Some(4),
+                        is_signed: Some(true),
+                    }),
+                    abi_confidence: Some(AbiConfidence::RepresentationProbed),
+                    source_offset: None,
+                }),
+                BindingItem::Variable(VariableBinding {
+                    name: "widget".into(),
+                    ty: BindingType::RecordRef("widget".into()),
+                    source_offset: None,
+                }),
+                BindingItem::Variable(VariableBinding {
+                    name: "mode".into(),
+                    ty: BindingType::EnumRef("mode".into()),
+                    source_offset: None,
+                }),
+            ],
+            diagnostics: Vec::new(),
+            ..BindingPackage::new()
+        };
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.matches.len(), 2);
+        assert!(report.matches.iter().all(|entry| entry.status == MatchStatus::Matched));
+        assert!(
+            report
+                .entries
+                .iter()
+                .all(|entry| entry.evidence.abi_shape.is_some())
+        );
     }
 
     #[test]
