@@ -15,6 +15,9 @@ pub enum ArtifactFormat {
     MachOObject,
     MachODylib,
     MachOStaticLibrary,
+    CoffObject,
+    PeExecutable,
+    PeDynamicLibrary,
     Unknown(String),
 }
 
@@ -23,6 +26,7 @@ pub enum ArtifactFormat {
 pub enum ArtifactPlatform {
     Elf,
     MachO,
+    Windows,
     Unknown,
 }
 
@@ -254,6 +258,7 @@ fn classify_platform(obj: &object::File<'_>) -> ArtifactPlatform {
     match obj.format() {
         object::BinaryFormat::Elf => ArtifactPlatform::Elf,
         object::BinaryFormat::MachO => ArtifactPlatform::MachO,
+        object::BinaryFormat::Coff | object::BinaryFormat::Pe => ArtifactPlatform::Windows,
         _ => ArtifactPlatform::Unknown,
     }
 }
@@ -296,6 +301,15 @@ fn classify_format(obj: &object::File<'_>) -> ArtifactFormat {
             ObjectKind::Executable | ObjectKind::Dynamic => ArtifactFormat::MachODylib,
             ObjectKind::Relocatable => ArtifactFormat::MachOObject,
             other => ArtifactFormat::Unknown(format!("MachO {:?}", other)),
+        },
+        object::BinaryFormat::Coff => match kind {
+            ObjectKind::Relocatable => ArtifactFormat::CoffObject,
+            other => ArtifactFormat::Unknown(format!("Coff {:?}", other)),
+        },
+        object::BinaryFormat::Pe => match kind {
+            ObjectKind::Executable => ArtifactFormat::PeExecutable,
+            ObjectKind::Dynamic => ArtifactFormat::PeDynamicLibrary,
+            other => ArtifactFormat::Unknown(format!("Pe {:?}", other)),
         },
         other => ArtifactFormat::Unknown(format!("{:?} {:?}", other, kind)),
     }
@@ -511,6 +525,9 @@ mod tests {
             ArtifactFormat::MachOObject,
             ArtifactFormat::MachODylib,
             ArtifactFormat::MachOStaticLibrary,
+            ArtifactFormat::CoffObject,
+            ArtifactFormat::PeExecutable,
+            ArtifactFormat::PeDynamicLibrary,
         ] {
             let json = serde_json::to_string(&fmt).unwrap();
             let fmt2: ArtifactFormat = serde_json::from_str(&json).unwrap();
@@ -661,6 +678,22 @@ mod tests {
             ),
             (
                 ArtifactPlatform::MachO,
+                ArtifactKind::SharedLibrary,
+                ArtifactCapabilities {
+                    exports_symbols: true,
+                    imports_symbols: true,
+                },
+            ),
+            (
+                ArtifactPlatform::Windows,
+                ArtifactKind::Object,
+                ArtifactCapabilities {
+                    exports_symbols: true,
+                    imports_symbols: false,
+                },
+            ),
+            (
+                ArtifactPlatform::Windows,
                 ArtifactKind::SharedLibrary,
                 ArtifactCapabilities {
                     exports_symbols: true,
@@ -842,6 +875,9 @@ mod tests {
             ArtifactFormat::ElfObject,
             ArtifactFormat::ElfStaticLibrary,
             ArtifactFormat::ElfSharedLibrary,
+            ArtifactFormat::CoffObject,
+            ArtifactFormat::PeExecutable,
+            ArtifactFormat::PeDynamicLibrary,
         ] {
             let json = serde_json::to_string(&fmt).unwrap();
             let parsed: ArtifactFormat = serde_json::from_str(&json).unwrap();
