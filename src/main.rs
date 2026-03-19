@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use bic::{
-    from_json, inspect_symbols, probe_type_layouts, to_json, validate, HeaderConfig,
+    from_json, inspect_symbols, probe_type_layouts, to_json, validate_many, HeaderConfig,
     PreprocessedInput,
 };
 
@@ -182,7 +182,7 @@ fn run_inspect_symbols(args: &[String]) -> Result<(), String> {
 
 fn run_validate(args: &[String]) -> Result<(), String> {
     let mut bindings_json: Option<PathBuf> = None;
-    let mut artifact: Option<PathBuf> = None;
+    let mut artifacts: Vec<PathBuf> = Vec::new();
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -192,7 +192,7 @@ fn run_validate(args: &[String]) -> Result<(), String> {
             }
             "--artifact" => {
                 i += 1;
-                artifact = Some(PathBuf::from(required_value(args, i, "--artifact")?));
+                artifacts.push(PathBuf::from(required_value(args, i, "--artifact")?));
             }
             "--help" | "-h" => {
                 println!("{}", usage());
@@ -205,7 +205,9 @@ fn run_validate(args: &[String]) -> Result<(), String> {
 
     let bindings_json =
         bindings_json.ok_or_else(|| "validate requires --bindings-json".to_string())?;
-    let artifact = artifact.ok_or_else(|| "validate requires --artifact".to_string())?;
+    if artifacts.is_empty() {
+        return Err("validate requires at least one --artifact".to_string());
+    }
 
     let package_json = std::fs::read_to_string(&bindings_json).map_err(|e| {
         format!(
@@ -215,8 +217,11 @@ fn run_validate(args: &[String]) -> Result<(), String> {
         )
     })?;
     let package = from_json(&package_json)?;
-    let inventory = inspect_symbols(&artifact)?;
-    let report = validate(&package, &inventory);
+    let mut inventories = Vec::new();
+    for artifact in &artifacts {
+        inventories.push(inspect_symbols(artifact)?);
+    }
+    let report = validate_many(&package, &inventories);
     println!(
         "{}",
         serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?

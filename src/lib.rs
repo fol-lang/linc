@@ -36,7 +36,9 @@ pub use symbols::{
     inspect_file as inspect_symbols, SymbolBinding, SymbolEntry, SymbolInventory, SymbolVisibility,
 };
 #[cfg(feature = "symbols")]
-pub use validate::{validate, FunctionMatch, ItemKind, MatchStatus, SymbolMatch, ValidationReport};
+pub use validate::{
+    validate, validate_many, FunctionMatch, ItemKind, MatchStatus, SymbolMatch, ValidationReport,
+};
 
 /// Serialize a BindingPackage to a deterministic JSON string.
 pub fn to_json(package: &BindingPackage) -> Result<String, BicError> {

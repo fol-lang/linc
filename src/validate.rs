@@ -28,6 +28,8 @@ pub struct SymbolMatch {
     pub item_kind: ItemKind,
     pub status: MatchStatus,
     pub visibility: Option<SymbolVisibility>,
+    #[serde(default)]
+    pub provider_artifacts: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -65,6 +67,13 @@ impl ValidationReport {
 }
 
 pub fn validate(package: &BindingPackage, inventory: &SymbolInventory) -> ValidationReport {
+    validate_many(package, std::slice::from_ref(inventory))
+}
+
+pub fn validate_many(
+    package: &BindingPackage,
+    inventories: &[SymbolInventory],
+) -> ValidationReport {
     let mut matches = Vec::new();
 
     for item in &package.items {
@@ -74,20 +83,51 @@ pub fn validate(package: &BindingPackage, inventory: &SymbolInventory) -> Valida
             _ => continue,
         };
 
-        let sym = inventory.symbols.iter().find(|s| &s.name == name);
-        let (status, visibility) = match sym {
-            Some(s) => {
-                let vis = s.visibility.clone();
-                if matches!(vis, SymbolVisibility::Hidden | SymbolVisibility::Internal) {
-                    (MatchStatus::Hidden, Some(vis))
-                } else if expect_function && !s.is_function {
-                    (MatchStatus::NotAFunction, Some(vis))
-                } else if !expect_function && s.is_function {
-                    (MatchStatus::NotAVariable, Some(vis))
-                } else if s.binding == SymbolBinding::Weak {
-                    (MatchStatus::WeakMatch, Some(vis))
+        let candidates: Vec<_> = inventories
+            .iter()
+            .flat_map(|inventory| {
+                inventory
+                    .symbols
+                    .iter()
+                    .filter(move |symbol| symbol.name == *name)
+                    .map(move |symbol| (inventory, symbol))
+            })
+            .collect();
+        let provider_artifacts = candidates
+            .iter()
+            .map(|(inventory, symbol)| format_provider(inventory, symbol))
+            .collect();
+        let (status, visibility) = match candidates.first() {
+            Some(_) => {
+                let visible: Vec<_> = candidates
+                    .iter()
+                    .copied()
+                    .filter(|(_, symbol)| {
+                        !matches!(
+                            symbol.visibility,
+                            SymbolVisibility::Hidden | SymbolVisibility::Internal
+                        )
+                    })
+                    .collect();
+                if visible.is_empty() {
+                    (MatchStatus::Hidden, Some(candidates[0].1.visibility.clone()))
                 } else {
-                    (MatchStatus::Matched, Some(vis))
+                    let typed: Vec<_> = visible
+                        .iter()
+                        .copied()
+                        .filter(|(_, symbol)| symbol.is_function == expect_function)
+                        .collect();
+                    if typed.is_empty() {
+                        if expect_function {
+                            (MatchStatus::NotAFunction, Some(visible[0].1.visibility.clone()))
+                        } else {
+                            (MatchStatus::NotAVariable, Some(visible[0].1.visibility.clone()))
+                        }
+                    } else if typed[0].1.binding == SymbolBinding::Weak {
+                        (MatchStatus::WeakMatch, Some(typed[0].1.visibility.clone()))
+                    } else {
+                        (MatchStatus::Matched, Some(typed[0].1.visibility.clone()))
+                    }
                 }
             }
             None => (MatchStatus::Missing, None),
@@ -98,10 +138,18 @@ pub fn validate(package: &BindingPackage, inventory: &SymbolInventory) -> Valida
             item_kind: kind,
             status,
             visibility,
+            provider_artifacts,
         });
     }
 
     ValidationReport { matches }
+}
+
+fn format_provider(inventory: &SymbolInventory, symbol: &crate::symbols::SymbolEntry) -> String {
+    match &symbol.archive_member {
+        Some(member) => format!("{}:{}", inventory.artifact_path, member),
+        None => inventory.artifact_path.clone(),
+    }
 }
 
 #[cfg(test)]
@@ -258,6 +306,35 @@ mod tests {
         let json = serde_json::to_string(&report).unwrap();
         let report2: ValidationReport = serde_json::from_str(&json).unwrap();
         assert_eq!(report, report2);
+    }
+
+    #[test]
+    fn validate_many_collects_provider_artifacts() {
+        let pkg = make_package(&["foo", "bar"]);
+        let inv1 = make_inventory(&["foo"], &[]);
+        let inv2 = SymbolInventory {
+            artifact_path: "libbar.a".into(),
+            format: ArtifactFormat::ElfStaticLibrary,
+            symbols: vec![SymbolEntry {
+                name: "bar".into(),
+                raw_name: Some("bar".into()),
+                visibility: SymbolVisibility::Default,
+                is_function: true,
+                binding: SymbolBinding::Global,
+                size: None,
+                section: None,
+                archive_member: Some("bar.o".into()),
+            }],
+        };
+
+        let report = validate_many(&pkg, &[inv1, inv2]);
+        assert_eq!(report.matches.len(), 2);
+        let foo = report.matches.iter().find(|entry| entry.name == "foo").unwrap();
+        let bar = report.matches.iter().find(|entry| entry.name == "bar").unwrap();
+        assert_eq!(foo.status, MatchStatus::Matched);
+        assert_eq!(foo.provider_artifacts, vec!["test.o".to_string()]);
+        assert_eq!(bar.status, MatchStatus::Matched);
+        assert_eq!(bar.provider_artifacts, vec!["libbar.a:bar.o".to_string()]);
     }
 
     // --- Phase 12 tests ---

@@ -204,6 +204,8 @@ fn cli_validate_emits_validation_report_json() {
     let bindings = dir.join("bindings.json");
     let c_path = dir.join("lib.c");
     let o_path = dir.join("lib.o");
+    let c2_path = dir.join("lib2.c");
+    let o2_path = dir.join("lib2.o");
 
     std::fs::write(
         &bindings,
@@ -242,6 +244,7 @@ fn cli_validate_emits_validation_report_json() {
     )
     .unwrap();
     std::fs::write(&c_path, "int foo(void) { return 7; }\n").unwrap();
+    std::fs::write(&c2_path, "int other(void) { return 11; }\n").unwrap();
 
     let status = Command::new("cc")
         .args(["-c", "-o"])
@@ -250,6 +253,13 @@ fn cli_validate_emits_validation_report_json() {
         .status()
         .unwrap();
     assert!(status.success());
+    let status2 = Command::new("cc")
+        .args(["-c", "-o"])
+        .arg(&o2_path)
+        .arg(&c2_path)
+        .status()
+        .unwrap();
+    assert!(status2.success());
 
     let output = Command::new(env!("CARGO_BIN_EXE_bic"))
         .args([
@@ -258,6 +268,8 @@ fn cli_validate_emits_validation_report_json() {
             bindings.to_str().unwrap(),
             "--artifact",
             o_path.to_str().unwrap(),
+            "--artifact",
+            o2_path.to_str().unwrap(),
         ])
         .output()
         .unwrap();
@@ -267,8 +279,16 @@ fn cli_validate_emits_validation_report_json() {
     let stdout = String::from_utf8(output.stdout).unwrap();
     let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
     let matches = json["matches"].as_array().unwrap();
-    assert!(matches.iter().any(|entry| entry["name"] == "foo" && entry["status"] == "Matched"));
-    assert!(matches.iter().any(|entry| entry["name"] == "missing" && entry["status"] == "Missing"));
+    assert!(matches.iter().any(|entry| {
+        entry["name"] == "foo"
+            && entry["status"] == "Matched"
+            && entry["provider_artifacts"].as_array().unwrap() == &vec![serde_json::Value::String(o_path.to_str().unwrap().to_string())]
+    }));
+    assert!(matches.iter().any(|entry| {
+        entry["name"] == "missing"
+            && entry["status"] == "Missing"
+            && entry["provider_artifacts"].as_array().unwrap().is_empty()
+    }));
 
     std::fs::remove_dir_all(&dir).ok();
 }
