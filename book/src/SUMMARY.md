@@ -24,3 +24,4 @@
 - [Support Tiers](./220_support_tiers.md)
 - [Unsupported Cases](./230_unsupported_cases.md)
 - [`fol` Minimal Contract](./240_fol_minimal_contract.md)
+- [`fol` Extended Contract](./250_fol_extended_contract.md)
