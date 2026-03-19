@@ -129,6 +129,19 @@ These rules matter because the configuration is preserved into multiple outputs:
 In other words, `HeaderConfig` is not only execution input.
 It is also provenance metadata.
 
+## Validation Happens Before Execution
+
+Configuration validation is part of the public library contract.
+
+That means:
+
+- `HeaderConfig::validate()` is a supported preflight API
+- `HeaderConfig::process()` validates before it attempts preprocessing or extraction
+- `probe_type_layouts(...)` validates before it attempts compiler probing
+
+Downstream code should treat invalid configuration as an operational error, not as a diagnostic
+inside an otherwise successful result.
+
 ## What `process()` Does
 
 Calling `.process()` performs this sequence:

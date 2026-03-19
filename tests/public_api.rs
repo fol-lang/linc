@@ -1,7 +1,7 @@
 use bic::{
-    AbiProbeReport, BindingItem, BindingPackage, BindingType, CallingConvention, FunctionBinding,
-    HeaderConfig, LinkResolutionMode, MacroBinding, MacroCategory, MacroForm, MacroKind,
-    MacroValue, ParameterBinding, TypeAliasBinding, TypeLayout,
+    AbiProbeReport, BicError, BindingItem, BindingPackage, BindingType, CallingConvention,
+    FunctionBinding, HeaderConfig, LinkResolutionMode, MacroBinding, MacroCategory, MacroForm,
+    MacroKind, MacroValue, ParameterBinding, TypeAliasBinding, TypeLayout, probe_type_layouts,
 };
 
 #[test]
@@ -56,6 +56,30 @@ fn header_config_validation_is_publicly_reachable() {
 
     let invalid = HeaderConfig::new().entry_header("");
     assert!(invalid.validate().is_err());
+}
+
+#[test]
+fn process_rejects_invalid_config_before_execution() {
+    let err = HeaderConfig::new()
+        .entry_header("demo.h")
+        .add_include_dir("")
+        .process()
+        .unwrap_err();
+
+    assert!(matches!(err, BicError::InvalidConfig { .. }));
+}
+
+#[test]
+fn probe_rejects_invalid_config_before_execution() {
+    let err = probe_type_layouts(
+        &HeaderConfig::new()
+            .entry_header("demo.h")
+            .add_include_dir(""),
+        &["size_t"],
+    )
+    .unwrap_err();
+
+    assert!(matches!(err, BicError::InvalidConfig { .. }));
 }
 
 #[test]
