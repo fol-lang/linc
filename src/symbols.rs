@@ -41,6 +41,8 @@ pub struct SymbolEntry {
     pub binding: SymbolBinding,
     pub size: Option<u64>,
     pub section: Option<String>,
+    #[serde(default)]
+    pub archive_member: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,6 +104,7 @@ fn inspect_archive(
 
     for member in archive.members() {
         let member = member.map_err(|e| format!("failed to read archive member: {}", e))?;
+        let member_name = Some(String::from_utf8_lossy(member.name()).into_owned());
         let member_data = member
             .data(data)
             .map_err(|e| format!("failed to read archive member data: {}", e))?;
@@ -111,8 +114,9 @@ fn inspect_archive(
                 is_macho = obj.format() == object::BinaryFormat::MachO;
                 format_detected = true;
             }
-            for sym in extract_symbols_from_object(&obj) {
-                if seen.insert(sym.name.clone()) {
+            for mut sym in extract_symbols_from_object(&obj) {
+                sym.archive_member = member_name.clone();
+                if seen.insert((sym.name.clone(), sym.archive_member.clone())) {
                     symbols.push(sym);
                 }
             }
@@ -236,6 +240,7 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
             binding,
             size,
             section,
+            archive_member: None,
         });
     }
 
@@ -416,6 +421,7 @@ mod tests {
                     binding: SymbolBinding::Global,
                     size: None,
                     section: None,
+                    archive_member: None,
                 },
                 SymbolEntry {
                     name: "bar".into(),
@@ -424,6 +430,7 @@ mod tests {
                     binding: SymbolBinding::Global,
                     size: None,
                     section: None,
+                    archive_member: None,
                 },
             ],
         };
@@ -445,6 +452,7 @@ mod tests {
                     binding: SymbolBinding::Global,
                     size: None,
                     section: None,
+                    archive_member: None,
                 },
                 SymbolEntry {
                     name: "data1".into(),
@@ -453,6 +461,7 @@ mod tests {
                     binding: SymbolBinding::Global,
                     size: None,
                     section: None,
+                    archive_member: None,
                 },
                 SymbolEntry {
                     name: "func2".into(),
@@ -461,6 +470,7 @@ mod tests {
                     binding: SymbolBinding::Global,
                     size: None,
                     section: None,
+                    archive_member: None,
                 },
             ],
         };
@@ -480,6 +490,7 @@ mod tests {
                 binding: SymbolBinding::Global,
                 size: None,
                 section: None,
+                archive_member: Some("foo.o".into()),
             }],
         };
         let json = serde_json::to_string(&inv).unwrap();
@@ -556,9 +567,64 @@ mod tests {
         let inv = inspect_file(&a_path).unwrap();
         assert_eq!(inv.format, ArtifactFormat::ElfStaticLibrary);
         assert!(inv.has_symbol("add"));
+        let add = inv.symbols.iter().find(|sym| sym.name == "add").unwrap();
+        assert_eq!(add.archive_member.as_deref(), Some("lib.o"));
 
         std::fs::remove_file(&c_path).ok();
         std::fs::remove_file(&o_path).ok();
+        std::fs::remove_file(&a_path).ok();
+        std::fs::remove_dir(&dir).ok();
+    }
+
+    #[test]
+    #[ignore] // Requires cc and ar
+    fn inspect_static_library_preserves_member_provenance() {
+        let dir = std::env::temp_dir().join("bic_ar_members_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let a_c_path = dir.join("alpha.c");
+        let a_o_path = dir.join("alpha.o");
+        let b_c_path = dir.join("beta.c");
+        let b_o_path = dir.join("beta.o");
+        let a_path = dir.join("libmembers.a");
+
+        std::fs::write(&a_c_path, "int alpha(void) { return 1; }\n").unwrap();
+        std::fs::write(&b_c_path, "int beta(void) { return 2; }\n").unwrap();
+
+        let cc_alpha = std::process::Command::new("cc")
+            .args(["-c", "-o"])
+            .arg(&a_o_path)
+            .arg(&a_c_path)
+            .status()
+            .expect("cc not found");
+        assert!(cc_alpha.success());
+
+        let cc_beta = std::process::Command::new("cc")
+            .args(["-c", "-o"])
+            .arg(&b_o_path)
+            .arg(&b_c_path)
+            .status()
+            .expect("cc not found");
+        assert!(cc_beta.success());
+
+        let ar = std::process::Command::new("ar")
+            .args(["rcs"])
+            .arg(&a_path)
+            .arg(&a_o_path)
+            .arg(&b_o_path)
+            .status()
+            .expect("ar not found");
+        assert!(ar.success());
+
+        let inv = inspect_file(&a_path).unwrap();
+        let alpha = inv.symbols.iter().find(|sym| sym.name == "alpha").unwrap();
+        let beta = inv.symbols.iter().find(|sym| sym.name == "beta").unwrap();
+        assert_eq!(alpha.archive_member.as_deref(), Some("alpha.o"));
+        assert_eq!(beta.archive_member.as_deref(), Some("beta.o"));
+
+        std::fs::remove_file(&a_c_path).ok();
+        std::fs::remove_file(&a_o_path).ok();
+        std::fs::remove_file(&b_c_path).ok();
+        std::fs::remove_file(&b_o_path).ok();
         std::fs::remove_file(&a_path).ok();
         std::fs::remove_dir(&dir).ok();
     }

@@ -122,6 +122,7 @@ mod tests {
                 binding: SymbolBinding::Global,
                 size: None,
                 section: None,
+                archive_member: None,
             })
             .collect();
         SymbolInventory {
@@ -332,6 +333,7 @@ mod tests {
                 binding: SymbolBinding::Weak,
                 size: None,
                 section: None,
+                archive_member: None,
             }],
         };
         let pkg = make_package(&["foo"]);

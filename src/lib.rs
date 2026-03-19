@@ -140,6 +140,7 @@ mod integration_tests {
                 binding: symbols::SymbolBinding::Global,
                 size: None,
                 section: None,
+                archive_member: None,
             }],
         };
         let report = validate(&pkg, &inv);
