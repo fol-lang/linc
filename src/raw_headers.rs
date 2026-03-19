@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostics::{Diagnostic, DiagnosticKind};
+use crate::error::BicError;
 use crate::extract::Extractor;
 use crate::ir::{
     BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
@@ -260,9 +261,9 @@ impl HeaderConfig {
         self
     }
 
-    pub fn process(&self) -> Result<RawHeaderResult, String> {
+    pub fn process(&self) -> Result<RawHeaderResult, BicError> {
         if self.entry_headers.is_empty() {
-            return Err("no entry headers specified".into());
+            return Err(BicError::NoHeaders);
         }
 
         // Build a combined header source that includes all entry headers
@@ -273,11 +274,9 @@ impl HeaderConfig {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let tmp_dir = std::env::temp_dir().join(format!("bic_raw_{unique_id}_{ts}"));
-        std::fs::create_dir_all(&tmp_dir)
-            .map_err(|e| format!("failed to create temp dir: {}", e))?;
+        std::fs::create_dir_all(&tmp_dir)?;
         let tmp_file = tmp_dir.join("_bic_combined.c");
-        std::fs::write(&tmp_file, &combined)
-            .map_err(|e| format!("failed to write combined header: {}", e))?;
+        std::fs::write(&tmp_file, &combined)?;
 
         let pac_config = self.build_pac_config();
         let (command, args) = self.describe_invocation(&pac_config, &tmp_file);
@@ -319,7 +318,9 @@ impl HeaderConfig {
                 };
 
                 if !self.probe_types.is_empty() {
-                    package.layouts = probe_type_layouts(self, &self.probe_types)?.layouts;
+                    package.layouts = probe_type_layouts(self, &self.probe_types)
+                        .map_err(|reason| BicError::ProbeFailed { reason })?
+                        .layouts;
                 }
 
                 // Apply origin filtering if configured
@@ -731,7 +732,7 @@ mod tests {
         let cfg = HeaderConfig::new();
         let result = cfg.process();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("no entry headers"));
+        assert!(matches!(result.unwrap_err(), BicError::NoHeaders));
     }
 
     #[test]

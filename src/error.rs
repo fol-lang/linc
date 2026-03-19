@@ -22,6 +22,8 @@ use std::path::PathBuf;
 pub enum BicError {
     /// A scan-like operation was invoked without any entry headers.
     NoHeaders,
+    /// ABI probe execution failed before layouts could be produced.
+    ProbeFailed { reason: String },
     /// A compiler/preprocessor invocation failed before a usable translation unit was produced.
     PreprocessorFailed { command: String, stderr: String },
     /// Source parsing failed after preprocessing.
@@ -42,6 +44,9 @@ impl fmt::Display for BicError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BicError::NoHeaders => write!(f, "no entry headers specified"),
+            BicError::ProbeFailed { reason } => {
+                write!(f, "probe failed: {}", reason)
+            }
             BicError::PreprocessorFailed { command, stderr } => {
                 write!(f, "preprocessor '{}' failed: {}", command, stderr)
             }
@@ -111,6 +116,14 @@ mod tests {
             stderr: "file not found".into(),
         };
         assert!(e.to_string().contains("gcc"));
+    }
+
+    #[test]
+    fn error_display_probe_failed() {
+        let e = BicError::ProbeFailed {
+            reason: "compiler missing".into(),
+        };
+        assert!(e.to_string().contains("compiler missing"));
     }
 
     #[test]
