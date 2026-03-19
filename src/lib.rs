@@ -193,7 +193,8 @@ pub use ir::{
     BindingDefine, BindingInputs, BindingItem, BindingLinkSurface, BindingPackage, BindingTarget,
     BindingType, CallingConvention, EnumBinding, EnumVariant, FieldBinding, FunctionBinding,
     LinkArtifact, LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind,
-    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroKind,
+    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroForm, MacroKind,
+    MacroValue,
     NativeSurfaceKind, ParameterBinding, RecordBinding, RecordKind, TypeAliasBinding,
     TypeLayout, UnsupportedItem, VariableBinding, SCHEMA_VERSION,
 };
@@ -594,6 +595,19 @@ mod integration_tests {
         assert_eq!(pkg.items.len(), 2);
         assert_eq!(pkg.link.libraries.len(), 1);
         assert_eq!(pkg.link.ordered_inputs.len(), 1);
+    }
+
+    #[test]
+    fn contract_snapshot_binding_package_contract_is_consumable() {
+        let json = include_str!("../test/contracts/binding_package_contract_snapshot.json");
+        let pkg = from_json(json).unwrap();
+        assert_eq!(pkg.source_path.as_deref(), Some("demo.h"));
+        assert_eq!(pkg.macros.len(), 2);
+        assert_eq!(pkg.macros[0].value, Some(MacroValue::Integer(3)));
+        assert_eq!(pkg.macros[1].form, MacroForm::FunctionLike);
+        assert_eq!(pkg.layouts.len(), 1);
+        assert_eq!(pkg.link.libraries.len(), 1);
+        assert_eq!(pkg.items.len(), 1);
     }
 
     // Phase 25: error path and edge case tests

@@ -285,4 +285,13 @@ mod tests {
         let decoded: AbiProbeReport = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, report);
     }
+
+    #[test]
+    fn probe_report_contract_snapshot_is_consumable() {
+        let json = include_str!("../test/contracts/probe_report_contract_snapshot.json");
+        let report: AbiProbeReport = serde_json::from_str(json).unwrap();
+        assert_eq!(report.compiler_command, "clang");
+        assert_eq!(report.target.compiler_command.as_deref(), Some("clang"));
+        assert_eq!(report.layouts.len(), 1);
+    }
 }

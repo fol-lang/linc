@@ -1,0 +1,23 @@
+{
+  "artifact_path": "libdemo.a",
+  "format": "ElfStaticLibrary",
+  "platform": "Elf",
+  "kind": "StaticLibrary",
+  "capabilities": {
+    "exports_symbols": true,
+    "imports_symbols": false
+  },
+  "dependency_edges": [],
+  "symbols": [
+    {
+      "name": "demo_init",
+      "raw_name": "demo_init",
+      "visibility": "Default",
+      "is_function": true,
+      "binding": "Global",
+      "size": 24,
+      "section": ".text",
+      "archive_member": "demo.o"
+    }
+  ]
+}

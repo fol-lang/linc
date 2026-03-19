@@ -662,6 +662,18 @@ mod tests {
     }
 
     #[test]
+    fn symbol_inventory_contract_snapshot_is_consumable() {
+        let json = include_str!("../test/contracts/symbol_inventory_contract_snapshot.json");
+        let inv: SymbolInventory = serde_json::from_str(json).unwrap();
+        assert_eq!(inv.format, ArtifactFormat::ElfStaticLibrary);
+        assert_eq!(inv.platform, ArtifactPlatform::Elf);
+        assert_eq!(inv.kind, ArtifactKind::StaticLibrary);
+        assert!(inv.capabilities.exports_symbols);
+        assert_eq!(inv.symbols.len(), 1);
+        assert_eq!(inv.symbols[0].archive_member.as_deref(), Some("demo.o"));
+    }
+
+    #[test]
     fn inspect_nonexistent_file() {
         let result = inspect_file("/nonexistent/path.o");
         assert!(matches!(result.unwrap_err(), BicError::SymbolRead { .. }));
