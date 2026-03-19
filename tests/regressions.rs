@@ -140,6 +140,67 @@ fn regression_tricky_layout_fixture_stays_consumable() {
 }
 
 #[test]
+fn regression_typedef_layout_fixture_validates_record_and_enum_aliases() {
+    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("test/fixtures/typedef_layout_bridge.h");
+    let result = bic::HeaderConfig::new()
+        .entry_header(&header)
+        .probe_type_layout("widget_t")
+        .probe_type_layout("mode_t")
+        .process()
+        .unwrap();
+
+    let inventory = SymbolInventory {
+        artifact_path: "typedefs.o".into(),
+        format: ArtifactFormat::ElfObject,
+        platform: ArtifactPlatform::Elf,
+        kind: ArtifactKind::Object,
+        capabilities: ArtifactCapabilities {
+            exports_symbols: true,
+            imports_symbols: false,
+        },
+        dependency_edges: Vec::new(),
+        symbols: vec![
+            bic::SymbolEntry {
+                name: "widget_global".into(),
+                raw_name: None,
+                version: None,
+                direction: bic::SymbolDirection::Exported,
+                reexported_via: Vec::new(),
+                alias_of: None,
+                function_abi: None,
+                visibility: bic::SymbolVisibility::Default,
+                is_function: false,
+                binding: bic::SymbolBinding::Global,
+                size: Some(16),
+                section: Some(".data".into()),
+                archive_member: None,
+            },
+            bic::SymbolEntry {
+                name: "current_mode".into(),
+                raw_name: None,
+                version: None,
+                direction: bic::SymbolDirection::Exported,
+                reexported_via: Vec::new(),
+                alias_of: None,
+                function_abi: None,
+                visibility: bic::SymbolVisibility::Default,
+                is_function: false,
+                binding: bic::SymbolBinding::Global,
+                size: Some(4),
+                section: Some(".data".into()),
+                archive_member: None,
+            },
+        ],
+    };
+
+    let report = validate(&result.package, &inventory);
+    assert_eq!(report.matches.len(), 2);
+    assert!(report.matches.iter().all(|entry| entry.status == bic::MatchStatus::Matched));
+    assert_eq!(report.layout_backed_entries().len(), 2);
+}
+
+#[test]
 fn regression_tricky_macro_fixture_stays_consumable() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/tricky_macros.h");
     let result = bic::HeaderConfig::new().entry_header(&header).process().unwrap();
