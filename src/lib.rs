@@ -442,6 +442,25 @@ mod integration_tests {
         assert_eq!(pkg.schema_version, SCHEMA_VERSION);
     }
 
+    #[test]
+    fn contract_fixture_v0_minimal_binding_package_deserializes() {
+        let json = include_str!("../test/contracts/v0_minimal_binding_package.json");
+        let pkg = from_json(json).unwrap();
+        assert_eq!(pkg.schema_version, SCHEMA_VERSION);
+        assert!(pkg.items.is_empty());
+        assert!(pkg.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn contract_fixture_v1_empty_nested_objects_deserializes() {
+        let json = include_str!("../test/contracts/v1_empty_nested_objects.json");
+        let pkg = from_json(json).unwrap();
+        assert_eq!(pkg.schema_version, 1);
+        assert!(pkg.target.target_triple.is_none());
+        assert!(pkg.inputs.entry_headers.is_empty());
+        assert!(pkg.link.libraries.is_empty());
+    }
+
     // Phase 25: error path and edge case tests
 
     #[test]
