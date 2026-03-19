@@ -88,6 +88,28 @@ link-planning analysis.
 same section/address identity. That is intentionally conservative: `bic` only records alias
 relationships when the artifact evidence is strong enough.
 
+## ELF Symbol Versions
+
+On ELF artifacts, `SymbolEntry.version` preserves symbol-version evidence when the object reader
+can see it, for example `GLIBC_2.2.5` or a library-specific export namespace.
+
+Downstream consumers should read that evidence conservatively:
+
+- version presence is useful provider metadata
+- version absence is not proof that the symbol is unversioned everywhere
+- version equality helps distinguish exports that share a base symbol name
+- version differences should be treated as a reason to avoid collapsing providers too aggressively
+
+Today `bic` does not implement a full ELF linker/version-script resolver.
+The intended policy is narrower:
+
+- use normalized name as the primary declaration/provider match key
+- preserve version strings as attached evidence
+- surface them to downstream policy code when provider selection needs to stay conservative
+
+That means version evidence is best read as "stronger provider identity context", not as a final
+dynamic-loader decision.
+
 ## Archive Member Provenance
 
 For static libraries, `bic` preserves the member path/name that provided each symbol when available.
