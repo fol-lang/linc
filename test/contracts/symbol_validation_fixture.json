@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "bic_version": "0.1.0",
+  "source_path": "symbols.h",
+  "items": [
+    {
+      "Function": {
+        "name": "alpha",
+        "calling_convention": "C",
+        "parameters": [],
+        "return_type": "Void",
+        "variadic": false,
+        "source_offset": 1
+      }
+    },
+    {
+      "Variable": {
+        "name": "beta",
+        "ty": "Int",
+        "source_offset": 2
+      }
+    }
+  ],
+  "diagnostics": [],
+  "link": {
+    "libraries": [
+      { "name": "demo", "kind": "Default", "source": "Declared" }
+    ],
+    "ordered_inputs": [
+      {
+        "Library": { "name": "demo", "kind": "Default", "source": "Declared" }
+      }
+    ]
+  }
+}

@@ -519,6 +519,26 @@ mod integration_tests {
         }
     }
 
+    #[test]
+    fn contract_snapshot_simple_api_package_is_consumable() {
+        let json = include_str!("../test/contracts/simple_api_package.json");
+        let pkg = from_json(json).unwrap();
+        assert_eq!(pkg.source_path.as_deref(), Some("demo.h"));
+        assert_eq!(pkg.macros.len(), 1);
+        assert_eq!(pkg.layouts.len(), 1);
+        assert_eq!(pkg.link.libraries.len(), 1);
+        assert_eq!(pkg.items.len(), 2);
+    }
+
+    #[test]
+    fn contract_snapshot_symbol_validation_fixture_is_consumable() {
+        let json = include_str!("../test/contracts/symbol_validation_fixture.json");
+        let pkg = from_json(json).unwrap();
+        assert_eq!(pkg.items.len(), 2);
+        assert_eq!(pkg.link.libraries.len(), 1);
+        assert_eq!(pkg.link.ordered_inputs.len(), 1);
+    }
+
     // Phase 25: error path and edge case tests
 
     #[test]
