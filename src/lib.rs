@@ -1,4 +1,3 @@
-pub mod codegen_rust;
 pub mod diagnostics;
 pub mod error;
 pub mod extract;
@@ -6,9 +5,16 @@ pub mod ir;
 pub mod line_markers;
 pub mod preprocess;
 pub mod raw_headers;
+
+#[cfg(feature = "codegen")]
+pub mod codegen_rust;
+
+#[cfg(feature = "symbols")]
 pub mod symbols;
+#[cfg(feature = "symbols")]
 pub mod validate;
 
+#[cfg(feature = "codegen")]
 pub use codegen_rust::emit_rust_ffi;
 pub use error::BicError;
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
@@ -21,9 +27,11 @@ pub use ir::{
 pub use line_markers::{FileOriginMap, OriginFilter, SourceOrigin};
 pub use preprocess::PreprocessedInput;
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};
+#[cfg(feature = "symbols")]
 pub use symbols::{
     inspect_file as inspect_symbols, SymbolBinding, SymbolEntry, SymbolInventory, SymbolVisibility,
 };
+#[cfg(feature = "symbols")]
 pub use validate::{validate, FunctionMatch, ItemKind, MatchStatus, SymbolMatch, ValidationReport};
 
 /// Serialize a BindingPackage to a deterministic JSON string.
@@ -46,6 +54,7 @@ pub fn from_json(json: &str) -> Result<BindingPackage, BicError> {
 }
 
 #[cfg(test)]
+#[cfg(all(feature = "symbols", feature = "codegen"))]
 mod integration_tests {
     use super::*;
 
