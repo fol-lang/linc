@@ -221,7 +221,7 @@ pub use symbols::{
 pub use validate::{
     validate, validate_many, EvidenceKind, FunctionMatch, ItemKind, MatchConfidence, MatchStatus,
     SymbolMatch, ValidationDeclaration, ValidationEntry, ValidationEvidence, ValidationPhase,
-    ValidationPhaseReport, ValidationReport,
+    ValidationPhaseReport, ValidationReport, ValidationSummary,
 };
 
 /// Serialize a BindingPackage to a deterministic JSON string.

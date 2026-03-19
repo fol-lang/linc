@@ -63,6 +63,19 @@ pub struct ValidationEntry {
     pub evidence: ValidationEvidence,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ValidationSummary {
+    pub total: usize,
+    pub matched: usize,
+    pub missing: usize,
+    pub unresolved_declared_link_inputs: usize,
+    pub hidden: usize,
+    pub weak_matches: usize,
+    pub duplicate_providers: usize,
+    pub decoration_mismatches: usize,
+    pub kind_mismatches: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MatchConfidence {
     High,
@@ -112,6 +125,8 @@ pub struct ValidationReport {
     pub phases: Vec<ValidationPhaseReport>,
     #[serde(default)]
     pub entries: Vec<ValidationEntry>,
+    #[serde(default)]
+    pub summary: ValidationSummary,
     pub matches: Vec<SymbolMatch>,
 }
 
@@ -141,6 +156,27 @@ impl ValidationReport {
         self.matches
             .iter()
             .all(|m| m.status == MatchStatus::Matched)
+    }
+
+    pub fn duplicate_providers(&self) -> Vec<&SymbolMatch> {
+        self.matches
+            .iter()
+            .filter(|m| m.status == MatchStatus::DuplicateProviders)
+            .collect()
+    }
+
+    pub fn unresolved_declared(&self) -> Vec<&SymbolMatch> {
+        self.matches
+            .iter()
+            .filter(|m| m.status == MatchStatus::UnresolvedDeclaredLinkInputs)
+            .collect()
+    }
+
+    pub fn weak_matches(&self) -> Vec<&SymbolMatch> {
+        self.matches
+            .iter()
+            .filter(|m| m.status == MatchStatus::WeakMatch)
+            .collect()
     }
 }
 
@@ -307,11 +343,35 @@ pub fn validate_many(
         });
     }
 
+    let summary = build_summary(&matches);
     ValidationReport {
         phases: default_validation_phases(),
         entries,
+        summary,
         matches,
     }
+}
+
+fn build_summary(matches: &[SymbolMatch]) -> ValidationSummary {
+    let mut summary = ValidationSummary {
+        total: matches.len(),
+        ..ValidationSummary::default()
+    };
+    for entry in matches {
+        match entry.status {
+            MatchStatus::Matched => summary.matched += 1,
+            MatchStatus::Missing => summary.missing += 1,
+            MatchStatus::UnresolvedDeclaredLinkInputs => {
+                summary.unresolved_declared_link_inputs += 1
+            }
+            MatchStatus::Hidden => summary.hidden += 1,
+            MatchStatus::WeakMatch => summary.weak_matches += 1,
+            MatchStatus::DuplicateProviders => summary.duplicate_providers += 1,
+            MatchStatus::DecorationMismatch => summary.decoration_mismatches += 1,
+            MatchStatus::NotAFunction | MatchStatus::NotAVariable => summary.kind_mismatches += 1,
+        }
+    }
+    summary
 }
 
 fn default_validation_phases() -> Vec<ValidationPhaseReport> {
@@ -713,6 +773,53 @@ mod tests {
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::UnresolvedDeclaredLinkInputs);
         assert_eq!(report.matches[0].evidence_kind, EvidenceKind::ReexportedCandidate);
+    }
+
+    #[test]
+    fn report_summary_and_query_helpers_track_statuses() {
+        let pkg = make_package(&["foo", "bar", "baz"]);
+        let inv = SymbolInventory {
+            artifact_path: "test.o".into(),
+            format: ArtifactFormat::ElfObject,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::Object,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
+            dependency_edges: Vec::new(),
+            symbols: vec![
+                SymbolEntry {
+                    name: "foo".into(),
+                    raw_name: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: None,
+                    archive_member: None,
+                },
+                SymbolEntry {
+                    name: "bar".into(),
+                    raw_name: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: true,
+                    binding: SymbolBinding::Weak,
+                    size: None,
+                    section: None,
+                    archive_member: None,
+                },
+            ],
+        };
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.summary.total, 3);
+        assert_eq!(report.summary.matched, 1);
+        assert_eq!(report.summary.weak_matches, 1);
+        assert_eq!(report.summary.missing, 1);
+        assert_eq!(report.weak_matches().len(), 1);
+        assert_eq!(report.unresolved_declared().len(), 0);
+        assert_eq!(report.duplicate_providers().len(), 0);
     }
 
     #[test]

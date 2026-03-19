@@ -186,6 +186,29 @@ That ordering usually tells you whether the problem is:
 - duplicate/native-surface ambiguity
 - visibility or kind mismatch
 
+## Summary And Helpers
+
+`ValidationReport.summary` gives a stable count-oriented surface for policy code.
+It currently tracks totals for:
+
+- matched declarations
+- missing declarations
+- unresolved declared link inputs
+- hidden providers
+- weak matches
+- duplicate providers
+- decoration mismatches
+- kind mismatches
+
+The report also exposes helper methods such as:
+
+- `matched()`
+- `missing()`
+- `hidden()`
+- `weak_matches()`
+- `duplicate_providers()`
+- `unresolved_declared()`
+
 ## What Validation Does Not Prove
 
 Current validation is symbol-oriented, not full ABI-signature verification.

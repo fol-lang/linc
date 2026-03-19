@@ -4,7 +4,7 @@ use bic::{
     MacroForm, MacroKind, MacroValue, MatchConfidence, ParameterBinding, ProbeConfidence,
     ProbeSubjectKind, ProbeSubjectReport, RecordCompleteness, TypeAliasBinding, TypeLayout,
     ValidationDeclaration, ValidationEntry, ValidationEvidence, ValidationPhase,
-    ValidationPhaseReport, probe_type_layouts,
+    ValidationPhaseReport, ValidationSummary, probe_type_layouts,
 };
 
 #[test]
@@ -209,4 +209,22 @@ fn evidence_kind_root_type_roundtrip() {
     let json = serde_json::to_string(&EvidenceKind::WeakExported).unwrap();
     let decoded: EvidenceKind = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, EvidenceKind::WeakExported);
+}
+
+#[test]
+fn validation_summary_root_type_roundtrip() {
+    let summary = ValidationSummary {
+        total: 3,
+        matched: 1,
+        missing: 1,
+        unresolved_declared_link_inputs: 0,
+        hidden: 0,
+        weak_matches: 1,
+        duplicate_providers: 0,
+        decoration_mismatches: 0,
+        kind_mismatches: 0,
+    };
+    let json = serde_json::to_string(&summary).unwrap();
+    let decoded: ValidationSummary = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, summary);
 }
