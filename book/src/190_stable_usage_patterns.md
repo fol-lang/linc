@@ -97,3 +97,7 @@ These patterns are likely to age badly:
 - assuming every successful scan is generation-ready
 - depending broadly on support-oriented modules for normal consumer flows
 - inferring link intent only from declarations when `package.link` already exists
+
+The regression suite now mirrors several of the stable root-level usage patterns directly through
+integration tests, so these recommendations are guarded as contract behavior rather than only
+described in prose.
