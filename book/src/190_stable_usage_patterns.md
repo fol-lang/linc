@@ -5,6 +5,9 @@ library consumers.
 
 The goal is to steer integrations toward durable habits rather than clever short-term shortcuts.
 
+These patterns are intentionally narrower than "everything that currently works".
+They are the patterns most aligned with the regression suite and the documented contract.
+
 ## Pattern 1: Prefer Root-Level Entry Points
 
 The recommended entry points are:
@@ -76,6 +79,9 @@ The stable consumer pattern is:
 - successful validation with mismatches -> handled as structured evidence
 
 Do not collapse these into the same error channel.
+
+Even a clean transport path should not be interpreted as "ready to generate bindings".
+Read validation as structured evidence and apply downstream policy explicitly.
 
 ## Pattern 7: Isolate Lower-Level Module Usage
 

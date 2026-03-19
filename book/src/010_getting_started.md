@@ -1,6 +1,11 @@
 # Getting Started
 
-This chapter shows the shortest path from "I have a header" to "I have machine-readable bindings".
+This chapter shows the shortest path from "I have a header" to "I have machine-readable binding
+metadata".
+
+`bic` should be read as a library that produces analysis artifacts.
+It should not be read as a promise that every successful scan is ready for generation without
+additional policy checks.
 
 ## Add the Crate
 
@@ -70,6 +75,10 @@ That single scan can now carry:
 - probed type layouts
 - diagnostics
 
+Treat those as evidence surfaces.
+Downstream generators should still decide which diagnostics, layouts, and validation findings are
+required before generation is allowed.
+
 ## JSON Round Trip
 
 `BindingPackage` is designed to be exchanged across tools.
@@ -120,7 +129,8 @@ The most common downstream pattern is:
 4. Optionally validate the package against those artifacts
 5. Feed the package and validation results into your generator/build system
 
-That is the intended shape for `fol` integration as well.
+That is the intended shape for `fol` integration as well, but it is also the general recommended
+shape for other consumers that want stable machine contracts instead of ad hoc extraction.
 
 ## First Things To Inspect
 
