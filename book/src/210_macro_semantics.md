@@ -13,8 +13,10 @@ Each captured macro currently carries:
 - `name`
 - `body`
 - `function_like`
+- `form`
 - `kind`
 - `category`
+- optional parsed `value` for bindable integer/string constants
 
 These fields should be read with different confidence levels.
 
@@ -28,6 +30,7 @@ constant surface.
 Current expectations:
 
 - object-like integer and string macros are the primary intended members of this category
+- when parsing succeeds, `value` gives the explicit lowered integer/string form
 - expression-like macros may still need consumer caution even when categorized as bindable
 - downstream code should still inspect the raw `body` if exact lowering matters
 

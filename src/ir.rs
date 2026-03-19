@@ -40,6 +40,13 @@ pub enum MacroKind {
     Other,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum MacroForm {
+    #[default]
+    ObjectLike,
+    FunctionLike,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MacroCategory {
     #[default]
@@ -50,13 +57,23 @@ pub enum MacroCategory {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MacroValue {
+    Integer(i128),
+    String(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MacroBinding {
     pub name: String,
     pub body: String,
     pub function_like: bool,
+    #[serde(default)]
+    pub form: MacroForm,
     pub kind: MacroKind,
     #[serde(default)]
     pub category: MacroCategory,
+    #[serde(default)]
+    pub value: Option<MacroValue>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -517,8 +534,10 @@ mod tests {
             name: "API_LEVEL".into(),
             body: "7".into(),
             function_like: false,
+            form: MacroForm::ObjectLike,
             kind: MacroKind::Integer,
             category: MacroCategory::BindableConstant,
+            value: Some(MacroValue::Integer(7)),
         });
         pkg.layouts.push(TypeLayout {
             name: "size_t".into(),
@@ -794,8 +813,10 @@ mod tests {
             name: "API_LEVEL".into(),
             body: "7".into(),
             function_like: false,
+            form: MacroForm::ObjectLike,
             kind: MacroKind::Integer,
             category: MacroCategory::BindableConstant,
+            value: Some(MacroValue::Integer(7)),
         }];
         pkg.layouts = vec![TypeLayout {
             name: "size_t".into(),
@@ -906,15 +927,19 @@ mod tests {
                 name: "API_LEVEL".into(),
                 body: "7".into(),
                 function_like: false,
+                form: MacroForm::ObjectLike,
                 kind: MacroKind::Integer,
                 category: MacroCategory::BindableConstant,
+                value: Some(MacroValue::Integer(7)),
             },
             MacroBinding {
                 name: "LOG".into(),
                 body: "fmt".into(),
                 function_like: true,
+                form: MacroForm::FunctionLike,
                 kind: MacroKind::Other,
                 category: MacroCategory::Unsupported,
+                value: None,
             },
         ];
         let json = serde_json::to_string(&macros).unwrap();
@@ -934,6 +959,8 @@ mod tests {
         ]"#;
         let decoded: Vec<MacroBinding> = serde_json::from_str(json).unwrap();
         assert_eq!(decoded[0].category, MacroCategory::BindableConstant);
+        assert_eq!(decoded[0].form, MacroForm::ObjectLike);
+        assert_eq!(decoded[0].value, None);
     }
 
     #[test]

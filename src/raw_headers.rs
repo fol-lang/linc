@@ -8,7 +8,8 @@ use crate::extract::Extractor;
 use crate::ir::{
     BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
     LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind,
-    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroKind,
+    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory, MacroForm, MacroKind,
+    MacroValue,
     NativeSurfaceKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
@@ -860,10 +861,75 @@ fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
     Some(MacroBinding {
         kind: classify_macro_body(&body, function_like),
         category: classify_macro_category(&name, &body, function_like),
+        value: parse_macro_value(&body, function_like),
         name,
         body,
         function_like,
+        form: if function_like {
+            MacroForm::FunctionLike
+        } else {
+            MacroForm::ObjectLike
+        },
     })
+}
+
+fn parse_macro_value(body: &str, function_like: bool) -> Option<MacroValue> {
+    if function_like {
+        return None;
+    }
+
+    match classify_macro_body(body, function_like) {
+        MacroKind::Integer => parse_integer_macro_value(body).map(MacroValue::Integer),
+        MacroKind::String => parse_string_macro_value(body).map(MacroValue::String),
+        _ => None,
+    }
+}
+
+fn parse_integer_macro_value(body: &str) -> Option<i128> {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let (negative, unsigned) = match trimmed.as_bytes()[0] {
+        b'+' => (false, &trimmed[1..]),
+        b'-' => (true, &trimmed[1..]),
+        _ => (false, trimmed),
+    };
+
+    let digits = unsigned.trim_end_matches(|ch: char| matches!(ch, 'u' | 'U' | 'l' | 'L'));
+    if digits.is_empty() {
+        return None;
+    }
+
+    let parsed = if let Some(rest) = digits
+        .strip_prefix("0x")
+        .or_else(|| digits.strip_prefix("0X"))
+    {
+        i128::from_str_radix(rest, 16).ok()?
+    } else if digits.len() > 1 && digits.starts_with('0') {
+        i128::from_str_radix(&digits[1..], 8).ok()?
+    } else {
+        digits.parse::<i128>().ok()?
+    };
+
+    if negative {
+        Some(-parsed)
+    } else {
+        Some(parsed)
+    }
+}
+
+fn parse_string_macro_value(body: &str) -> Option<String> {
+    let trimmed = body.trim();
+    let inner = trimmed.strip_prefix('"')?.strip_suffix('"')?;
+    Some(
+        inner
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+            .replace("\\n", "\n")
+            .replace("\\t", "\t"),
+    )
 }
 
 fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
@@ -1299,34 +1365,46 @@ mod tests {
         assert!(macros.iter().any(|m| {
             m.name == "API_LEVEL"
                 && !m.function_like
+                && m.form == MacroForm::ObjectLike
                 && m.kind == MacroKind::Integer
                 && m.category == MacroCategory::BindableConstant
+                && m.value == Some(MacroValue::Integer(7))
         }));
         assert!(macros.iter().any(|m| {
             m.name == "API_NAME"
                 && !m.function_like
+                && m.form == MacroForm::ObjectLike
                 && m.kind == MacroKind::String
                 && m.category == MacroCategory::BindableConstant
+                && m.value == Some(MacroValue::String("demo".into()))
         }));
         assert!(macros.iter().any(|m| {
             m.name == "API_EXPR"
                 && !m.function_like
                 && m.kind == MacroKind::Expression
                 && m.category == MacroCategory::BindableConstant
+                && m.value.is_none()
         }));
         assert!(macros.iter().any(|m| {
             m.name == "HAVE_ZLIB"
                 && !m.function_like
+                && m.form == MacroForm::ObjectLike
                 && m.category == MacroCategory::ConfigurationFlag
+                && m.value == Some(MacroValue::Integer(1))
         }));
         assert!(macros.iter().any(|m| {
-            m.name == "API_EXPORT" && m.category == MacroCategory::AbiAffecting
+            m.name == "API_EXPORT"
+                && m.form == MacroForm::ObjectLike
+                && m.category == MacroCategory::AbiAffecting
+                && m.value.is_none()
         }));
         assert!(macros.iter().any(|m| {
             m.name == "LOG"
                 && m.function_like
+                && m.form == MacroForm::FunctionLike
                 && m.kind == MacroKind::Other
                 && m.category == MacroCategory::Unsupported
+                && m.value.is_none()
         }));
     }
 
