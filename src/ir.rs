@@ -40,12 +40,23 @@ pub enum MacroKind {
     Other,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum MacroCategory {
+    #[default]
+    BindableConstant,
+    ConfigurationFlag,
+    AbiAffecting,
+    Unsupported,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MacroBinding {
     pub name: String,
     pub body: String,
     pub function_like: bool,
     pub kind: MacroKind,
+    #[serde(default)]
+    pub category: MacroCategory,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -440,6 +451,7 @@ mod tests {
             body: "7".into(),
             function_like: false,
             kind: MacroKind::Integer,
+            category: MacroCategory::BindableConstant,
         }];
         pkg.layouts = vec![TypeLayout {
             name: "size_t".into(),
@@ -528,17 +540,33 @@ mod tests {
                 body: "7".into(),
                 function_like: false,
                 kind: MacroKind::Integer,
+                category: MacroCategory::BindableConstant,
             },
             MacroBinding {
                 name: "LOG".into(),
                 body: "fmt".into(),
                 function_like: true,
                 kind: MacroKind::Other,
+                category: MacroCategory::Unsupported,
             },
         ];
         let json = serde_json::to_string(&macros).unwrap();
         let decoded: Vec<MacroBinding> = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, macros);
+    }
+
+    #[test]
+    fn macro_binding_defaults_category_on_old_json() {
+        let json = r#"[
+            {
+                "name": "API_LEVEL",
+                "body": "7",
+                "function_like": false,
+                "kind": "Integer"
+            }
+        ]"#;
+        let decoded: Vec<MacroBinding> = serde_json::from_str(json).unwrap();
+        assert_eq!(decoded[0].category, MacroCategory::BindableConstant);
     }
 
     #[test]

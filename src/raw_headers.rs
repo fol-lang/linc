@@ -7,7 +7,7 @@ use crate::extract::Extractor;
 use crate::ir::{
     BindingDefine, BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, LinkArtifact,
     LinkArtifactKind, LinkLibrary, LinkLibraryKind, LinkRequirementSource, LinkResolutionMode,
-    MacroBinding, MacroKind,
+    MacroBinding, MacroCategory, MacroKind,
 };
 use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::probe_type_layouts;
@@ -494,6 +494,7 @@ fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
 
     Some(MacroBinding {
         kind: classify_macro_body(&body, function_like),
+        category: classify_macro_category(&name, &body, function_like),
         name,
         body,
         function_like,
@@ -523,6 +524,50 @@ fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
     }
 
     MacroKind::Other
+}
+
+fn classify_macro_category(name: &str, body: &str, function_like: bool) -> MacroCategory {
+    if function_like {
+        if name.contains("CALL") || name.contains("EXPORT") || name.contains("IMPORT") {
+            return MacroCategory::AbiAffecting;
+        }
+        return MacroCategory::Unsupported;
+    }
+
+    if name.starts_with("HAVE_")
+        || name.ends_with("_ENABLED")
+        || name.ends_with("_DISABLED")
+        || body == "0"
+        || body == "1"
+    {
+        return MacroCategory::ConfigurationFlag;
+    }
+
+    let body_lower = body.to_ascii_lowercase();
+
+    if name.contains("CALL")
+        || name.contains("EXPORT")
+        || name.contains("IMPORT")
+        || name.contains("ALIGN")
+        || name.contains("PACK")
+        || name.contains("INLINE")
+        || name.contains("WEAK")
+        || name.contains("VISIBILITY")
+        || body.contains("__attribute__")
+        || body.contains("__declspec")
+        || body.contains("__stdcall")
+        || body.contains("__cdecl")
+        || body_lower.contains("visibility")
+    {
+        return MacroCategory::AbiAffecting;
+    }
+
+    match classify_macro_body(body, function_like) {
+        MacroKind::Integer | MacroKind::String | MacroKind::Expression => {
+            MacroCategory::BindableConstant
+        }
+        MacroKind::Other => MacroCategory::Unsupported,
+    }
 }
 
 impl Default for HeaderConfig {
@@ -677,21 +722,43 @@ mod tests {
 #define API_LEVEL 7
 #define API_NAME "demo"
 #define API_EXPR (1 << 2)
+#define HAVE_ZLIB 1
+#define API_EXPORT __attribute__((visibility("default")))
 #define LOG(fmt) fmt
 "#,
         );
 
         assert!(macros.iter().any(|m| {
-            m.name == "API_LEVEL" && !m.function_like && m.kind == MacroKind::Integer
+            m.name == "API_LEVEL"
+                && !m.function_like
+                && m.kind == MacroKind::Integer
+                && m.category == MacroCategory::BindableConstant
         }));
         assert!(macros.iter().any(|m| {
-            m.name == "API_NAME" && !m.function_like && m.kind == MacroKind::String
+            m.name == "API_NAME"
+                && !m.function_like
+                && m.kind == MacroKind::String
+                && m.category == MacroCategory::BindableConstant
         }));
         assert!(macros.iter().any(|m| {
-            m.name == "API_EXPR" && !m.function_like && m.kind == MacroKind::Expression
+            m.name == "API_EXPR"
+                && !m.function_like
+                && m.kind == MacroKind::Expression
+                && m.category == MacroCategory::BindableConstant
         }));
         assert!(macros.iter().any(|m| {
-            m.name == "LOG" && m.function_like && m.kind == MacroKind::Other
+            m.name == "HAVE_ZLIB"
+                && !m.function_like
+                && m.category == MacroCategory::ConfigurationFlag
+        }));
+        assert!(macros.iter().any(|m| {
+            m.name == "API_EXPORT" && m.category == MacroCategory::AbiAffecting
+        }));
+        assert!(macros.iter().any(|m| {
+            m.name == "LOG"
+                && m.function_like
+                && m.kind == MacroKind::Other
+                && m.category == MacroCategory::Unsupported
         }));
     }
 
@@ -854,7 +921,7 @@ int compute(int x);
         let header = dir.join("macros.h");
         std::fs::write(
             &header,
-            "#define API_LEVEL 7\n#define API_NAME \"demo\"\nint noop(void);\n",
+            "#define API_LEVEL 7\n#define API_NAME \"demo\"\n#define HAVE_ZLIB 1\nint noop(void);\n",
         )
         .unwrap();
 
@@ -864,12 +931,22 @@ int compute(int x);
             .package
             .macros
             .iter()
-            .any(|m| m.name == "API_LEVEL" && m.kind == MacroKind::Integer));
+            .any(|m| m.name == "API_LEVEL"
+                && m.kind == MacroKind::Integer
+                && m.category == MacroCategory::BindableConstant));
         assert!(result
             .package
             .macros
             .iter()
-            .any(|m| m.name == "API_NAME" && m.kind == MacroKind::String));
+            .any(|m| m.name == "API_NAME"
+                && m.kind == MacroKind::String
+                && m.category == MacroCategory::BindableConstant));
+        assert!(result
+            .package
+            .macros
+            .iter()
+            .any(|m| m.name == "HAVE_ZLIB"
+                && m.category == MacroCategory::ConfigurationFlag));
 
         cleanup(&dir);
     }

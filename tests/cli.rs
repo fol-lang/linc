@@ -94,12 +94,20 @@ fn cli_scan_emits_inputs_and_link_metadata() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|m| m["name"] == "API_LEVEL" && m["kind"] == "Integer"));
+        .any(|m| {
+            m["name"] == "API_LEVEL"
+                && m["kind"] == "Integer"
+                && m["category"] == "ConfigurationFlag"
+        }));
     assert!(json["macros"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|m| m["name"] == "API_NAME" && m["kind"] == "String"));
+        .any(|m| {
+            m["name"] == "API_NAME"
+                && m["kind"] == "String"
+                && m["category"] == "BindableConstant"
+        }));
     assert!(json["layouts"]
         .as_array()
         .unwrap()
