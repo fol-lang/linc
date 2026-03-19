@@ -8,6 +8,78 @@ It owns three separate concerns:
 - which declarations are treated as part of the bindable surface
 - what native-link metadata should be attached to the resulting package
 
+That description is directionally right, but still too coarse for long-term API stability.
+For production use, it is better to think about `HeaderConfig` as five conceptual subdomains.
+
+## Conceptual Subdomains
+
+`HeaderConfig` currently groups the following configuration domains:
+
+1. preprocessing inputs
+2. binding-surface inputs
+3. native link declarations
+4. ABI probe requests
+5. origin-filtering policy
+
+The implementation is still a single builder type.
+This categorization matters because future API cleanup work is likely to preserve these domains even if the concrete type layout changes.
+
+### 1. Preprocessing Inputs
+
+These options exist to make the header stack preprocess and parse correctly:
+
+- `include_dir(...)`
+- `define(...)`
+- `compiler(...)`
+- `flavor(...)`
+
+These are about creating the right translation-unit environment.
+
+### 2. Binding-Surface Inputs
+
+These options define what surface is being scanned:
+
+- `header(...)`
+
+In practice, entry headers define the intended top-level bind surface, while origin filtering later controls how much transitive material remains in the final package.
+
+### 3. Native Link Declarations
+
+These options preserve native dependency intent alongside the extracted API:
+
+- `framework_dir(...)`
+- `library_dir(...)`
+- `link_lib(...)`
+- `link_static_lib(...)`
+- `link_shared_lib(...)`
+- `link_framework(...)`
+- `link_object_file(...)`
+- `link_static_artifact(...)`
+- `link_shared_artifact(...)`
+- `prefer_static_linking()`
+- `prefer_dynamic_linking()`
+- `target_constraint(...)`
+
+These do not perform linking.
+They describe and normalize the native surface the package expects.
+
+### 4. ABI Probe Requests
+
+These options request compiler-assisted ABI evidence:
+
+- `probe_type_layout(...)`
+
+These affect whether `package.layouts` is populated during the scan.
+
+### 5. Origin-Filtering Policy
+
+These options decide how much of the parsed declaration world survives into the returned package:
+
+- `origin_filter(...)`
+- `no_origin_filter()`
+
+This is a post-extraction policy layer, not a preprocessing input.
+
 ## What `process()` Does
 
 Calling `.process()` performs this sequence:

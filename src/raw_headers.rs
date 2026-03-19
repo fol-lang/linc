@@ -15,20 +15,35 @@ use crate::probe::probe_type_layouts;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeaderConfig {
+    /// Entry-point headers that define the intended bind surface.
     pub entry_headers: Vec<PathBuf>,
+    /// Preprocessor/header search inputs used to make those headers parse correctly.
     pub include_dirs: Vec<PathBuf>,
+    /// Framework search roots for Apple-style native dependency declarations.
     pub framework_dirs: Vec<PathBuf>,
+    /// Native library search roots preserved as part of the package link surface.
     pub library_dirs: Vec<PathBuf>,
+    /// Preprocessor defines that shape the extracted API and ABI surface.
     pub defines: Vec<(String, Option<String>)>,
+    /// Declared native library-name requirements.
     pub link_libraries: Vec<LinkLibrary>,
+    /// Declared framework requirements.
     pub link_frameworks: Vec<LinkFramework>,
+    /// Declared concrete native artifact requirements.
     pub link_artifacts: Vec<LinkArtifact>,
+    /// The original declared link-input order across libraries, frameworks, and artifacts.
     pub ordered_link_inputs: Vec<LinkInput>,
+    /// Policy preference for static vs dynamic resolution.
     pub preferred_link_mode: LinkResolutionMode,
+    /// Package-level target applicability hints.
     pub platform_constraints: Vec<String>,
+    /// Requested ABI probe subjects to attach to the produced package.
     pub probe_types: Vec<String>,
+    /// Compiler or driver used for preprocessing and ABI probing.
     pub compiler: Option<String>,
+    /// C dialect / compiler-flavor assumptions for preprocessing and parsing.
     pub flavor: Option<Flavor>,
+    /// Post-extraction source-origin filtering policy.
     #[serde(skip)]
     pub origin_filter: Option<OriginFilter>,
 }
@@ -64,6 +79,19 @@ pub struct RawHeaderResult {
 }
 
 impl HeaderConfig {
+    /// Create a new scan configuration.
+    ///
+    /// Conceptually, this type currently groups five subdomains:
+    ///
+    /// 1. preprocessing inputs
+    /// 2. binding-surface inputs
+    /// 3. native link declarations
+    /// 4. ABI probe requests
+    /// 5. origin-filtering policy
+    ///
+    /// The implementation is still a single builder type, but downstream users
+    /// should reason about configuration through those subdomains rather than as
+    /// one flat bag of options.
     pub fn new() -> Self {
         Self {
             entry_headers: Vec::new(),
