@@ -370,6 +370,42 @@ fn regression_linux_elf_mixed_fixture_preserves_versions_and_imports() {
 }
 
 #[test]
+fn regression_elf_alias_fixture_preserves_aliases_without_duplicate_provider_confusion() {
+    let inventory: SymbolInventory = serde_json::from_str(include_str!(
+        "../test/contracts/elf_alias_inventory_fixture.json"
+    ))
+    .unwrap();
+    assert_eq!(inventory.symbols.len(), 2);
+    assert_eq!(inventory.symbols[1].alias_of.as_deref(), Some("alias_init"));
+
+    let package = BindingPackage {
+        items: vec![
+            BindingItem::Function(FunctionBinding {
+                name: "alias_init".into(),
+                calling_convention: CallingConvention::C,
+                parameters: Vec::new(),
+                return_type: BindingType::Void,
+                variadic: false,
+                source_offset: None,
+            }),
+            BindingItem::Function(FunctionBinding {
+                name: "alias_bootstrap".into(),
+                calling_convention: CallingConvention::C,
+                parameters: Vec::new(),
+                return_type: BindingType::Void,
+                variadic: false,
+                source_offset: None,
+            }),
+        ],
+        ..BindingPackage::new()
+    };
+    let report = validate(&package, &inventory);
+    assert_eq!(report.matches.len(), 2);
+    assert!(report.matches.iter().all(|entry| entry.status == bic::MatchStatus::Matched));
+    assert_eq!(report.duplicate_providers().len(), 0);
+}
+
+#[test]
 fn regression_macos_artifact_fixture_stays_consumable() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
         "../test/contracts/macos_macho_inventory_fixture.json"
