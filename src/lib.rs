@@ -200,7 +200,10 @@ pub use ir::{
     TypeLayout, UnsupportedItem, VariableBinding, SCHEMA_VERSION,
 };
 pub use line_markers::{FileOriginMap, OriginFilter, SourceOrigin};
-pub use link_plan::{resolve_link_plan, ResolvedLinkPlan};
+pub use link_plan::{
+    resolve_link_plan, resolve_link_plan_with_inventories, ProviderMatchKind, ResolvedLinkPlan,
+    ResolvedLinkRequirement, ResolvedProvider,
+};
 pub use preprocess::PreprocessedInput;
 pub use probe::{probe_type_layouts, AbiProbeReport};
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};

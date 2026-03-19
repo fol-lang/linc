@@ -177,3 +177,16 @@ assert_eq!(plan.inputs.len(), package.link.ordered_inputs.len());
 
 `ResolvedLinkPlan` is intentionally still a normalized metadata artifact.
 It is not yet a full filesystem-resolved linker invocation.
+
+When inventories are available, consumers can also separate declared requirements from candidate
+providers:
+
+```rust
+let plan = bic::resolve_link_plan_with_inventories(&package, &inventories);
+for requirement in &plan.requirements {
+    println!("providers: {}", requirement.providers.len());
+}
+```
+
+That keeps "what the package asked for" distinct from "what the current artifact set appears to
+provide".
