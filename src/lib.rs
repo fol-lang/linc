@@ -1,3 +1,4 @@
+pub mod codegen_rust;
 pub mod diagnostics;
 pub mod extract;
 pub mod ir;
@@ -5,6 +6,7 @@ pub mod preprocess;
 pub mod symbols;
 pub mod validate;
 
+pub use codegen_rust::emit_rust_ffi;
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 pub use extract::{extract_from_source, extract_from_translation_unit};
 pub use ir::{BindingPackage, BindingItem, BindingType};
