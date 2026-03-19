@@ -70,6 +70,24 @@ pub struct ValidationEntry {
     pub evidence: ValidationEvidence,
 }
 
+impl ValidationEvidence {
+    pub fn has_layout_backed_confidence(&self) -> bool {
+        self.abi_shape.is_some()
+            || self.routine_abi.as_ref().is_some_and(|routine| {
+                routine.expected_return_size.is_some()
+                    || routine.observed_return_size.is_some()
+                    || !routine.expected_parameter_sizes.is_empty()
+                    || !routine.observed_parameter_sizes.is_empty()
+            })
+    }
+}
+
+impl ValidationEntry {
+    pub fn has_layout_backed_confidence(&self) -> bool {
+        self.evidence.has_layout_backed_confidence()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ValidationSummary {
     pub total: usize,
@@ -234,6 +252,13 @@ impl ValidationReport {
         self.matches
             .iter()
             .filter(|m| m.status == MatchStatus::WeakMatch)
+            .collect()
+    }
+
+    pub fn layout_backed_entries(&self) -> Vec<&ValidationEntry> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.has_layout_backed_confidence())
             .collect()
     }
 }
@@ -1972,6 +1997,102 @@ mod tests {
                 .entries
                 .iter()
                 .all(|entry| entry.evidence.abi_shape.is_some())
+        );
+    }
+
+    #[test]
+    fn layout_backed_confidence_helpers_find_entries_with_size_evidence() {
+        let inv = SymbolInventory {
+            artifact_path: "test.o".into(),
+            format: ArtifactFormat::ElfObject,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::Object,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
+            dependency_edges: Vec::new(),
+            symbols: vec![
+                SymbolEntry {
+                    name: "widget".into(),
+                    raw_name: None,
+                    version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: false,
+                    binding: SymbolBinding::Global,
+                    size: Some(24),
+                    section: Some(".data".into()),
+                    archive_member: None,
+                    function_abi: None,
+                },
+                SymbolEntry {
+                    name: "ping".into(),
+                    raw_name: None,
+                    version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None,
+                    section: Some(".text".into()),
+                    archive_member: None,
+                    function_abi: Some(FunctionAbiHint {
+                        parameter_count: Some(1),
+                        return_size: Some(4),
+                        parameter_sizes: vec![Some(4)],
+                    }),
+                },
+            ],
+        };
+        let pkg = BindingPackage {
+            source_path: None,
+            items: vec![
+                BindingItem::Record(RecordBinding {
+                    kind: RecordKind::Struct,
+                    name: Some("widget".into()),
+                    fields: None,
+                    representation: Some(RecordRepresentation {
+                        size: Some(24),
+                        align: Some(8),
+                        completeness: Some("Complete".into()),
+                    }),
+                    abi_confidence: Some(AbiConfidence::RepresentationProbed),
+                    source_offset: None,
+                }),
+                BindingItem::Variable(VariableBinding {
+                    name: "widget".into(),
+                    ty: BindingType::RecordRef("widget".into()),
+                    source_offset: None,
+                }),
+                BindingItem::Function(FunctionBinding {
+                    name: "ping".into(),
+                    calling_convention: CallingConvention::C,
+                    parameters: vec![ParameterBinding {
+                        name: Some("value".into()),
+                        ty: BindingType::Int,
+                    }],
+                    return_type: BindingType::Int,
+                    variadic: false,
+                    source_offset: None,
+                }),
+            ],
+            diagnostics: Vec::new(),
+            ..BindingPackage::new()
+        };
+
+        let report = validate(&pkg, &inv);
+        assert_eq!(report.layout_backed_entries().len(), 2);
+        assert!(report.entries.iter().all(|entry| entry.has_layout_backed_confidence()));
+        assert!(
+            report
+                .entries
+                .iter()
+                .all(|entry| entry.evidence.has_layout_backed_confidence())
         );
     }
 

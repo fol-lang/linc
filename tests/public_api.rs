@@ -309,6 +309,7 @@ fn validation_entry_root_types_roundtrip() {
     let json = serde_json::to_string(&entry).unwrap();
     let decoded: ValidationEntry = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, entry);
+    assert!(!decoded.has_layout_backed_confidence());
 }
 
 #[test]
@@ -320,6 +321,32 @@ fn abi_shape_evidence_root_type_roundtrip() {
     let json = serde_json::to_string(&evidence).unwrap();
     let decoded: bic::AbiShapeEvidence = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, evidence);
+}
+
+#[test]
+fn validation_evidence_reports_layout_backed_confidence() {
+    let entry = ValidationEntry {
+        declaration: ValidationDeclaration {
+            name: "errno".into(),
+            item_kind: bic::ItemKind::Variable,
+        },
+        status: bic::MatchStatus::Matched,
+        evidence: ValidationEvidence {
+            provider_artifacts: vec!["libc.so".into()],
+            raw_symbol_names: vec!["errno".into()],
+            visibility: Some(bic::SymbolVisibility::Default),
+            confidence: MatchConfidence::High,
+            evidence_kind: EvidenceKind::AbiShapeVerified,
+            abi_shape: Some(bic::AbiShapeEvidence {
+                expected_size: Some(4),
+                observed_size: Some(4),
+            }),
+            routine_abi: None,
+        },
+    };
+
+    assert!(entry.evidence.has_layout_backed_confidence());
+    assert!(entry.has_layout_backed_confidence());
 }
 
 #[test]

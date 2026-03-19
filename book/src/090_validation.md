@@ -238,6 +238,13 @@ It currently tracks totals for:
 - unresolved declared link inputs
 - hidden providers
 - weak matches
+
+For downstream code that wants to reason about trust rather than only status, use the helper
+surface instead of decoding optional fields by hand:
+
+- `ValidationEvidence::has_layout_backed_confidence()`
+- `ValidationEntry::has_layout_backed_confidence()`
+- `ValidationReport::layout_backed_entries()`
 - duplicate providers
 - decoration mismatches
 - kind mismatches
