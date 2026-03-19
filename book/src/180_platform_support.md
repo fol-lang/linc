@@ -53,6 +53,7 @@ Current strengths:
 - Mach-O symbol parsing exists
 - framework metadata is modeled in the link surface
 - Apple-specific scan metadata can be preserved
+- direct matrix tests cover Mach-O object, static-library, and dylib format/capability expectations
 
 Current caveats:
 

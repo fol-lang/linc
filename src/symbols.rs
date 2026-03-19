@@ -537,6 +537,69 @@ mod tests {
     }
 
     #[test]
+    fn macos_macho_support_matrix_formats_roundtrip() {
+        for fmt in [
+            ArtifactFormat::MachOObject,
+            ArtifactFormat::MachODylib,
+            ArtifactFormat::MachOStaticLibrary,
+        ] {
+            let json = serde_json::to_string(&fmt).unwrap();
+            let parsed: ArtifactFormat = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, fmt);
+        }
+    }
+
+    #[test]
+    fn macos_macho_support_matrix_capabilities_match_expectations() {
+        let cases = [
+            (
+                ArtifactFormat::MachOObject,
+                ArtifactKind::Object,
+                ArtifactCapabilities {
+                    exports_symbols: true,
+                    imports_symbols: false,
+                },
+            ),
+            (
+                ArtifactFormat::MachOStaticLibrary,
+                ArtifactKind::StaticLibrary,
+                ArtifactCapabilities {
+                    exports_symbols: true,
+                    imports_symbols: false,
+                },
+            ),
+            (
+                ArtifactFormat::MachODylib,
+                ArtifactKind::SharedLibrary,
+                ArtifactCapabilities {
+                    exports_symbols: true,
+                    imports_symbols: true,
+                },
+            ),
+        ];
+
+        for (format, kind, capabilities) in cases {
+            let inv = SymbolInventory {
+                artifact_path: format!("{:?}", format),
+                format,
+                platform: ArtifactPlatform::MachO,
+                kind,
+                capabilities,
+                dependency_edges: Vec::new(),
+                symbols: Vec::new(),
+            };
+
+            assert_eq!(inv.platform, ArtifactPlatform::MachO);
+            assert!(inv.capabilities.exports_symbols);
+            assert_eq!(
+                inv.capabilities.imports_symbols,
+                matches!(inv.kind, ArtifactKind::SharedLibrary | ArtifactKind::Executable)
+            );
+            assert!(inv.dependency_edges.is_empty());
+        }
+    }
+
+    #[test]
     fn macho_section_name() {
         let data = minimal_macho_object();
         let inv = inspect_bytes(&data, "test.o".into()).unwrap();
