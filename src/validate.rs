@@ -2384,7 +2384,7 @@ mod tests {
 
         // Parse declarations
         let header = "int add(int a, int b); int mul(int a, int b); int missing_func(void);";
-        let pkg = crate::extract_from_source(header).unwrap();
+        let pkg = crate::extract::extract_from_source(header).unwrap();
 
         // Inspect symbols
         let inv = crate::symbols::inspect_file(&o_path).unwrap();
