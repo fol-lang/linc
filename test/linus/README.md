@@ -111,20 +111,21 @@ Current first-pass findings from [c_interop_torture.h](/home/bresilla/data/code/
 
 - the header preprocesses cleanly through `HeaderConfig`
 - the public declarations remain visible in `PreprocessingReport.preprocessed_source`
-- the declaration surface does not currently extract into `BindingPackage.items`
-- the blocking construct is the packed typedef form:
-  `typedef struct TORTURE_PACKED torture_packet { ... } torture_packet;`
-- the package now records that failure explicitly as one `ParseFailed` diagnostic
-- requested ABI probes still run on this path, so layout evidence is retained even when parsing
-  fails after preprocessing
+- the first parser-hostile typedef shape, the packed typedef form
+  `typedef struct TORTURE_PACKED torture_packet { ... } torture_packet;`, now recovers into normal
+  declaration extraction with retained partial diagnostics
+- requested ABI probes still run on this path, so layout evidence is retained alongside recovered
+  declarations
 - macro capture also survives this path, so the package still retains evidence such as
   `TORTURE_API_LEVEL`
+- the next most realistic parser-hostile shape to target is the aligned typedef form:
+  `typedef struct __attribute__((aligned(...))) name { ... } name;`
 
 What this means today:
 
-- `bic` can still provide useful compiler- and preprocessor-backed evidence from a parser-hostile
-  header
-- downstream consumers should distinguish declaration extraction success from probe and macro
-  evidence
-- the next improvement area is parser coverage for attribute-bearing typedef forms, especially
-  packed record declarations that place attributes between `struct` and the tag name
+- `bic` can now recover at least one important parser-hostile record typedef form instead of
+  collapsing into parse failure
+- downstream consumers should still distinguish fully clean extraction from extraction that required
+  retained partial diagnostics
+- the next improvement area is parser coverage for additional attribute-bearing typedef forms,
+  especially aligned record declarations that place attributes between `struct` and the tag name
