@@ -1,13 +1,13 @@
 # API Contract
 
-This chapter defines the current intended public library surface of `bic`.
+This chapter defines the current intended public library surface of LINC.
 
 It is not yet a semver policy document for every future release.
 It is the current explicit contract for how downstream consumers should approach the crate.
 
 ## First Principle
 
-`bic` is a library crate.
+LINC is a library crate.
 
 The intended downstream pattern is:
 
@@ -31,7 +31,7 @@ This policy should guide both downstream usage and future maintenance work.
 
 ## Normative Rules For Consumers
 
-If you are building on top of `bic`, the current intended rules are:
+If you are building on top of LINC, the current intended rules are:
 
 1. prefer crate-root re-exports over deep module imports
 2. use `HeaderConfig` or `PreprocessedInput` as the normal producer entry points
@@ -112,7 +112,7 @@ Avoid reaching for deep modules first unless:
 
 - you are building advanced integration code
 - you need lower-level control not exposed at the crate root
-- you are contributing to `bic` itself
+- you are contributing to LINC itself
 
 ## Current Sharp Edges
 
@@ -128,7 +128,7 @@ That is why the next plan phase starts with API cleanup and error-model hardenin
 
 ## Immediate Consumer Guidance
 
-If you are integrating `bic` into another crate, treat the following as your safest surface:
+If you are integrating LINC into another crate, treat the following as your safest surface:
 
 1. root-level types and functions
 2. serialized `BindingPackage` / `SymbolInventory` / `ValidationReport` values

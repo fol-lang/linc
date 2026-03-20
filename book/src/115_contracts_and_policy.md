@@ -11,5 +11,5 @@ Read this section when you need to answer questions such as:
 
 These chapters are the narrowest statement of what downstream consumers should rely on.
 
-If you are integrating `bic` into another tool, this section matters more than the implementation
+If you are integrating LINC into another tool, this section matters more than the implementation
 details of lower-level modules.

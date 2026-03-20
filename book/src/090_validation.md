@@ -78,7 +78,7 @@ Each status tells you something different.
 
 The declaration name resolved to a visible symbol of the expected kind.
 
-For variable declarations, `Matched` may now carry positive ABI-shape evidence when `bic`
+For variable declarations, `Matched` may now carry positive ABI-shape evidence when LINC
 can compare an observed symbol size against an inferred expected size.
 
 For function declarations, `Matched` may now also carry positive routine ABI evidence when
@@ -97,7 +97,7 @@ artifact-side size metadata disagreed with the expected declaration-side size.
 This is intentionally limited today:
 
 - it only applies where artifact metadata exposes a usable size
-- it only applies where `bic` can infer an expected size conservatively
+- it only applies where LINC can infer an expected size conservatively
 - routine checks are still conservative: they currently cover parameter count, primitive
   return-size shape, and by-value parameter-size shape, not full calling-convention or
   register-level proof

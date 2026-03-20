@@ -62,6 +62,6 @@ The safe rule for `fol` is:
 ## Failure Posture
 
 If extended evidence is required by policy and missing, `fol` should treat that as a consumer-side
-policy failure, not as proof that `bic` is broken.
+policy failure, not as proof that LINC is broken.
 
 That distinction keeps the producer/consumer contract honest.

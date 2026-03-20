@@ -1,6 +1,6 @@
 # Platform Support
 
-This chapter records the current practical platform-support posture of `bic`.
+This chapter records the current practical platform-support posture of LINC.
 
 The important point is that "parses some C" and "production-ready across native platforms" are
 not the same claim.
@@ -101,5 +101,5 @@ For now:
 - treat Apple support as useful but still maturing
 - treat Windows-native linker/artifact support as incomplete
 
-If another tool depends on `bic` in a multi-platform release flow, that tool should encode these
+If another tool depends on LINC in a multi-platform release flow, that tool should encode these
 platform expectations explicitly rather than assuming uniform maturity.

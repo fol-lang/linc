@@ -1,6 +1,6 @@
 # Cross-Repo Versioning
 
-This chapter defines the coordination policy between `bic` and downstream consumers such as `fol`.
+This chapter defines the coordination policy between LINC and downstream consumers such as `fol`.
 
 The goal is to avoid accidental wire-contract drift across repositories.
 
@@ -15,7 +15,7 @@ The intended keys are:
 
 ## Coordination Rules
 
-When `bic` changes a relied-on contract:
+When LINC changes a relied-on contract:
 
 1. document the change
 2. update fixtures/snapshots
@@ -40,7 +40,7 @@ For breaking changes:
 
 ## Consumer Rule
 
-`fol` should treat new `bic` producer versions as:
+`fol` should treat new LINC producer versions as:
 
 - compatible if the relied-on `schema_version` contract is still supported
 - potentially behaviorally different if new optional fields appear
@@ -50,7 +50,7 @@ For breaking changes:
 
 The safest cross-repo workflow is:
 
-1. land `bic` contract/documentation updates first
+1. land LINC contract/documentation updates first
 2. update or add contract fixtures
 3. update `fol` to consume the new contract deliberately
 4. keep acceptance tests pinned to explicit fixture payloads where possible

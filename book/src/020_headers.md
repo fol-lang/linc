@@ -221,7 +221,7 @@ let result = HeaderConfig::new()
     .process()?;
 ```
 
-Internally, `bic` synthesizes a temporary source file containing `#include` lines for each entry header.
+Internally, LINC synthesizes a temporary source file containing `#include` lines for each entry header.
 
 That means:
 
@@ -252,7 +252,7 @@ Notes:
 
 ## Compiler And Flavor
 
-`bic` uses the compiler as a preprocessor and ABI probe driver.
+LINC uses the compiler as a preprocessor and ABI probe driver.
 
 ```rust
 use bic::raw_headers::Flavor;
@@ -276,7 +276,7 @@ In general:
 - use `GnuC11` when the project assumes GCC-style C extensions
 - use `StdC11` only when you want a stricter source profile
 
-If `compiler(...)` is not set explicitly, `bic` currently infers the driver from the effective
+If `compiler(...)` is not set explicitly, LINC currently infers the driver from the effective
 flavor:
 
 - `ClangC11` -> `clang`
@@ -353,7 +353,7 @@ No implicit deduplication is performed today.
 
 ## Diagnostics And Partial Success
 
-`bic` is intentionally diagnostic-heavy.
+LINC is intentionally diagnostic-heavy.
 A scan can succeed structurally while still recording unsupported constructs.
 
 Always inspect:

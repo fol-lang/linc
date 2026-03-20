@@ -1,6 +1,6 @@
 # Macros And Layouts
 
-Two of the most important "not just declarations" surfaces in `bic` are:
+Two of the most important "not just declarations" surfaces in LINC are:
 
 - macro inventory
 - macro provenance
@@ -124,7 +124,7 @@ For bitfields, the current probe surface is intentionally partial:
 - `bit_width` may be present
 - `offset_bytes` may remain absent
 
-That is deliberate. `bic` preserves width evidence where it can, but does not guess a byte offset
+That is deliberate. LINC preserves width evidence where it can, but does not guess a byte offset
 for bitfields when the probe path cannot establish one safely.
 
 The older `layouts` array is still preserved as a flattened compatibility surface.

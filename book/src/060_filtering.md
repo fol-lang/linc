@@ -1,6 +1,6 @@
 # Origin Filtering
 
-By default, `bic` does not blindly keep every declaration found after preprocessing.
+By default, LINC does not blindly keep every declaration found after preprocessing.
 It uses source-origin information to keep the extracted surface focused on the headers you asked for.
 
 This behavior is one of the reasons scans stay usable on real systems with deep transitive header trees.
@@ -24,7 +24,7 @@ The C preprocessor emits line markers such as:
 # 42 "/usr/include/stdio.h" 3
 ```
 
-`bic` parses those markers into a `FileOriginMap`.
+LINC parses those markers into a `FileOriginMap`.
 That map is then used to classify declaration offsets.
 
 Current origin classes are:
@@ -100,7 +100,7 @@ Most "missing item" surprises come from one of those four causes.
 
 ## Why Filtering Happens After Extraction
 
-`bic` first extracts from the parsed translation unit and then filters by origin.
+LINC first extracts from the parsed translation unit and then filters by origin.
 
 That design has two benefits:
 

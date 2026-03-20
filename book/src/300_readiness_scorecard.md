@@ -7,7 +7,7 @@ It is a concise statement of current confidence based on the present code, fixtu
 
 ## Overall Readiness
 
-For the current non-Windows scope, `bic` should be read as:
+For the current non-Windows scope, LINC should be read as:
 
 - strong for library-first extraction and evidence production
 - strong for ELF-oriented validation and link planning
