@@ -12,6 +12,19 @@ Today the strongest tested scope is:
 - Linux and other ELF-oriented flows
 - macOS / Mach-O inventory and validation evidence
 - library-driven integration through `BindingPackage`, `ValidationReport`, and `ResolvedLinkPlan`
+- stress-tested code-driven examples covering:
+  - Linux system headers such as SocketCAN and epoll
+  - real-library surfaces such as `zlib`, `libpcap`, `libcurl`, and `OpenSSL`
+  - runtime-loaded plugin ABI boundaries
+  - one combined daemon-style mixed surface
+
+The current stress cycle also tightened three previously open limits:
+
+- packed typedef records in preprocessed headers now recover into declaration extraction
+- failed opaque/incomplete layout probes now degrade into retained diagnostics instead of aborting
+  the scan
+- declared library requirements can now match versioned shared-library filenames such as
+  `libssl.so.3`
 
 Consumers should treat `bic` as an evidence-producing library:
 

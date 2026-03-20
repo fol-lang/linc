@@ -13,9 +13,9 @@ It is deliberately short and operational:
 
 | Id | Area | Example | Finding | Status |
 |---|---|---|---|---|
-| `SF-001` | extraction | `c_interop_torture.h` | attribute-bearing packed typedef forms can block declaration extraction even when preprocessing and layout probes succeed | open |
-| `SF-002` | ABI confidence | opaque/incomplete probe subjects | a requested layout probe can currently fail the whole scan instead of degrading into retained diagnostics | open |
-| `SF-003` | link planning | real shared library inventories | versioned shared-library filenames are not always matched as providers for a declared library name | open |
+| `SF-001` | extraction | `c_interop_torture.h` | attribute-bearing packed typedef forms can block declaration extraction even when preprocessing and layout probes succeed | fixed with regression |
+| `SF-002` | ABI confidence | opaque/incomplete probe subjects | a requested layout probe can currently fail the whole scan instead of degrading into retained diagnostics | fixed with regression |
+| `SF-003` | link planning | real shared library inventories | versioned shared-library filenames are not always matched as providers for a declared library name | fixed with regression |
 | `SF-004` | mixed-surface realism | combined daemon target | the mixed fixture is analyzable, but runtime subsystem availability still depends on downstream artifact inspection and deployment policy | observed |
 
 ## Example-by-Example Notes

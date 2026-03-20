@@ -13,6 +13,11 @@ For the current non-Windows scope, `bic` should be read as:
 - strong for ELF-oriented validation and link planning
 - good for Mach-O inventory and conservative provider analysis
 - intentionally conservative, not exhaustive, for final native-linker semantics
+- backed by a stress-example ladder that now includes:
+  - Linux system-header examples
+  - real-library examples
+  - plugin/runtime-loader examples
+  - a combined daemon-style mixed surface
 
 ## Subsystem Scorecard
 
@@ -23,6 +28,7 @@ For the current non-Windows scope, `bic` should be read as:
   - broad unit coverage
   - fixture-driven regression coverage
   - stable root-level entry points
+  - stress-cycle recovery coverage for packed typedef record declarations
 
 ### JSON Contract
 
@@ -39,6 +45,8 @@ For the current non-Windows scope, `bic` should be read as:
   - probed layouts are integrated into scans and validation
   - typedef-backed and representation-backed checks exist
   - partial bitfield and record evidence is preserved
+  - failed opaque/incomplete probe requests now degrade into diagnostics instead of discarding the
+    rest of the scan
 - remaining limit:
   - this is still evidence-driven ABI checking, not a full universal ABI proof engine
 
@@ -70,6 +78,7 @@ For the current non-Windows scope, `bic` should be read as:
   - explicit requirements, providers, and transitive dependencies
   - target filtering
   - provider provenance
+  - versioned shared-library filenames now match declared library requirements
 - remaining limit:
   - `ResolvedLinkPlan` is a normalized planning artifact, not a final filesystem-resolved linker
     invocation
