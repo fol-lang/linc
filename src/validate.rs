@@ -2428,4 +2428,118 @@ mod tests {
         assert_eq!(report.summary.matched, 2);
         assert_eq!(report.summary.missing, 1);
     }
+
+    #[test]
+    fn validation_entry_provider_state_helpers() {
+        let matched_entry = ValidationEntry {
+            declaration: ValidationDeclaration { name: "foo".into(), item_kind: ItemKind::Function },
+            status: MatchStatus::Matched,
+            evidence: ValidationEvidence {
+                provider_artifacts: vec!["lib.so".into()],
+                raw_symbol_names: vec!["foo".into()],
+                visibility: Some(SymbolVisibility::Default),
+                confidence: MatchConfidence::High,
+                evidence_kind: EvidenceKind::ExactExported,
+                abi_shape: None,
+                routine_abi: None,
+            },
+        };
+        assert!(matched_entry.has_resolved_provider_state());
+        assert!(!matched_entry.has_unresolved_provider_state());
+        assert!(!matched_entry.has_ambiguous_provider_state());
+        assert!(!matched_entry.has_layout_backed_confidence());
+
+        let missing_entry = ValidationEntry {
+            declaration: ValidationDeclaration { name: "bar".into(), item_kind: ItemKind::Function },
+            status: MatchStatus::Missing,
+            evidence: ValidationEvidence {
+                provider_artifacts: vec![],
+                raw_symbol_names: vec![],
+                visibility: None,
+                confidence: MatchConfidence::None,
+                evidence_kind: EvidenceKind::MissingProvider,
+                abi_shape: None,
+                routine_abi: None,
+            },
+        };
+        assert!(!missing_entry.has_resolved_provider_state());
+        assert!(missing_entry.has_unresolved_provider_state());
+
+        let dup_entry = ValidationEntry {
+            declaration: ValidationDeclaration { name: "baz".into(), item_kind: ItemKind::Function },
+            status: MatchStatus::DuplicateProviders,
+            evidence: ValidationEvidence {
+                provider_artifacts: vec!["a.so".into(), "b.so".into()],
+                raw_symbol_names: vec!["baz".into()],
+                visibility: Some(SymbolVisibility::Default),
+                confidence: MatchConfidence::Low,
+                evidence_kind: EvidenceKind::DuplicateVisibleProviders,
+                abi_shape: None,
+                routine_abi: None,
+            },
+        };
+        assert!(dup_entry.has_ambiguous_provider_state());
+        assert!(!dup_entry.has_resolved_provider_state());
+    }
+
+    #[test]
+    fn validation_evidence_layout_backed_detection() {
+        let with_abi_shape = ValidationEvidence {
+            provider_artifacts: vec!["lib.so".into()],
+            raw_symbol_names: vec!["x".into()],
+            visibility: Some(SymbolVisibility::Default),
+            confidence: MatchConfidence::High,
+            evidence_kind: EvidenceKind::AbiShapeVerified,
+            abi_shape: Some(AbiShapeEvidence { expected_size: Some(4), observed_size: Some(4) }),
+            routine_abi: None,
+        };
+        assert!(with_abi_shape.has_layout_backed_confidence());
+
+        let with_routine_sizes = ValidationEvidence {
+            provider_artifacts: vec!["lib.so".into()],
+            raw_symbol_names: vec!["f".into()],
+            visibility: Some(SymbolVisibility::Default),
+            confidence: MatchConfidence::High,
+            evidence_kind: EvidenceKind::ExactExported,
+            abi_shape: None,
+            routine_abi: Some(RoutineAbiEvidence {
+                evidence_kind: Some(RoutineAbiEvidenceKind::FullyShaped),
+                confidence: Some(RoutineAbiConfidence::Strong),
+                expected_parameter_count: Some(2),
+                observed_parameter_count: Some(2),
+                expected_return_size: Some(4),
+                observed_return_size: Some(4),
+                expected_parameter_sizes: vec![Some(4), Some(8)],
+                observed_parameter_sizes: vec![Some(4), Some(8)],
+            }),
+        };
+        assert!(with_routine_sizes.has_layout_backed_confidence());
+
+        let no_layout = ValidationEvidence {
+            provider_artifacts: vec!["lib.so".into()],
+            raw_symbol_names: vec!["g".into()],
+            visibility: Some(SymbolVisibility::Default),
+            confidence: MatchConfidence::High,
+            evidence_kind: EvidenceKind::ExactExported,
+            abi_shape: None,
+            routine_abi: None,
+        };
+        assert!(!no_layout.has_layout_backed_confidence());
+    }
+
+    #[test]
+    fn validation_report_helper_accessors() {
+        let pkg = make_package_with_vars(&["alpha", "beta"], &["data"]);
+        let inv = make_inventory_with_vis(&[
+            ("alpha", true, SymbolVisibility::Default),
+            ("beta", true, SymbolVisibility::Hidden),
+            ("data", false, SymbolVisibility::Default),
+        ]);
+        let report = validate(&pkg, &inv);
+
+        assert_eq!(report.matched().len(), 2); // alpha + data
+        assert_eq!(report.hidden().len(), 1); // beta hidden
+        assert_eq!(report.hidden()[0].name, "beta");
+        assert_eq!(report.resolved_provider_entries().len(), 2); // alpha + data
+    }
 }
