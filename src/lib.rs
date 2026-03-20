@@ -213,6 +213,11 @@ pub use probe::{
     probe_type_layouts, AbiProbeReport, ProbeConfidence, ProbeSubjectKind, ProbeSubjectReport,
     ProbedFieldLayout, RecordCompleteness,
 };
+pub use intake::{
+    SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
+    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord,
+    SourceType, SourceTypeAlias, SourceVariable,
+};
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};
 #[cfg(feature = "symbols")]
 pub use symbols::{
@@ -226,6 +231,14 @@ pub use validate::{
     SymbolMatch, ValidationDeclaration, ValidationEntry, ValidationEvidence, ValidationPhase,
     ValidationPhaseReport, ValidationReport, ValidationSummary,
 };
+
+/// Construct a [`BindingPackage`] from a frontend-neutral [`SourcePackage`].
+///
+/// This is the preferred intake path for LINC. Frontends should produce a
+/// [`SourcePackage`] and pass it here instead of using parser-specific APIs.
+pub fn from_source_package(source: &SourcePackage) -> BindingPackage {
+    intake::adapters::to_binding_package(source)
+}
 
 /// Serialize a BindingPackage to a deterministic JSON string.
 ///
