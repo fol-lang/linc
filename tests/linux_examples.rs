@@ -48,7 +48,7 @@ fn epoll_example_is_code_driven_and_consumable() {
     let config = epoll::epoll_header_config().unwrap();
     let result = epoll::analyze_epoll().unwrap();
 
-    assert!(environment.header.ends_with("sys/epoll.h"));
+    assert!(environment.header.ends_with("sys/epoll.h") || environment.header.ends_with("epoll_fixture.h"));
     assert!(config
         .linking()
         .link_libraries
@@ -59,6 +59,9 @@ fn epoll_example_is_code_driven_and_consumable() {
         .probe_types
         .iter()
         .any(|probe_type| probe_type == "struct epoll_event"));
+    if environment.is_fixture {
+        assert!(result.report.preprocessed_source.contains("BIC_EPOLL_FIXTURE_H"));
+    }
     assert!(result
         .package
         .layouts

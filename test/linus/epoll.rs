@@ -13,16 +13,25 @@ const EPOLL_PROBE_TYPES: &[&str] = &["struct epoll_event"];
 pub struct EpollEnvironment {
     pub header: PathBuf,
     pub include_dirs: Vec<PathBuf>,
+    pub is_fixture: bool,
 }
 
 pub fn epoll_environment() -> Result<EpollEnvironment, BicError> {
-    let header = EPOLL_HEADER_CANDIDATES
+    let system_header = EPOLL_HEADER_CANDIDATES
         .iter()
         .find(|path| Path::new(path).exists())
-        .map(PathBuf::from)
-        .ok_or_else(|| BicError::InvalidConfig {
-            reason: "epoll example requires a sys/epoll.h header".into(),
-        })?;
+        .map(PathBuf::from);
+    let fixture_header =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/linus/epoll_fixture.h");
+    let (header, is_fixture) = if let Some(header) = system_header {
+        (header, false)
+    } else if fixture_header.exists() {
+        (fixture_header, true)
+    } else {
+        return Err(BicError::InvalidConfig {
+            reason: "epoll example requires a sys/epoll.h header or repo fixture".into(),
+        });
+    };
 
     let include_dirs = INCLUDE_DIR_CANDIDATES
         .iter()
@@ -30,7 +39,11 @@ pub fn epoll_environment() -> Result<EpollEnvironment, BicError> {
         .map(PathBuf::from)
         .collect();
 
-    Ok(EpollEnvironment { header, include_dirs })
+    Ok(EpollEnvironment {
+        header,
+        include_dirs,
+        is_fixture,
+    })
 }
 
 pub fn epoll_header_config() -> Result<HeaderConfig, BicError> {
