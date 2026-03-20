@@ -170,6 +170,7 @@
 pub mod diagnostics;
 pub mod error;
 pub mod extract;
+pub mod intake;
 pub mod ir;
 pub mod line_markers;
 pub mod link_plan;
