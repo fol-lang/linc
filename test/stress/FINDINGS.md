@@ -40,8 +40,11 @@ It is deliberately short and operational:
   - code-driven configuration
   - layout probes for concrete system records
   - explicit Linux/libc metadata
-- current weak point:
-  - environment dependence on host header layout and availability
+- reproducibility classification:
+  - `epoll` now has a repo-owned fixture fallback for its default analysis path
+  - `linux_event_loop` remains host-header dependent
+  - `socketcan` analysis remains host-header dependent
+  - `socketcan` runtime smoke remains host-runtime dependent and opt-in
 
 ### Real-Library Ladder
 

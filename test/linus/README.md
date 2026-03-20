@@ -83,10 +83,12 @@ Current Linux system-example findings from `socketcan.rs`, `epoll.rs`, and
   `CAN_EFF_FLAG`
 - attaching explicit Linux target constraints and an explicit `c` link requirement keeps the
   resulting package honest about what is platform-specific and what runtime is expected
+- `epoll.rs` now has a repo-owned fixture fallback, so its default analysis path is no longer
+  purely host-header dependent
 
 Current limitations exposed by these examples:
 
-- the examples still rely on host-installed Linux headers instead of a hermetic fixture toolchain
+- `linux_event_loop.rs` and `socketcan.rs` still rely on host-installed Linux headers
 - the strongest runtime proof currently exists only for SocketCAN, where the repo explicitly tests
   the `socket(AF_CAN, SOCK_RAW, CAN_RAW)` boundary
 - event-loop examples currently prove header and layout consumption, not end-to-end runtime event
