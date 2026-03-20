@@ -21,7 +21,7 @@ It is deliberately short and operational:
 | `SF-002` | ABI confidence | opaque/incomplete probe subjects | a requested layout probe can currently fail the whole scan instead of degrading into retained diagnostics | fixed with regression |
 | `SF-003` | link planning | real shared library inventories | versioned shared-library filenames are not always matched as providers for a declared library name | fixed with regression |
 | `SF-006` | link planning | macOS-style provider inventories | text stub provider paths such as `libSystem.tbd` are realistic planning artifacts and should resolve like ordinary declared library providers | fixed with regression |
-| `SF-004` | mixed-surface realism | combined daemon target | the mixed fixture is analyzable, but runtime subsystem availability still depends on downstream artifact inspection and deployment policy | observed |
+| `SF-004` | mixed-surface realism | combined daemon target | the mixed fixture now has a concrete daemon-core validation path, but runtime subsystem availability still depends on downstream artifact inspection and deployment policy | observed |
 
 ## Example-by-Example Notes
 

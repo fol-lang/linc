@@ -66,6 +66,14 @@ Current findings from the code-driven combined target in
   - `bic_daemon_enable_tls`
 - layout probing is useful for the concrete packet/config records, which means the mixed target still
   preserves ABI evidence for the parts that are passed by value or by pointer to concrete records
+- the daemon core object now has a concrete validation path through the checked-in inventory
+  fixture, so the mixed target proves more than header parsing alone for:
+  - `bic_daemon_create`
+  - `bic_daemon_destroy`
+  - `bic_daemon_submit_packet`
+  - `bic_daemon_enable_socketcan`
+  - `bic_daemon_enable_pcap`
+  - `bic_daemon_enable_tls`
 - opaque handles remain intentionally opaque:
   - `bic_daemon`
   - `bic_tls_client`
@@ -82,9 +90,10 @@ The current combined target proves three different things at once:
   - `bic` can still extract a useful mixed API surface even when one header mixes event-loop,
     packet, TLS, and plugin concepts
 - validation:
-  - validation is still a separate step that needs real native artifacts
-  - the fixture by itself is an API contract, not proof that a deployment artifact exports every
-    subsystem entry point
+  - validation is still a separate step that needs real native artifacts or checked-in artifact
+    fixtures
+  - the current daemon-core inventory fixture proves the core exported entry points
+  - it still does not prove that a deployment artifact exports every optional subsystem dependency
 - link-model:
   - the combined target currently models the explicit host/runtime-loader dependency (`dl`)
   - subsystem activation paths such as SocketCAN, packet capture, or TLS remain consumer policy
