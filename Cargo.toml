@@ -3,10 +3,10 @@ name = "bic"
 version = "0.1.0"
 edition = "2021"
 authors = ["Trim Bresilla"]
-description = "C binding and ABI extraction layer on top of pac"
+description = "Link-surface, symbol-inventory, validation, and ABI-evidence layer for C interop"
 license = "MIT/Apache-2.0"
-keywords = ["c", "ffi", "bindings", "parser"]
-categories = ["development-tools::ffi", "parser-implementations"]
+keywords = ["c", "ffi", "linker", "symbols", "abi"]
+categories = ["development-tools::ffi"]
 
 [features]
 default = ["symbols"]
