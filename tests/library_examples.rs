@@ -1,3 +1,5 @@
+#[path = "../test/stress/libcurl.rs"]
+mod libcurl;
 #[path = "../test/stress/libpcap.rs"]
 mod libpcap;
 #[path = "../test/stress/zlib.rs"]
@@ -42,4 +44,34 @@ fn libpcap_example_is_code_driven_and_consumable() {
     assert!(result.package.find_function("pcap_loop").is_some());
     assert!(result.package.find_record("pcap_pkthdr").is_some());
     assert!(result.package.find_type_alias("pcap_handler").is_some());
+}
+
+#[test]
+fn libcurl_example_is_code_driven_and_consumable() {
+    let Ok(environment) = libcurl::libcurl_environment() else {
+        return;
+    };
+
+    let config = libcurl::libcurl_header_config().unwrap();
+    let result = libcurl::analyze_libcurl().unwrap();
+
+    assert!(environment.header.ends_with("curl.h"));
+    assert!(config
+        .linking()
+        .link_libraries
+        .iter()
+        .any(|library| library.name == "curl"));
+    assert!(result.package.find_function("curl_easy_init").is_some());
+    assert!(result.package.find_function("curl_easy_setopt").is_some());
+    assert!(result.package.find_enum("curl_khtype").is_some());
+    assert!(result
+        .package
+        .macros
+        .iter()
+        .any(|macro_binding| macro_binding.name == "CURL_VERSION_BITS"));
+    assert!(result
+        .package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct curl_blob" && layout.size > 0));
 }
