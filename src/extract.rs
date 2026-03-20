@@ -1077,6 +1077,8 @@ fn eval_const_expr(expr: &Expression) -> Option<i128> {
 }
 
 /// Parse a C source string and extract bindings.
+/// Used internally by tests and transitional header-scanning paths.
+#[allow(dead_code)]
 pub fn extract_from_source(source: &str) -> Result<BindingPackage, String> {
     let unit = pac::parse::translation_unit(source, pac::driver::Flavor::GnuC11)
         .map_err(|e| format!("parse error at line {}:{}: {:?}", e.line, e.column, e.expected))?;
@@ -1093,6 +1095,7 @@ pub fn extract_from_source(source: &str) -> Result<BindingPackage, String> {
 }
 
 /// Extract bindings from an already-parsed translation unit.
+#[allow(dead_code)]
 pub fn extract_from_translation_unit(
     unit: &TranslationUnit,
     source_path: Option<String>,

@@ -58,9 +58,8 @@
 //! The long-term goal is a fully typed public error surface built around [`BicError`].
 //! That work is not complete yet.
 //!
-//! Today, the remaining public APIs that still return `Result<_, String>` are:
+//! Today, the remaining internal APIs that still return `Result<_, String>` are:
 //!
-//! - [`extract_from_source`]
 //! - [`HeaderConfig::process`]
 //!
 //! Those APIs are still usable, but downstream users should treat their exact error
@@ -136,7 +135,8 @@ pub mod validate;
 
 pub use error::{BicError, LincError};
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
-pub use extract::{extract_from_source, extract_from_translation_unit};
+// extract_from_source and extract_from_translation_unit are pub(crate) in extract.rs,
+// used internally by raw_headers and tests — not re-exported from the crate root.
 pub use ir::{
     BindingDefine, BindingInputs, BindingItem, BindingItemKind, BindingLinkSurface, BindingPackage,
     AbiConfidence, AliasResolution, BindingTarget, BindingType, CallingConvention, DeclarationProvenance, EnumBinding,
@@ -154,7 +154,7 @@ pub use link_plan::{
     ProviderMatchKind, ProviderProvenance, RequirementResolution, ResolvedLinkPlan,
     ResolvedLinkRequirement, ResolvedProvider,
 };
-pub use preprocess::PreprocessedInput;
+// PreprocessedInput is pub(crate) in preprocess.rs — not re-exported from the crate root.
 pub use probe::{
     probe_type_layouts, AbiProbeReport, ProbeConfidence, ProbeSubjectKind, ProbeSubjectReport,
     ProbedFieldLayout, RecordCompleteness,
@@ -222,6 +222,8 @@ pub fn from_json(json: &str) -> Result<BindingPackage, BicError> {
 #[cfg(feature = "symbols")]
 mod integration_tests {
     use super::*;
+    use crate::extract::extract_from_source;
+    use crate::preprocess::PreprocessedInput;
 
     #[test]
     fn full_pipeline_preprocessed() {

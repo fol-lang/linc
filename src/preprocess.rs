@@ -4,6 +4,8 @@ use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::extract::Extractor;
 use crate::ir::BindingPackage;
 
+/// Transitional preprocessing wrapper — used internally by tests.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PreprocessedInput {
     pub source: String,
@@ -11,6 +13,7 @@ pub struct PreprocessedInput {
     pub flavor: pac::driver::Flavor,
 }
 
+#[allow(dead_code)]
 impl PreprocessedInput {
     pub fn from_string(source: impl Into<String>) -> Self {
         Self {

@@ -1,6 +1,7 @@
 use bic::{
-    extract_from_source, resolve_link_plan_for_target, validate, BindingPackage, LinkInput,
-    LinkLibrary, LinkLibraryKind, LinkRequirementSource, MatchStatus, SymbolInventory,
+    from_source_package, resolve_link_plan_for_target, validate, BindingPackage, LinkInput,
+    LinkLibrary, LinkLibraryKind, LinkRequirementSource, MatchStatus, SourceDeclaration,
+    SourceFunction, SourcePackage, SourceType, SymbolInventory,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -169,7 +170,16 @@ fn fol_acceptance_layout_backed_binding_flow_stays_consumable() {
 
 #[test]
 fn fol_acceptance_native_binding_and_link_flow_stays_consumable() {
-    let mut package: BindingPackage = extract_from_source("int demo_init(void);").unwrap();
+    let mut package: BindingPackage = from_source_package(&SourcePackage {
+        declarations: vec![SourceDeclaration::Function(SourceFunction {
+            name: "demo_init".into(),
+            parameters: vec![],
+            return_type: SourceType::Int,
+            variadic: false,
+            source_offset: None,
+        })],
+        ..SourcePackage::default()
+    });
     package.link.platform_constraints.push("linux".into());
     package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
         name: "demo".into(),
@@ -247,7 +257,16 @@ fn fol_acceptance_validation_findings_gate_generation() {
 
 #[test]
 fn fol_acceptance_resolved_link_plan_stays_consumable() {
-    let mut package: BindingPackage = extract_from_source("int demo_init(void);").unwrap();
+    let mut package: BindingPackage = from_source_package(&SourcePackage {
+        declarations: vec![SourceDeclaration::Function(SourceFunction {
+            name: "demo_init".into(),
+            parameters: vec![],
+            return_type: SourceType::Int,
+            variadic: false,
+            source_offset: None,
+        })],
+        ..SourcePackage::default()
+    });
     package.link.platform_constraints.push("linux".into());
     package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
         name: "demo".into(),
