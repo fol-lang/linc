@@ -432,6 +432,14 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
     Ok(entries)
 }
 
+// ─── Source-only helpers ────────────────────────────────────────────────
+// The functions below depend on `pac` AST parsing and `Extractor` to discover
+// record field metadata before building the probe C source.  They are source-
+// facing and would move upstream to PARC if probe field-spec extraction were
+// generalized as a frontend concern.  The measurement/evidence entry point
+// (`probe_type_layouts`) and output parsing (`parse_layout_output`) above are
+// the real LINC-owned ABI evidence logic.
+
 fn collect_record_field_specs(
     config: &HeaderConfig,
 ) -> std::collections::BTreeMap<String, Vec<ProbedFieldSpec>> {
@@ -844,5 +852,44 @@ mod tests {
         assert_eq!(restored.subjects[0].fields.len(), 2);
         assert_eq!(restored.subjects[1].enum_underlying_size, Some(4));
         assert_eq!(restored.compiler_command, "cc");
+    }
+
+    #[test]
+    fn parse_layout_output_with_fields_and_bitfields() {
+        let output = "L\tstruct widget\t16\t8\t-\t-\nF\tstruct widget\tx\t0\t-\nF\tstruct widget\ty\t4\t-\nL\tstruct flags\t4\t4\t-\t-\nF\tstruct flags\ta\t-\t3\nF\tstruct flags\tb\t-\t5\n";
+        let parsed = parse_layout_output(output).unwrap();
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed[0].layout.name, "struct widget");
+        assert_eq!(parsed[0].fields.len(), 2);
+        assert_eq!(parsed[0].fields[0].name, "x");
+        assert_eq!(parsed[0].fields[0].offset_bytes, Some(0));
+        assert_eq!(parsed[0].fields[0].bit_width, None);
+        assert_eq!(parsed[0].fields[1].name, "y");
+        assert_eq!(parsed[0].fields[1].offset_bytes, Some(4));
+
+        assert_eq!(parsed[1].layout.name, "struct flags");
+        assert_eq!(parsed[1].fields.len(), 2);
+        assert_eq!(parsed[1].fields[0].name, "a");
+        assert_eq!(parsed[1].fields[0].offset_bytes, None);
+        assert_eq!(parsed[1].fields[0].bit_width, Some(3));
+        assert_eq!(parsed[1].fields[1].bit_width, Some(5));
+    }
+
+    #[test]
+    fn parse_layout_output_with_enum_evidence() {
+        let output = "L\tenum mode\t4\t4\t4\t1\n";
+        let parsed = parse_layout_output(output).unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].layout.name, "enum mode");
+        assert_eq!(parsed[0].enum_underlying_size, Some(4));
+        assert_eq!(parsed[0].enum_is_signed, Some(true));
+    }
+
+    #[test]
+    fn classify_probe_subject_categories() {
+        assert_eq!(classify_probe_subject("struct foo"), ProbeSubjectKind::Record);
+        assert_eq!(classify_probe_subject("union bar"), ProbeSubjectKind::Record);
+        assert_eq!(classify_probe_subject("enum baz"), ProbeSubjectKind::Enum);
+        assert_eq!(classify_probe_subject("size_t"), ProbeSubjectKind::Type);
     }
 }
