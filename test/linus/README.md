@@ -19,6 +19,25 @@ Current examples:
 - `linux_event_loop.rs`: combine `epoll`, `timerfd`, and `signalfd` headers into one code-driven
   event-loop-style system example
 
+## Prerequisites By Example
+
+These examples are intentionally code-driven, but some still depend on host Linux headers or
+runtime availability.
+
+| Example | Default path | Host prerequisites | Extra opt-in requirement |
+|---|---|---|---|
+| `epoll.rs` | analysis only | Linux target, libc headers, and either a host `sys/epoll.h` or the repo fixture fallback when present | none |
+| `linux_event_loop.rs` | analysis only | Linux target plus host `sys/epoll.h`, `sys/timerfd.h`, and `sys/signalfd.h` headers | none |
+| `socketcan.rs` analysis | analysis only | Linux target plus host `linux/can.h` and `linux/can/raw.h` headers | none |
+| `socketcan.rs` runtime smoke | ignored by default | same as analysis path | set `BIC_RUN_SYSTEM_SOCKETCAN=1` and run on a host/kernel that exposes the SocketCAN socket boundary |
+
+Practical package expectations on Ubuntu-like systems:
+
+- libc development headers
+- Linux libc/kernel headers
+- for the SocketCAN runtime smoke, a kernel/runtime that accepts `socket(AF_CAN, SOCK_RAW, CAN_RAW)`
+  or at least fails with one of the expected "not supported here" errno values
+
 ## SocketCAN Runtime Boundary
 
 SocketCAN is intentionally useful here because it is not a standalone library boundary.
