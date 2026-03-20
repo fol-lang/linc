@@ -1,6 +1,7 @@
 # Summary
 - [Introduction](./bic.md)
 - [Getting Started](./010_getting_started.md)
+- [Intake Layer](./015_intake.md)
 - [Header Processing](./020_headers.md)
 - [IR Model](./030_ir.md)
 - [Origin Filtering](./060_filtering.md)
