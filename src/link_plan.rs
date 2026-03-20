@@ -191,13 +191,17 @@ fn inventory_matches_library_name(path: &str, name: &str) -> bool {
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or(path);
-    [
-        format!("lib{}.a", name),
-        format!("lib{}.so", name),
-        format!("lib{}.dylib", name),
-    ]
-    .iter()
-    .any(|candidate| file_name == candidate)
+    if file_name == format!("lib{}.a", name)
+        || file_name == format!("lib{}.so", name)
+        || file_name == format!("lib{}.dylib", name)
+    {
+        return true;
+    }
+
+    let so_prefix = format!("lib{}.so.", name);
+    let dylib_prefix = format!("lib{}.", name);
+    file_name.starts_with(&so_prefix)
+        || (file_name.starts_with(&dylib_prefix) && file_name.ends_with(".dylib"))
 }
 
 fn inventory_matches_framework_name(path: &str, name: &str) -> bool {
@@ -392,5 +396,40 @@ mod tests {
         assert!(non_matching.inputs.is_empty());
         assert!(non_matching.requirements.is_empty());
         assert!(non_matching.platform_constraints.is_empty());
+    }
+
+    #[test]
+    fn resolve_link_plan_matches_versioned_shared_library_filenames() {
+        let mut package = BindingPackage::new();
+        package.link = BindingLinkSurface {
+            ordered_inputs: vec![LinkInput::Library(LinkLibrary {
+                name: "ssl".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
+            })],
+            ..BindingLinkSurface::default()
+        };
+        let inventories = vec![SymbolInventory {
+            artifact_path: "/usr/lib/x86_64-linux-gnu/libssl.so.3".into(),
+            format: ArtifactFormat::ElfSharedLibrary,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::SharedLibrary,
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: true,
+            },
+            dependency_edges: vec!["libcrypto.so.3".into()],
+            symbols: Vec::new(),
+        }];
+
+        let plan = resolve_link_plan_with_inventories(&package, &inventories);
+        assert_eq!(plan.requirements.len(), 1);
+        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+        assert_eq!(plan.requirements[0].providers.len(), 1);
+        assert_eq!(
+            plan.requirements[0].providers[0].artifact_path,
+            "/usr/lib/x86_64-linux-gnu/libssl.so.3"
+        );
+        assert_eq!(plan.transitive_dependencies, vec!["libcrypto.so.3".to_string()]);
     }
 }
