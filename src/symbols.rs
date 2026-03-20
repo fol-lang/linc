@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::error::BicError;
+use crate::error::LincError;
 use object::read::Object;
 use object::read::archive::ArchiveFile;
 use object::{ObjectSymbol, SymbolKind};
@@ -155,16 +155,16 @@ impl SymbolInventory {
     }
 }
 
-pub fn inspect_file(path: impl AsRef<Path>) -> Result<SymbolInventory, BicError> {
+pub fn inspect_file(path: impl AsRef<Path>) -> Result<SymbolInventory, LincError> {
     let path = path.as_ref();
-    let data = std::fs::read(path).map_err(|e| BicError::SymbolRead {
+    let data = std::fs::read(path).map_err(|e| LincError::SymbolRead {
         path: path.to_path_buf(),
         reason: e.to_string(),
     })?;
     inspect_bytes(&data, path.display().to_string())
 }
 
-pub fn inspect_bytes(data: &[u8], artifact_path: String) -> Result<SymbolInventory, BicError> {
+pub fn inspect_bytes(data: &[u8], artifact_path: String) -> Result<SymbolInventory, LincError> {
     // Try as archive first (static library)
     if let Ok(archive) = ArchiveFile::parse(data) {
         return inspect_archive(archive, data, artifact_path);
@@ -172,7 +172,7 @@ pub fn inspect_bytes(data: &[u8], artifact_path: String) -> Result<SymbolInvento
 
     // Try as single object file
     let obj = object::File::parse(data)
-        .map_err(|e| BicError::UnsupportedFormat {
+        .map_err(|e| LincError::UnsupportedFormat {
             path: artifact_path.clone().into(),
             format: e.to_string(),
         })?;
@@ -198,7 +198,7 @@ fn inspect_archive(
     archive: ArchiveFile<'_>,
     data: &[u8],
     artifact_path: String,
-) -> Result<SymbolInventory, BicError> {
+) -> Result<SymbolInventory, LincError> {
     let mut symbols = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let mut is_macho = false;
@@ -206,14 +206,14 @@ fn inspect_archive(
     let mut format_detected = false;
 
     for member in archive.members() {
-        let member = member.map_err(|e| BicError::SymbolRead {
+        let member = member.map_err(|e| LincError::SymbolRead {
             path: artifact_path.clone().into(),
             reason: format!("failed to read archive member: {}", e),
         })?;
         let member_name = Some(String::from_utf8_lossy(member.name()).into_owned());
         let member_data = member
             .data(data)
-            .map_err(|e| BicError::SymbolRead {
+            .map_err(|e| LincError::SymbolRead {
                 path: artifact_path.clone().into(),
                 reason: format!("failed to read archive member data: {}", e),
             })?;
@@ -1245,7 +1245,7 @@ mod tests {
     #[test]
     fn inspect_nonexistent_file() {
         let result = inspect_file("/nonexistent/path.o");
-        assert!(matches!(result.unwrap_err(), BicError::SymbolRead { .. }));
+        assert!(matches!(result.unwrap_err(), LincError::SymbolRead { .. }));
     }
 
     #[test]
@@ -1358,7 +1358,7 @@ Dynamic section at offset 0x2de0 contains 3 entries:
     /// Compile a minimal C file to .o and inspect its symbols.
     #[test]
     fn inspect_compiled_object() {
-        let dir = std::env::temp_dir().join("bic_sym_test");
+        let dir = std::env::temp_dir().join("linc_sym_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("test.c");
         let o_path = dir.join("test.o");
@@ -1393,7 +1393,7 @@ Dynamic section at offset 0x2de0 contains 3 entries:
     /// Compile to .a and inspect.
     #[test]
     fn inspect_static_library() {
-        let dir = std::env::temp_dir().join("bic_ar_test");
+        let dir = std::env::temp_dir().join("linc_ar_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("lib.c");
         let o_path = dir.join("lib.o");
@@ -1434,7 +1434,7 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 
     #[test]
     fn inspect_static_library_preserves_member_provenance() {
-        let dir = std::env::temp_dir().join("bic_ar_members_test");
+        let dir = std::env::temp_dir().join("linc_ar_members_test");
         std::fs::create_dir_all(&dir).unwrap();
         let a_c_path = dir.join("alpha.c");
         let a_o_path = dir.join("alpha.o");
@@ -1488,7 +1488,7 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 
     #[test]
     fn inspect_shared_library_captures_dependency_edges() {
-        let dir = std::env::temp_dir().join("bic_shared_dep_test");
+        let dir = std::env::temp_dir().join("linc_shared_dep_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("lib.c");
         let so_path = dir.join("libdep.so");

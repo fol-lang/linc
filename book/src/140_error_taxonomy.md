@@ -7,7 +7,7 @@ It does not yet mean every operational API has been migrated.
 
 ## Goal
 
-`BicError` should become the crate-wide typed failure surface for operational failures.
+`LincError` should become the crate-wide typed failure surface for operational failures.
 
 The design target is to separate these concerns cleanly:
 
@@ -20,7 +20,7 @@ The design target is to separate these concerns cleanly:
 Validation findings are deliberately different.
 They should remain structured report output, not thrown as operational errors.
 
-## Current `BicError` Coverage
+## Current `LincError` Coverage
 
 The current enum already contains variants for:
 
@@ -97,7 +97,7 @@ This is currently the most mature typed-error area in the crate.
 
 This point matters enough to say twice:
 
-- validation mismatches should not be encoded as `BicError`
+- validation mismatches should not be encoded as `LincError`
 - validation should keep returning `ValidationReport`
 
 That keeps operational failure separate from analytical result data.

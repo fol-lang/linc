@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::{io, os::raw::c_int};
 
-use bic::{BicError, HeaderConfig, RawHeaderResult};
+use linc::{LincError, HeaderConfig, RawHeaderResult};
 
 const SOCKETCAN_HEADERS: &[&str] = &["/usr/include/linux/can.h", "/usr/include/linux/can/raw.h"];
 const OPTIONAL_HEADERS: &[&str] = &[
@@ -32,9 +32,9 @@ pub fn socketcan_headers_available() -> bool {
     SOCKETCAN_HEADERS.iter().all(|path| Path::new(path).exists())
 }
 
-pub fn socketcan_environment() -> Result<SocketcanEnvironment, BicError> {
+pub fn socketcan_environment() -> Result<SocketcanEnvironment, LincError> {
     if !socketcan_headers_available() {
-        return Err(BicError::InvalidConfig {
+        return Err(LincError::InvalidConfig {
             reason: "socketcan example requires Linux SocketCAN headers".into(),
         });
     }
@@ -58,7 +58,7 @@ pub fn socketcan_environment() -> Result<SocketcanEnvironment, BicError> {
     })
 }
 
-pub fn socketcan_header_config() -> Result<HeaderConfig, BicError> {
+pub fn socketcan_header_config() -> Result<HeaderConfig, LincError> {
     let environment = socketcan_environment()?;
 
     let mut cfg = HeaderConfig::new()
@@ -82,7 +82,7 @@ pub fn socketcan_header_config() -> Result<HeaderConfig, BicError> {
     Ok(cfg)
 }
 
-pub fn analyze_socketcan() -> Result<RawHeaderResult, BicError> {
+pub fn analyze_socketcan() -> Result<RawHeaderResult, LincError> {
     socketcan_header_config()?.process()
 }
 

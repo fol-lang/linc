@@ -1,5 +1,5 @@
-use bic::{
-    AbiConfidence, AbiProbeReport, AliasResolution, BicError, BindingItem, BindingPackage, BindingType,
+use linc::{
+    AbiConfidence, AbiProbeReport, AliasResolution, LincError, BindingItem, BindingPackage, BindingType,
     CallingConvention, EvidenceKind, FunctionBinding, HeaderConfig, LinkResolutionMode,
     MacroBinding, MacroCategory, MacroForm, MacroKind, MacroValue, MatchConfidence,
     ParameterBinding, ProbeConfidence, ProbeSubjectKind, ProbeSubjectReport, ProbedFieldLayout,
@@ -10,7 +10,7 @@ use bic::{
     RecordRepresentation, probe_type_layouts,
     // Intake types (Phase 1)
     SourcePackage, SourceDeclaration, SourceFunction, SourceType, SourceRecord,
-    SourceEnum, SourceTypeAlias, SourceVariable, from_source_package, LincError,
+    SourceEnum, SourceTypeAlias, SourceVariable, from_source_package,
 };
 
 #[test]
@@ -80,7 +80,7 @@ fn process_rejects_invalid_config_before_execution() {
         .process()
         .unwrap_err();
 
-    assert!(matches!(err, BicError::InvalidConfig { .. }));
+    assert!(matches!(err, LincError::InvalidConfig { .. }));
 }
 
 #[test]
@@ -93,13 +93,13 @@ fn probe_rejects_invalid_config_before_execution() {
     )
     .unwrap_err();
 
-    assert!(matches!(err, BicError::InvalidConfig { .. }));
+    assert!(matches!(err, LincError::InvalidConfig { .. }));
 }
 
 #[test]
 fn abi_probe_report_root_types_roundtrip() {
     let report = AbiProbeReport {
-        target: bic::BindingTarget {
+        target: linc::BindingTarget {
             target_triple: Some("x86_64-unknown-linux-gnu".into()),
             compiler_command: Some("clang".into()),
             compiler_version: Some("clang 18.0.0".into()),
@@ -254,9 +254,9 @@ fn type_qualifiers_root_type_roundtrip() {
 
 #[test]
 fn calling_convention_root_type_roundtrip() {
-    let json = serde_json::to_string(&bic::CallingConvention::Stdcall).unwrap();
-    let decoded: bic::CallingConvention = serde_json::from_str(&json).unwrap();
-    assert_eq!(decoded, bic::CallingConvention::Stdcall);
+    let json = serde_json::to_string(&linc::CallingConvention::Stdcall).unwrap();
+    let decoded: linc::CallingConvention = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, linc::CallingConvention::Stdcall);
 }
 
 #[test]
@@ -299,13 +299,13 @@ fn validation_entry_root_types_roundtrip() {
     let entry = ValidationEntry {
         declaration: ValidationDeclaration {
             name: "malloc".into(),
-            item_kind: bic::ItemKind::Function,
+            item_kind: linc::ItemKind::Function,
         },
-        status: bic::MatchStatus::Matched,
+        status: linc::MatchStatus::Matched,
         evidence: ValidationEvidence {
             provider_artifacts: vec!["libc.so".into()],
             raw_symbol_names: vec!["_malloc".into()],
-            visibility: Some(bic::SymbolVisibility::Default),
+            visibility: Some(linc::SymbolVisibility::Default),
             confidence: MatchConfidence::High,
             evidence_kind: EvidenceKind::ExactExported,
             abi_shape: None,
@@ -320,12 +320,12 @@ fn validation_entry_root_types_roundtrip() {
 
 #[test]
 fn abi_shape_evidence_root_type_roundtrip() {
-    let evidence = bic::AbiShapeEvidence {
+    let evidence = linc::AbiShapeEvidence {
         expected_size: Some(4),
         observed_size: Some(8),
     };
     let json = serde_json::to_string(&evidence).unwrap();
-    let decoded: bic::AbiShapeEvidence = serde_json::from_str(&json).unwrap();
+    let decoded: linc::AbiShapeEvidence = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, evidence);
 }
 
@@ -334,16 +334,16 @@ fn validation_evidence_reports_layout_backed_confidence() {
     let entry = ValidationEntry {
         declaration: ValidationDeclaration {
             name: "errno".into(),
-            item_kind: bic::ItemKind::Variable,
+            item_kind: linc::ItemKind::Variable,
         },
-        status: bic::MatchStatus::Matched,
+        status: linc::MatchStatus::Matched,
         evidence: ValidationEvidence {
             provider_artifacts: vec!["libc.so".into()],
             raw_symbol_names: vec!["errno".into()],
-            visibility: Some(bic::SymbolVisibility::Default),
+            visibility: Some(linc::SymbolVisibility::Default),
             confidence: MatchConfidence::High,
             evidence_kind: EvidenceKind::AbiShapeVerified,
-            abi_shape: Some(bic::AbiShapeEvidence {
+            abi_shape: Some(linc::AbiShapeEvidence {
                 expected_size: Some(4),
                 observed_size: Some(4),
             }),
@@ -416,7 +416,7 @@ fn intake_types_reachable_from_root() {
 
 #[test]
 fn linc_error_alias_is_reachable() {
-    let err: Result<(), LincError> = Err(BicError::NoProbeTypes);
+    let err: Result<(), LincError> = Err(LincError::NoProbeTypes);
     assert!(err.is_err());
 }
 

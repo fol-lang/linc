@@ -13,12 +13,8 @@ use std::path::PathBuf;
 ///
 /// Validation findings are intentionally *not* modeled as errors.
 /// They are returned as structured report data instead.
-///
-/// Note: `BicError` will be renamed to `LincError` when the crate
-/// is renamed. The [`LincError`] type alias is available now for
-/// forward-compatible code.
 #[derive(Debug)]
-pub enum BicError {
+pub enum LincError {
     /// A scan-like operation was invoked without any entry headers.
     NoHeaders,
     /// A scan configuration was internally contradictory or nonsensical.
@@ -43,43 +39,43 @@ pub enum BicError {
     SymbolRead { path: PathBuf, reason: String },
     /// An artifact format was recognized as unsupported for the attempted operation.
     UnsupportedFormat { path: PathBuf, format: String },
-    /// The serialized package uses a schema newer than this build supports.
+    /// The serialized package uses a schema newer than what this build supports.
     SchemaVersion { found: u32, supported: u32 },
 }
 
-impl fmt::Display for BicError {
+impl fmt::Display for LincError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BicError::NoHeaders => write!(f, "no entry headers specified"),
-            BicError::InvalidConfig { reason } => write!(f, "invalid configuration: {}", reason),
-            BicError::NoProbeTypes => write!(f, "no type names specified for probing"),
-            BicError::ProbeCompile { compiler, stderr } => {
+            LincError::NoHeaders => write!(f, "no entry headers specified"),
+            LincError::InvalidConfig { reason } => write!(f, "invalid configuration: {}", reason),
+            LincError::NoProbeTypes => write!(f, "no type names specified for probing"),
+            LincError::ProbeCompile { compiler, stderr } => {
                 write!(f, "layout probe compilation with '{}' failed: {}", compiler, stderr)
             }
-            BicError::ProbeExecution { reason } => {
+            LincError::ProbeExecution { reason } => {
                 write!(f, "layout probe execution failed: {}", reason)
             }
-            BicError::ProbeOutput { reason } => {
+            LincError::ProbeOutput { reason } => {
                 write!(f, "invalid layout probe output: {}", reason)
             }
-            BicError::PreprocessorFailed { command, stderr } => {
+            LincError::PreprocessorFailed { command, stderr } => {
                 write!(f, "preprocessor '{}' failed: {}", command, stderr)
             }
-            BicError::ParseFailed { source } => {
+            LincError::ParseFailed { source } => {
                 write!(f, "parse error: {}", source)
             }
-            BicError::Io(e) => write!(f, "I/O error: {}", e),
-            BicError::Serialization(msg) => write!(f, "serialization error: {}", msg),
-            BicError::SymbolRead { path, reason } => {
+            LincError::Io(e) => write!(f, "I/O error: {}", e),
+            LincError::Serialization(msg) => write!(f, "serialization error: {}", msg),
+            LincError::SymbolRead { path, reason } => {
                 write!(f, "failed to read symbols from {}: {}", path.display(), reason)
             }
-            BicError::UnsupportedFormat { path, format } => {
+            LincError::UnsupportedFormat { path, format } => {
                 write!(f, "unsupported format '{}' for {}", format, path.display())
             }
-            BicError::SchemaVersion { found, supported } => {
+            LincError::SchemaVersion { found, supported } => {
                 write!(
                     f,
-                    "unsupported schema version {} (this BIC supports up to {})",
+                    "unsupported schema version {} (LINC supports up to {})",
                     found, supported
                 )
             }
@@ -87,35 +83,32 @@ impl fmt::Display for BicError {
     }
 }
 
-impl std::error::Error for BicError {
+impl std::error::Error for LincError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            BicError::Io(e) => Some(e),
+            LincError::Io(e) => Some(e),
             _ => None,
         }
     }
 }
 
-impl From<std::io::Error> for BicError {
+impl From<std::io::Error> for LincError {
     fn from(e: std::io::Error) -> Self {
-        BicError::Io(e)
+        LincError::Io(e)
     }
 }
 
-impl From<serde_json::Error> for BicError {
+impl From<serde_json::Error> for LincError {
     fn from(e: serde_json::Error) -> Self {
-        BicError::Serialization(e.to_string())
+        LincError::Serialization(e.to_string())
     }
 }
 
-impl From<BicError> for String {
-    fn from(e: BicError) -> String {
+impl From<LincError> for String {
+    fn from(e: LincError) -> String {
         e.to_string()
     }
 }
-
-/// Forward-compatible alias for when the crate is renamed to `linc`.
-pub type LincError = BicError;
 
 #[cfg(test)]
 mod tests {
@@ -123,13 +116,13 @@ mod tests {
 
     #[test]
     fn error_display_no_headers() {
-        let e = BicError::NoHeaders;
+        let e = LincError::NoHeaders;
         assert_eq!(e.to_string(), "no entry headers specified");
     }
 
     #[test]
     fn error_display_preprocessor() {
-        let e = BicError::PreprocessorFailed {
+        let e = LincError::PreprocessorFailed {
             command: "gcc".into(),
             stderr: "file not found".into(),
         };
@@ -138,7 +131,7 @@ mod tests {
 
     #[test]
     fn error_display_invalid_config() {
-        let e = BicError::InvalidConfig {
+        let e = LincError::InvalidConfig {
             reason: "entry header path must not be empty".into(),
         };
         assert!(e.to_string().contains("invalid configuration"));
@@ -147,7 +140,7 @@ mod tests {
 
     #[test]
     fn error_display_probe_compile() {
-        let e = BicError::ProbeCompile {
+        let e = LincError::ProbeCompile {
             compiler: "cc".into(),
             stderr: "compiler missing".into(),
         };
@@ -156,7 +149,7 @@ mod tests {
 
     #[test]
     fn error_display_probe_execution() {
-        let e = BicError::ProbeExecution {
+        let e = LincError::ProbeExecution {
             reason: "signal".into(),
         };
         assert!(e.to_string().contains("signal"));
@@ -164,7 +157,7 @@ mod tests {
 
     #[test]
     fn error_display_probe_output() {
-        let e = BicError::ProbeOutput {
+        let e = LincError::ProbeOutput {
             reason: "bad line".into(),
         };
         assert!(e.to_string().contains("bad line"));
@@ -172,20 +165,20 @@ mod tests {
 
     #[test]
     fn error_display_schema() {
-        let e = BicError::SchemaVersion { found: 99, supported: 1 };
+        let e = LincError::SchemaVersion { found: 99, supported: 1 };
         assert!(e.to_string().contains("99"));
     }
 
     #[test]
     fn error_from_io() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
-        let bic_err: BicError = io_err.into();
-        assert!(bic_err.to_string().contains("gone"));
+        let linc_err: LincError = io_err.into();
+        assert!(linc_err.to_string().contains("gone"));
     }
 
     #[test]
     fn error_to_string() {
-        let e = BicError::ParseFailed { source: "bad".into() };
+        let e = LincError::ParseFailed { source: "bad".into() };
         let s: String = e.into();
         assert!(s.contains("bad"));
     }

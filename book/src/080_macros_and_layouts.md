@@ -95,7 +95,7 @@ let result = HeaderConfig::new()
 Or directly:
 
 ```rust
-use bic::{probe_type_layouts, HeaderConfig};
+use linc::{probe_type_layouts, HeaderConfig};
 
 let cfg = HeaderConfig::new()
     .header("api.h")

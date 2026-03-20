@@ -1,4 +1,4 @@
-use bic::{
+use linc::{
     from_source_package, resolve_link_plan_for_target, validate, BindingPackage, LinkInput,
     LinkLibrary, LinkLibraryKind, LinkRequirementSource, MatchStatus, SourceDeclaration,
     SourceFunction, SourcePackage, SourceType, SymbolInventory,
@@ -87,7 +87,7 @@ struct FolResolvedLinkPlan {
 
 #[derive(Debug, Deserialize)]
 struct FolResolvedRequirement {
-    resolution: bic::RequirementResolution,
+    resolution: linc::RequirementResolution,
     providers: Vec<FolResolvedProvider>,
 }
 
@@ -111,7 +111,7 @@ fn fol_link_plan_is_ready(plan: &FolResolvedLinkPlan) -> bool {
             .requirements
             .iter()
             .all(|requirement| {
-                requirement.resolution == bic::RequirementResolution::Resolved
+                requirement.resolution == linc::RequirementResolution::Resolved
                     && !requirement.providers.is_empty()
                     && requirement
                         .providers
@@ -123,7 +123,7 @@ fn fol_link_plan_is_ready(plan: &FolResolvedLinkPlan) -> bool {
 #[test]
 fn fol_acceptance_binding_scan_flow_stays_consumable() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/tricky_layouts.h");
-    let result = bic::HeaderConfig::new()
+    let result = linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("struct packed_flags")
         .probe_type_layout("enum widget_mode")
@@ -133,7 +133,7 @@ fn fol_acceptance_binding_scan_flow_stays_consumable() {
     let json = serde_json::to_string(&result.package).unwrap();
     let consumed: FolBindingInput = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(consumed.schema_version, bic::SCHEMA_VERSION);
+    assert_eq!(consumed.schema_version, linc::SCHEMA_VERSION);
     assert!(
         consumed
             .diagnostics
@@ -151,7 +151,7 @@ fn fol_acceptance_binding_scan_flow_stays_consumable() {
 fn fol_acceptance_layout_backed_binding_flow_stays_consumable() {
     let header =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/typedef_layout_bridge.h");
-    let result = bic::HeaderConfig::new()
+    let result = linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("widget_t")
         .probe_type_layout("mode_t")
@@ -161,7 +161,7 @@ fn fol_acceptance_layout_backed_binding_flow_stays_consumable() {
     let json = serde_json::to_string(&result.package).unwrap();
     let consumed: FolAbiSensitiveBindingInput = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(consumed.schema_version, bic::SCHEMA_VERSION);
+    assert_eq!(consumed.schema_version, linc::SCHEMA_VERSION);
     assert!(consumed.items.iter().any(|item| item.get("TypeAlias").is_some()));
     assert!(consumed.items.iter().any(|item| item.get("Variable").is_some()));
     assert!(consumed.layouts.iter().any(|layout| layout.name == "widget_t" && layout.size > 0));
@@ -209,7 +209,7 @@ fn fol_acceptance_native_binding_and_link_flow_stays_consumable() {
     .unwrap();
     let consumed: FolNativeBundle = serde_json::from_str(&bundle_json).unwrap();
 
-    assert_eq!(consumed.package.schema_version, bic::SCHEMA_VERSION);
+    assert_eq!(consumed.package.schema_version, linc::SCHEMA_VERSION);
     assert_eq!(consumed.package.link.platform_constraints, vec!["linux"]);
     assert_eq!(consumed.package.link.ordered_inputs.len(), 1);
     assert_eq!(consumed.validation.summary.matched, 1);
@@ -226,7 +226,7 @@ fn fol_acceptance_native_binding_and_link_flow_stays_consumable() {
     assert_eq!(consumed.link_plan.requirements.len(), 1);
     assert_eq!(
         consumed.link_plan.requirements[0].resolution,
-        bic::RequirementResolution::Resolved
+        linc::RequirementResolution::Resolved
     );
     assert_eq!(
         consumed.link_plan.requirements[0].providers[0].artifact_path,
@@ -297,7 +297,7 @@ fn fol_acceptance_resolved_link_plan_stays_consumable() {
     assert_eq!(consumed.requirements.len(), 1);
     assert_eq!(
         consumed.requirements[0].resolution,
-        bic::RequirementResolution::Resolved
+        linc::RequirementResolution::Resolved
     );
     assert_eq!(
         consumed.requirements[0].providers[0].artifact_path,

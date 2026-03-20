@@ -20,7 +20,7 @@ These are the primary package identity and compatibility fields:
 | Field | Current classification | Notes |
 |---|---|---|
 | `schema_version` | required contract field | compatibility gate |
-| `bic_version` | stable provenance field | producer version, not the main compatibility key |
+| `linc_version` | stable provenance field | producer version, not the main compatibility key |
 | `source_path` | useful provenance field | helpful, but not the primary compatibility anchor |
 
 ## Stable Container Fields

@@ -1,13 +1,13 @@
 # LINC (link and binary evidence)
 
-LINC (currently crate name `bic` during migration) is a Rust library for
+LINC is a Rust library for
 link-surface analysis, native-symbol inspection, ABI probing, validation,
 and binary evidence production.
 
 It sits in the `PARC -> LINC -> GERC` pipeline:
 
 - **PARC** (`pac`) handles C preprocessing, parsing, and declaration extraction
-- **LINC** (`bic`) consumes normalized source contracts, inspects native artifacts,
+- **LINC** (`linc`) consumes normalized source contracts, inspects native artifacts,
   validates declarations against symbols, and produces link/binary evidence
 - **GERC** (`gec`) consumes that evidence to emit Rust projections
 
@@ -22,7 +22,7 @@ It sits in the `PARC -> LINC -> GERC` pipeline:
 ## Usage
 
 ```rust
-use bic::{from_source_package, SourcePackage, to_json};
+use linc::{from_source_package, SourcePackage, to_json};
 
 // Build a source package from any frontend
 let mut src = SourcePackage::default();
@@ -38,7 +38,7 @@ let json = to_json(&package).unwrap();
 For raw-header scanning (transitional, uses `parc` internally):
 
 ```rust
-use bic::HeaderConfig;
+use linc::HeaderConfig;
 
 let result = HeaderConfig::new()
     .header("mylib.h")

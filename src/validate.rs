@@ -2368,7 +2368,7 @@ mod tests {
     #[test]
     fn end_to_end_validation() {
         let c_src = "int add(int a, int b) { return a + b; }\nint mul(int a, int b) { return a * b; }\n";
-        let dir = std::env::temp_dir().join("bic_validate_test");
+        let dir = std::env::temp_dir().join("linc_validate_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("funcs.c");
         let o_path = dir.join("funcs.o");

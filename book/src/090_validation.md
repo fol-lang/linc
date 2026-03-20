@@ -11,7 +11,7 @@ This answers a practical question:
 Single artifact:
 
 ```rust
-use bic::validate;
+use linc::validate;
 
 let report = validate(&package, &inventory);
 ```
@@ -19,7 +19,7 @@ let report = validate(&package, &inventory);
 Multiple artifacts:
 
 ```rust
-use bic::validate_many;
+use linc::validate_many;
 
 let report = validate_many(&package, &[inv_a, inv_b]);
 ```

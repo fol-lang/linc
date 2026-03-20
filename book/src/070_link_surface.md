@@ -182,7 +182,7 @@ When a consumer wants a library-facing planning artifact instead of reading raw 
 directly, it can call:
 
 ```rust
-let plan = bic::resolve_link_plan(&package);
+let plan = linc::resolve_link_plan(&package);
 assert_eq!(plan.inputs.len(), package.link.ordered_inputs.len());
 ```
 
@@ -193,7 +193,7 @@ When inventories are available, consumers can also separate declared requirement
 providers:
 
 ```rust
-let plan = bic::resolve_link_plan_with_inventories(&package, &inventories);
+let plan = linc::resolve_link_plan_with_inventories(&package, &inventories);
 for requirement in &plan.requirements {
     println!("{:?}: {}", requirement.resolution, requirement.providers.len());
 }
@@ -205,7 +205,7 @@ provide".
 If a consumer is planning for one concrete target, it can also filter the plan by target triple:
 
 ```rust
-let linux_plan = bic::resolve_link_plan_for_target(
+let linux_plan = linc::resolve_link_plan_for_target(
     &package,
     &inventories,
     Some("x86_64-unknown-linux-gnu"),

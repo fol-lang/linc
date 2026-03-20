@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use bic::{BicError, HeaderConfig, RawHeaderResult};
+use linc::{LincError, HeaderConfig, RawHeaderResult};
 
 const REQUIRED_HEADERS: &[&str] = &[
     "/usr/include/sys/epoll.h",
@@ -21,13 +21,13 @@ pub struct LinuxEventLoopEnvironment {
     pub include_dirs: Vec<PathBuf>,
 }
 
-pub fn linux_event_loop_environment() -> Result<LinuxEventLoopEnvironment, BicError> {
+pub fn linux_event_loop_environment() -> Result<LinuxEventLoopEnvironment, LincError> {
     let header_candidates = if REQUIRED_HEADERS.iter().all(|path| Path::new(path).exists()) {
         REQUIRED_HEADERS
     } else if MULTIARCH_HEADERS.iter().all(|path| Path::new(path).exists()) {
         MULTIARCH_HEADERS
     } else {
-        return Err(BicError::InvalidConfig {
+        return Err(LincError::InvalidConfig {
             reason: "linux event-loop example requires epoll, timerfd, and signalfd headers".into(),
         });
     };
@@ -45,7 +45,7 @@ pub fn linux_event_loop_environment() -> Result<LinuxEventLoopEnvironment, BicEr
     })
 }
 
-pub fn linux_event_loop_header_config() -> Result<HeaderConfig, BicError> {
+pub fn linux_event_loop_header_config() -> Result<HeaderConfig, LincError> {
     let environment = linux_event_loop_environment()?;
     let mut cfg = HeaderConfig::new()
         .target_constraint("linux")
@@ -65,6 +65,6 @@ pub fn linux_event_loop_header_config() -> Result<HeaderConfig, BicError> {
     Ok(cfg)
 }
 
-pub fn analyze_linux_event_loop() -> Result<RawHeaderResult, BicError> {
+pub fn analyze_linux_event_loop() -> Result<RawHeaderResult, LincError> {
     linux_event_loop_header_config()?.process()
 }

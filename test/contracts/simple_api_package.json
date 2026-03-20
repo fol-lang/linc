@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "bic_version": "0.1.0",
+  "linc_version": "0.1.0",
   "target": {
     "target_triple": "x86_64-unknown-linux-gnu",
     "compiler_command": "gcc",

@@ -45,13 +45,13 @@ The next most valuable deepening target is the daemon core object boundary itsel
 
 - it is defined in-repo by `max_pain.c`
 - it exports the lifecycle and subsystem entry points already modeled in the header
-- it lets `bic` prove one concrete validation path without pretending that optional packet, TLS, or
+- it lets `linc` prove one concrete validation path without pretending that optional packet, TLS, or
   runtime-loader deployment dependencies are solved
 
 ## Consolidated Findings
 
 Current findings from the code-driven combined target in
-[max_pain.rs](/home/bresilla/data/code/bresilla/bic/test/stress/daemon/max_pain.rs):
+[max_pain.rs](/home/bresilla/data/code/bresilla/linc/test/stress/daemon/max_pain.rs):
 
 - the combined surface now scans through normal `HeaderConfig` usage without sidecar files
 - mixed records and hooks extract cleanly:
@@ -87,7 +87,7 @@ Current findings from the code-driven combined target in
 The current combined target proves three different things at once:
 
 - extraction:
-  - `bic` can still extract a useful mixed API surface even when one header mixes event-loop,
+  - `linc` can still extract a useful mixed API surface even when one header mixes event-loop,
     packet, TLS, and plugin concepts
 - validation:
   - validation is still a separate step that needs real native artifacts or checked-in artifact
@@ -106,6 +106,6 @@ It is not yet an end-to-end deployment proof.
 
 That distinction is exactly the point of this target:
 
-- `bic` can describe the mixed C surface and preserve ABI evidence for it
+- `linc` can describe the mixed C surface and preserve ABI evidence for it
 - downstream consumers still need to decide which optional subsystems must be present in a given
   deployment and which validation findings are blocking

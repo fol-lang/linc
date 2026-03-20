@@ -255,7 +255,7 @@ Notes:
 LINC uses the compiler as a preprocessor and ABI probe driver.
 
 ```rust
-use bic::raw_headers::Flavor;
+use linc::raw_headers::Flavor;
 
 let result = HeaderConfig::new()
     .header("api.h")
@@ -366,7 +366,7 @@ Treat a "successful" scan with important diagnostics as an incomplete binding pa
 ## Raw Header Result Example
 
 ```rust
-use bic::HeaderConfig;
+use linc::HeaderConfig;
 
 let result = HeaderConfig::new()
     .header("api.h")

@@ -5,7 +5,7 @@ This chapter ties the separate surfaces together into practical workflows.
 ## Workflow 1: Scan A Header And Save JSON
 
 ```rust
-use bic::{HeaderConfig, to_json};
+use linc::{HeaderConfig, to_json};
 
 let result = HeaderConfig::new()
     .header("include/demo.h")
@@ -29,7 +29,7 @@ The resulting file now contains:
 ## Workflow 2: Inspect A Native Artifact
 
 ```rust
-use bic::inspect_symbols;
+use linc::inspect_symbols;
 
 let inventory = inspect_symbols("build/libdemo.so")?;
 let json = serde_json::to_string_pretty(&inventory).unwrap();
@@ -47,7 +47,7 @@ Typical reasons:
 ## Workflow 3: Validate Bindings Against Artifacts
 
 ```rust
-use bic::{inspect_symbols, validate};
+use linc::{inspect_symbols, validate};
 
 let inventory = inspect_symbols("build/libdemo.so")?;
 let report = validate(&package, &inventory);
@@ -58,7 +58,7 @@ This is the first serious consistency check between header intent and native rea
 For a split native surface:
 
 ```rust
-use bic::{inspect_symbols, validate_many};
+use linc::{inspect_symbols, validate_many};
 
 let core = inspect_symbols("build/libcore.so")?;
 let support = inspect_symbols("build/libsupport.a")?;
@@ -89,7 +89,7 @@ If a raw-header scan is confusing, break the problem in two:
 2. run `scan-preprocessed`
 
 ```rust
-use bic::PreprocessedInput;
+use linc::PreprocessedInput;
 
 let package = PreprocessedInput::from_file("debug.i")?
     .with_path("debug.h")
@@ -103,7 +103,7 @@ This isolates extraction behavior from compiler invocation behavior.
 For packages with important struct ABI:
 
 ```rust
-use bic::{HeaderConfig, inspect_symbols, validate};
+use linc::{HeaderConfig, inspect_symbols, validate};
 
 let result = HeaderConfig::new()
     .header("include/api.h")

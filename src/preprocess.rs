@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn preprocessed_from_tempfile() {
-        let dir = std::env::temp_dir().join("bic_test");
+        let dir = std::env::temp_dir().join("linc_test");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("test_preproc.i");
         std::fs::write(&path, "extern int puts(const char *s);").unwrap();

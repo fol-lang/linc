@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use bic::{BicError, HeaderConfig, RawHeaderResult};
+use linc::{LincError, HeaderConfig, RawHeaderResult};
 
 const HEADER_CANDIDATES: &[&str] = &["/usr/include/openssl/ssl.h", "/usr/include/x86_64-linux-gnu/openssl/ssl.h"];
 const INCLUDE_DIR_CANDIDATES: &[&str] = &["/usr/include", "/usr/include/openssl", "/usr/include/x86_64-linux-gnu"];
@@ -10,12 +10,12 @@ pub struct OpensslEnvironment {
     pub include_dirs: Vec<PathBuf>,
 }
 
-pub fn openssl_environment() -> Result<OpensslEnvironment, BicError> {
+pub fn openssl_environment() -> Result<OpensslEnvironment, LincError> {
     let header = HEADER_CANDIDATES
         .iter()
         .find(|path| Path::new(path).exists())
         .map(PathBuf::from)
-        .ok_or_else(|| BicError::InvalidConfig {
+        .ok_or_else(|| LincError::InvalidConfig {
             reason: "openssl example requires openssl headers".into(),
         })?;
 
@@ -28,7 +28,7 @@ pub fn openssl_environment() -> Result<OpensslEnvironment, BicError> {
     Ok(OpensslEnvironment { header, include_dirs })
 }
 
-pub fn openssl_header_config() -> Result<HeaderConfig, BicError> {
+pub fn openssl_header_config() -> Result<HeaderConfig, LincError> {
     let environment = openssl_environment()?;
     let mut cfg = HeaderConfig::new()
         .entry_header(&environment.header)
@@ -43,6 +43,6 @@ pub fn openssl_header_config() -> Result<HeaderConfig, BicError> {
     Ok(cfg)
 }
 
-pub fn analyze_openssl() -> Result<RawHeaderResult, BicError> {
+pub fn analyze_openssl() -> Result<RawHeaderResult, LincError> {
     openssl_header_config()?.process()
 }
