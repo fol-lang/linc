@@ -65,3 +65,28 @@ loader simulator.
 - hermetic Linux-header fixtures for system examples
   - reason: useful for reproducibility, but not required for `fol` to consume the current
     code-driven analysis surface
+
+## Real-Library Ladder Classification
+
+### `blocking`
+
+- none currently observed in the `zlib` baseline or the broader library ladder after the first
+  stress-cycle fixes landed
+
+### `non-blocking`
+
+- `libpcap` prerequisite typedef sensitivity
+  - reason: this is mostly an environment/header-composition concern rather than a missing core
+    extraction surface
+- `libcurl` macro-surface selectivity
+  - reason: `fol` can still consume the declarations and the retained macro set without assuming
+    that every option macro is a first-class bindable constant
+- `OpenSSL` opaque-handle policy
+  - reason: the correct downstream behavior is to preserve opacity, not to force fake layout
+    certainty
+
+### `future`
+
+- deeper hermetic fixtures for the real-library ladder
+  - reason: useful for stronger reproducibility and CI portability, but not currently stopping
+    `fol` from consuming the existing library-first evidence surfaces
