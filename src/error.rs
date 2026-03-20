@@ -3,21 +3,20 @@ use std::path::PathBuf;
 
 /// Crate-wide typed error surface.
 ///
-/// Current state:
-///
-/// - JSON/schema transport already uses `BicError`
-/// - several operational APIs still return `Result<_, String>`
-///
-/// Intended taxonomy:
+/// Covers:
 ///
 /// - scan/configuration failures
-/// - preprocessing and parse failures
+/// - preprocessing and parse failures (transitional, will move to parc)
 /// - probe execution failures
 /// - artifact inspection failures
 /// - serialization/schema failures
 ///
-/// Validation findings are intentionally *not* modeled as `BicError`.
+/// Validation findings are intentionally *not* modeled as errors.
 /// They are returned as structured report data instead.
+///
+/// Note: `BicError` will be renamed to `LincError` when the crate
+/// is renamed. The [`LincError`] type alias is available now for
+/// forward-compatible code.
 #[derive(Debug)]
 pub enum BicError {
     /// A scan-like operation was invoked without any entry headers.
@@ -114,6 +113,9 @@ impl From<BicError> for String {
         e.to_string()
     }
 }
+
+/// Forward-compatible alias for when the crate is renamed to `linc`.
+pub type LincError = BicError;
 
 #[cfg(test)]
 mod tests {

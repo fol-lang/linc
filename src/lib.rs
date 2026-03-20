@@ -134,7 +134,7 @@ pub mod symbols;
 #[cfg(feature = "symbols")]
 pub mod validate;
 
-pub use error::BicError;
+pub use error::{BicError, LincError};
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 pub use extract::{extract_from_source, extract_from_translation_unit};
 pub use ir::{
