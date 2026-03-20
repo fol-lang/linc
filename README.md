@@ -1,81 +1,65 @@
-# BIC (bind c)
+# LINC (link and binary evidence)
 
-`bic` is a Rust library for C header extraction, ABI/layout probing, native-symbol inspection,
-validation, and normalized link-surface production on top of
-[PAC](https://github.com/bresilla/pac).
+LINC (currently crate name `bic` during migration) is a Rust library for
+link-surface analysis, native-symbol inspection, ABI probing, validation,
+and binary evidence production.
 
-It is intended to produce machine-readable binding metadata.
-It is not a full native linker, a full platform loader simulation, or a standalone binary tool.
+It sits in the `PARC -> LINC -> GERC` pipeline:
 
-Today the strongest tested scope is:
+- **PARC** (`pac`) handles C preprocessing, parsing, and declaration extraction
+- **LINC** (`bic`) consumes normalized source contracts, inspects native artifacts,
+  validates declarations against symbols, and produces link/binary evidence
+- **GERC** (`gec`) consumes that evidence to emit Rust projections
 
-- Linux and other ELF-oriented flows
-- macOS / Mach-O inventory and validation evidence
-- library-driven integration through `BindingPackage`, `ValidationReport`, and `ResolvedLinkPlan`
-- stress-tested code-driven examples covering:
-  - Linux system headers such as SocketCAN and epoll
-  - real-library surfaces such as `zlib`, `libpcap`, `libcurl`, and `OpenSSL`
-  - runtime-loaded plugin ABI boundaries
-  - one combined daemon-style mixed surface
+## What LINC Produces
 
-The current stress cycle also tightened three previously open limits:
-
-- packed typedef records in preprocessed headers now recover into declaration extraction
-- failed opaque/incomplete layout probes now degrade into retained diagnostics instead of aborting
-  the scan
-- declared library requirements can now match versioned shared-library filenames such as
-  `libssl.so.3`
-
-Current remaining open areas are narrower:
-
-- some Linux system examples still depend on host-installed headers
-- most real-library ladder examples still depend on host development packages
-- mixed-target deployment/runtime availability is still downstream policy rather than a `bic`
-  responsibility
-
-Consumers should treat `bic` as an evidence-producing library:
-
-- declarations come from `BindingPackage`
-- diagnostics are contractual data
-- ABI/layout confidence comes from `layouts` and validation evidence
-- native dependency intent comes from `package.link` and `ResolvedLinkPlan`
+- `BindingPackage` — machine-readable binding metadata with declarations, macros,
+  layouts, link surface, and diagnostics
+- `SymbolInventory` — exported/imported symbols from ELF, Mach-O, COFF, and PE artifacts
+- `ValidationReport` — declaration-vs-artifact match evidence
+- `ResolvedLinkPlan` — normalized link plan with provider matching
 
 ## Usage
 
 ```rust
-use bic::{emit_rust_ffi, HeaderConfig};
+use bic::{from_source_package, SourcePackage, to_json};
+
+// Build a source package from any frontend
+let mut src = SourcePackage::default();
+// ... populate declarations, macros, link requirements ...
+
+// Convert to LINC's analysis package
+let package = from_source_package(&src);
+
+// Serialize for downstream tooling
+let json = to_json(&package).unwrap();
+```
+
+For raw-header scanning (transitional, uses `parc` internally):
+
+```rust
+use bic::HeaderConfig;
 
 let result = HeaderConfig::new()
     .header("mylib.h")
     .include_dir("/usr/local/include")
     .process()
     .unwrap();
-
-let rust_ffi = emit_rust_ffi(&result.package);
-println!("{}", rust_ffi);
 ```
 
-For ABI-sensitive or native-link-aware workflows, the recommended next steps are:
+For ABI-sensitive workflows:
 
-1. inspect `result.package.diagnostics`
-2. probe required layouts with `probe_type_layout(...)`
-3. inspect artifacts with `inspect_symbols(...)`
-4. validate declarations against artifacts with `validate(...)`
-5. consume `package.link` or `resolve_link_plan(...)` downstream
+1. Inspect `package.diagnostics`
+2. Probe layouts with `probe_type_layouts(...)`
+3. Inspect artifacts with `inspect_symbols(...)`
+4. Validate with `validate(...)`
+5. Construct link plans with `resolve_link_plan(...)`
 
-## Still Intentionally Downstream
+## Tested Scope
 
-Some remaining concerns are not missing core-library features. They are intentionally downstream
-policy boundaries:
-
-- final linker invocation and filesystem-specific library resolution
-- runtime loader behavior such as `dlopen` / `dlsym` search policy
-- deployment-time subsystem availability for mixed targets such as SocketCAN, packet capture, TLS,
-  and plugin bundles
-- consumer-specific generation policy for optional or opaque API surfaces
-
-`bic` should keep producing evidence for those decisions.
-It should not claim to replace the downstream build, packaging, loader, or deployment layers.
+- Linux and other ELF-oriented flows
+- macOS / Mach-O inventory and validation evidence
+- Stress-tested against: zlib, libpcap, libcurl, OpenSSL, SocketCAN, epoll
 
 ## Building
 
@@ -85,7 +69,6 @@ make test
 ```
 
 The test suite is the primary statement of supported behavior.
-If README wording and tests disagree, the tests are authoritative and the docs should be tightened.
 
 ## License
 
