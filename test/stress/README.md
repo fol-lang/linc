@@ -31,3 +31,27 @@ Current ladder:
 - `zlib` is a strong default smoke target for `fol`
 - `libpcap` and `libcurl` are better stress targets for callback and macro policy
 - `OpenSSL` is the best current stress target for opaque-handle policy and “do not over-claim ABI evidence” discipline
+
+## Runtime-Loaded Boundary
+
+The plugin ABI fixture in [plugin_abi.h](/home/bresilla/data/code/bresilla/bic/test/stress/plugin_abi.h)
+is deliberately separate from the normal library ladder because it models a different kind of
+problem.
+
+What `bic` can model well here:
+
+- the plugin ABI header itself
+- callback and opaque-state signatures
+- declared host-side dependencies such as an explicit `dl` requirement
+- record and function-pointer layout evidence for the ABI surface
+
+What `bic` should not pretend to prove here:
+
+- that a specific plugin shared object will be discovered at runtime
+- that `dlsym` name resolution policy is equivalent to ordinary link resolution
+- that successful header analysis means the runtime loader will find the symbol in a concrete deployment
+
+So the runtime-loaded rule is:
+
+- use `bic` to model the ABI contract
+- use downstream runtime policy to model `dlopen`/`dlsym` discovery and failure handling
