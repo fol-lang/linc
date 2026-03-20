@@ -16,6 +16,13 @@ const AF_CAN: c_int = 29;
 const SOCK_RAW: c_int = 3;
 const CAN_RAW: c_int = 1;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SocketcanEnvironment {
+    pub required_headers: Vec<PathBuf>,
+    pub optional_headers: Vec<PathBuf>,
+    pub include_dirs: Vec<PathBuf>,
+}
+
 unsafe extern "C" {
     fn socket(domain: c_int, kind: c_int, protocol: c_int) -> c_int;
     fn close(fd: c_int) -> c_int;
@@ -25,30 +32,48 @@ pub fn socketcan_headers_available() -> bool {
     SOCKETCAN_HEADERS.iter().all(|path| Path::new(path).exists())
 }
 
-pub fn socketcan_header_config() -> Result<HeaderConfig, BicError> {
+pub fn socketcan_environment() -> Result<SocketcanEnvironment, BicError> {
     if !socketcan_headers_available() {
         return Err(BicError::InvalidConfig {
             reason: "socketcan example requires Linux SocketCAN headers".into(),
         });
     }
 
+    let required_headers = SOCKETCAN_HEADERS.iter().map(PathBuf::from).collect();
+    let optional_headers = OPTIONAL_HEADERS
+        .iter()
+        .filter(|path| Path::new(path).exists())
+        .map(PathBuf::from)
+        .collect();
+    let include_dirs = INCLUDE_DIR_CANDIDATES
+        .iter()
+        .filter(|dir| Path::new(dir).exists())
+        .map(PathBuf::from)
+        .collect();
+
+    Ok(SocketcanEnvironment {
+        required_headers,
+        optional_headers,
+        include_dirs,
+    })
+}
+
+pub fn socketcan_header_config() -> Result<HeaderConfig, BicError> {
+    let environment = socketcan_environment()?;
+
     let mut cfg = HeaderConfig::new()
         .target_constraint("linux")
         .link_lib("c")
         .no_origin_filter();
 
-    for path in SOCKETCAN_HEADERS {
-        cfg = cfg.entry_header(PathBuf::from(path));
+    for path in &environment.required_headers {
+        cfg = cfg.entry_header(path);
     }
-    for path in OPTIONAL_HEADERS {
-        if Path::new(path).exists() {
-            cfg = cfg.entry_header(PathBuf::from(path));
-        }
+    for path in &environment.optional_headers {
+        cfg = cfg.entry_header(path);
     }
-    for dir in INCLUDE_DIR_CANDIDATES {
-        if Path::new(dir).exists() {
-            cfg = cfg.include_dir(PathBuf::from(dir));
-        }
+    for dir in &environment.include_dirs {
+        cfg = cfg.include_dir(dir);
     }
     for probe_type in SOCKETCAN_PROBE_TYPES {
         cfg = cfg.probe_type_layout(*probe_type);
