@@ -2399,4 +2399,33 @@ mod tests {
         std::fs::remove_file(&o_path).ok();
         std::fs::remove_dir(&dir).ok();
     }
+
+    #[test]
+    fn validation_report_json_roundtrip() {
+        let pkg = make_package(&["init", "shutdown", "missing_fn"]);
+        let inv = make_inventory(&["init", "shutdown"], &[]);
+        let report = validate(&pkg, &inv);
+
+        let json = serde_json::to_string_pretty(&report).unwrap();
+        let restored: ValidationReport = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(report.entries.len(), restored.entries.len());
+        assert_eq!(report.matched().len(), restored.matched().len());
+        assert_eq!(report.missing().len(), restored.missing().len());
+
+        // Verify specific content survived the roundtrip
+        let missing: Vec<&str> = restored.missing().iter().map(|m| m.name.as_str()).collect();
+        assert!(missing.contains(&"missing_fn"));
+    }
+
+    #[test]
+    fn validation_summary_reflects_report() {
+        let pkg = make_package_with_vars(&["foo", "bar"], &["global_x"]);
+        let inv = make_inventory(&["foo"], &["global_x"]);
+        let report = validate(&pkg, &inv);
+
+        assert_eq!(report.summary.total, 3);
+        assert_eq!(report.summary.matched, 2);
+        assert_eq!(report.summary.missing, 1);
+    }
 }
