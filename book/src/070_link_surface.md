@@ -2,7 +2,7 @@
 
 `BindingPackage.link` is the normalized native-link surface attached to a scan.
 
-This is one of the most important additions in the current `bic` architecture because binding generation alone is not enough.
+This is one of the most important additions in the current LINC architecture because binding generation alone is not enough.
 Downstream tools also need to know what native inputs are expected at link time.
 
 ## What The Link Surface Contains
@@ -33,7 +33,7 @@ Link order can be semantically significant, especially with:
 - mixed object/archive inputs
 - linkers that resolve left-to-right
 
-If `bic` only preserved deduplicated buckets, a downstream tool could lose the original intended order and silently produce a different result.
+If LINC only preserved deduplicated buckets, a downstream tool could lose the original intended order and silently produce a different result.
 
 ## Declared Libraries
 
@@ -174,7 +174,7 @@ let link = &package.link;
 println!("ordered inputs: {}", link.ordered_inputs.len());
 ```
 
-This keeps link-planning policy in the downstream library or tool that consumes `bic`.
+This keeps link-planning policy in the downstream library or tool that consumes LINC.
 
 ## Normalized Plan Artifact
 

@@ -1,8 +1,8 @@
 # `fol` Integration Guide
 
-This chapter describes the intended producer/consumer contract between `bic` and `fol`.
+This chapter describes the intended producer/consumer contract between LINC and `fol`.
 
-`bic` should be read as the C-analysis producer.
+LINC should be read as the C-analysis producer.
 `fol` should be read as the downstream consumer that decides what to generate, what to reject, and
 how to assemble its final binding/link workflow.
 
@@ -10,16 +10,16 @@ how to assemble its final binding/link workflow.
 
 The intended split is:
 
-- `bic` extracts declarations, metadata, diagnostics, layouts, and native-surface evidence
+- LINC extracts declarations, metadata, diagnostics, layouts, and native-surface evidence
 - `fol` consumes that evidence to generate bindings, choose generation policy, and drive any final
   language/runtime-specific integration
 
-`bic` is not expected to replace `fol`.
+LINC is not expected to replace `fol`.
 It is expected to provide a stable machine contract that `fol` can trust.
 
-## What `bic` Should Produce For `fol`
+## What LINC Should Produce For `fol`
 
-For a healthy integration, `fol` should expect `bic` to provide:
+For a healthy integration, `fol` should expect LINC to provide:
 
 - `BindingPackage` as the primary declaration and metadata contract
 - `BindingPackage.diagnostics` as explicit extraction warnings and partial-fidelity signals
@@ -44,7 +44,7 @@ For ABI-sensitive or publication-quality generation, `fol` should generally also
 
 The intended high-confidence flow is:
 
-1. run `bic` header scanning or preprocessed parsing
+1. run LINC header scanning or preprocessed parsing
 2. inspect `BindingPackage.diagnostics`
 3. require layout probes for ABI-sensitive types
 4. inspect native artifacts and run validation when linkable symbols matter
@@ -113,7 +113,7 @@ integration profile.
 - block on validation findings for required native symbols
 - block on unsupported `schema_version`
 
-These gates should be policy decisions in `fol`, but the evidence should come from `bic`.
+These gates should be policy decisions in `fol`, but the evidence should come from LINC.
 
 ## Recommended Gating Policy
 
@@ -133,7 +133,7 @@ acceptance tests, the recommended order is:
    - `DuplicateProviders`
 6. require the resolved link plan to have concrete provider paths for every required native input
 
-That policy is intentionally narrower than the full generic `bic` contract.
+That policy is intentionally narrower than the full generic LINC contract.
 It is a recommended `fol` profile, not a universal rule for every downstream consumer.
 
 ## Minimal vs Extended `fol` Trust Surface
@@ -169,7 +169,7 @@ generation only when all of the following are true:
 - the link plan resolves every required native input to at least one concrete provider artifact
 
 That keeps the `fol` contract narrow, explicit, and regression-testable while still leaving the
-core `bic` library contract general enough for other consumers.
+core LINC library contract general enough for other consumers.
 
 ## Minimal Durable Contract
 

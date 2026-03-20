@@ -1,6 +1,6 @@
 # LINC Reference
 
-LINC (currently crate name `bic` during migration) is the link-surface, symbol-inventory, validation, and ABI-evidence layer in the `PARC → LINC → GERC` pipeline.
+LINC (currently crate name LINC during migration) is the link-surface, symbol-inventory, validation, and ABI-evidence layer in the `PARC → LINC → GERC` pipeline.
 
 Its job is not to parse C source and not to generate Rust code.
 Its job is to take normalized source contracts and native artifacts, then produce link and binary evidence that downstream tooling can trust.

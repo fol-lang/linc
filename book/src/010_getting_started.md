@@ -3,7 +3,7 @@
 This chapter shows the shortest path from "I have a header" to "I have machine-readable binding
 metadata".
 
-`bic` should be read as a library that produces analysis artifacts.
+LINC should be read as a library that produces analysis artifacts.
 It should not be read as a promise that every successful scan is ready for generation without
 additional policy checks.
 
@@ -153,10 +153,10 @@ Those six surfaces usually tell you whether the problem is:
 
 ## Library-Only Design
 
-`bic` is intended to be consumed as a Rust library.
+LINC is intended to be consumed as a Rust library.
 
 That means the normal integration path is:
 
 1. call `HeaderConfig::process()` or other library APIs directly
 2. serialize the resulting values if another tool needs JSON
-3. keep executable/tooling policy in the downstream crate rather than in `bic` itself
+3. keep executable/tooling policy in the downstream crate rather than in LINC itself

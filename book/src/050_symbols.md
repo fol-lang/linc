@@ -1,6 +1,6 @@
 # Symbol Inventories
 
-When the `symbols` feature is enabled, `bic` can inspect native artifacts and produce a `SymbolInventory`.
+When the `symbols` feature is enabled, LINC can inspect native artifacts and produce a `SymbolInventory`.
 
 This is the artifact-side counterpart to `BindingPackage`.
 
@@ -84,8 +84,8 @@ This is important because native artifacts may use:
 validation. Imported symbols are still preserved because they matter for shared-library and
 link-planning analysis.
 
-`alias_of` is preserved when `bic` can see more than one exported symbol name resolving to the
-same section/address identity. That is intentionally conservative: `bic` only records alias
+`alias_of` is preserved when LINC can see more than one exported symbol name resolving to the
+same section/address identity. That is intentionally conservative: LINC only records alias
 relationships when the artifact evidence is strong enough.
 
 ## ELF Symbol Versions
@@ -100,7 +100,7 @@ Downstream consumers should read that evidence conservatively:
 - version equality helps distinguish exports that share a base symbol name
 - version differences should be treated as a reason to avoid collapsing providers too aggressively
 
-Today `bic` does not implement a full ELF linker/version-script resolver.
+Today LINC does not implement a full ELF linker/version-script resolver.
 The intended policy is narrower:
 
 - use normalized name as the primary declaration/provider match key
@@ -112,7 +112,7 @@ dynamic-loader decision.
 
 ## Archive Member Provenance
 
-For static libraries, `bic` preserves the member path/name that provided each symbol when available.
+For static libraries, LINC preserves the member path/name that provided each symbol when available.
 
 That lets downstream validation report a provider more precisely than just:
 
@@ -128,7 +128,7 @@ libfoo.a:bar.o
 
 ## Shared-Library Dependency Edges
 
-On ELF shared libraries and executables, `bic` now captures `DT_NEEDED` dependencies into `dependency_edges`.
+On ELF shared libraries and executables, LINC now captures `DT_NEEDED` dependencies into `dependency_edges`.
 
 This is not a full dynamic-loader model.
 It is still useful because it exposes artifact-declared native dependencies in the inventory itself.
@@ -139,7 +139,7 @@ Example values might look like:
 - `libc.so.6`
 - `libz.so.1`
 
-When `bic` sees imported symbols inside a shared library or executable, it also preserves
+When LINC sees imported symbols inside a shared library or executable, it also preserves
 symbol-local `reexported_via` evidence using those dependency edges. That is still an inference
 layer, not proof of a platform loader decision, but it is much stronger than a plain artifact-wide
 "this file has dependencies" signal.
@@ -147,7 +147,7 @@ layer, not proof of a platform loader decision, but it is much stronger than a p
 ## Platform Behavior Notes
 
 Mach-O commonly prefixes external symbols with `_`.
-`bic` normalizes those names so C declarations and native symbols compare more naturally.
+LINC normalizes those names so C declarations and native symbols compare more naturally.
 
 That normalization is intentionally paired with `raw_name` preservation so no spelling evidence is lost.
 
@@ -177,7 +177,7 @@ Important examples:
 - re-export chains can involve dependency structure outside the immediate artifact
 - symbol spelling and visibility evidence are useful, but not a complete dyld decision procedure
 
-For that reason, the recommended `bic` consumer policy is:
+For that reason, the recommended LINC consumer policy is:
 
 - treat direct exported-symbol evidence as the strongest provider signal
 - treat imported symbols as dependency evidence, not as providers
@@ -193,7 +193,7 @@ In practice this means:
 - lack of a Mach-O-specific signal should not be reinterpreted as proof that a symbol is
   unavailable on Apple platforms
 
-`bic` is intentionally modeling inventory and validation evidence here.
+LINC is intentionally modeling inventory and validation evidence here.
 It is not attempting to be a full replacement for `ld64`, `dyld`, framework lookup rules, or
 platform-specific packaging conventions.
 

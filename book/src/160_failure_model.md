@@ -6,7 +6,7 @@ This is important because typed errors alone do not solve API clarity if consume
 
 ## The Three Outcome Classes
 
-`bic` currently has three practical outcome classes:
+LINC currently has three practical outcome classes:
 
 1. hard operational failure
 2. successful analysis with diagnostics
@@ -28,7 +28,7 @@ These should be represented as returned errors.
 
 ## 2. Successful Analysis With Diagnostics
 
-These are cases where `bic` can still return a meaningful package, but the result is incomplete, lossy, or carries analysis warnings.
+These are cases where LINC can still return a meaningful package, but the result is incomplete, lossy, or carries analysis warnings.
 
 Examples:
 

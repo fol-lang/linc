@@ -1,12 +1,12 @@
 # Error Surface
 
-This chapter inventories the current public error surface of `bic`.
+This chapter inventories the current public error surface of LINC.
 
 It is intentionally explicit because one of the main goals of the new roadmap is to replace the remaining unstructured operational errors with typed crate errors.
 
 ## Current State
 
-`bic` currently has two different public error styles:
+LINC currently has two different public error styles:
 
 - typed errors via `BicError`
 - unstructured `Result<_, String>` returns on several operational APIs

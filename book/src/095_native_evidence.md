@@ -1,6 +1,6 @@
 # Native Evidence
 
-This section groups the parts of `bic` that compare header-side declarations against native
+This section groups the parts of LINC that compare header-side declarations against native
 artifact-side evidence.
 
 Read this section when you care about:

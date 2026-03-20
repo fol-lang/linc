@@ -1,6 +1,6 @@
 # Release Checklist
 
-This chapter is the final release-readiness checklist for `bic`.
+This chapter is the final release-readiness checklist for LINC.
 
 It is intentionally operational.
 Use it before cutting a release candidate or publishing a version that downstream consumers are
@@ -45,7 +45,7 @@ expected to pin.
 
 Do not treat "builds successfully" as sufficient.
 
-`bic` is ready to release only when:
+LINC is ready to release only when:
 
 - the code builds
 - the tests pass

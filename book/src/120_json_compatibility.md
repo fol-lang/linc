@@ -2,7 +2,7 @@
 
 This chapter defines the intended compatibility model for serialized `BindingPackage` values.
 
-That matters because `BindingPackage` is the main machine-to-machine contract between `bic` and downstream consumers such as `fol`.
+That matters because `BindingPackage` is the main machine-to-machine contract between LINC and downstream consumers such as `fol`.
 
 ## First Principle
 
@@ -38,7 +38,7 @@ Downstream tools should use it to decide whether they understand the payload con
 
 Rules:
 
-- if `schema_version` is newer than this build of `bic` supports, deserialization should fail
+- if `schema_version` is newer than this build of LINC supports, deserialization should fail
 - if `schema_version` is older, deserialization may still succeed when missing fields are intentionally defaultable
 - schema changes should be deliberate, documented, and fixture-tested
 
@@ -74,7 +74,7 @@ Current examples already following this pattern include defaultable nested metad
 
 Forward compatibility is intentionally conservative.
 
-If a payload advertises a future `schema_version`, `bic` should reject it rather than guessing.
+If a payload advertises a future `schema_version`, LINC should reject it rather than guessing.
 
 That is safer than partially interpreting a payload whose semantics may have changed.
 

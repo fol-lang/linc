@@ -128,13 +128,13 @@ in one workflow.
 
 The intended downstream pattern is:
 
-1. `bic` library code produces `BindingPackage`
+1. LINC library code produces `BindingPackage`
 2. `fol` reads the package JSON
 3. `fol` lowers `package.items` into generated bindings
 4. `fol` reads `package.link` to construct native link inputs
 5. `fol` may use validation output as a gate or diagnostic surface
 
-That division keeps `bic` focused on analysis and normalization rather than owning final build execution.
+That division keeps LINC focused on analysis and normalization rather than owning final build execution.
 
 ## Recommended Validation Gate
 
