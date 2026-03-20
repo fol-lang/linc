@@ -40,3 +40,56 @@ The combined target will use one public stress header that:
 The first goal is not to run the daemon.
 The first goal is to make the combined surface scanable and analyzable through pure Rust code, then
 record which mixed-surface assumptions hold and which break.
+
+## Consolidated Findings
+
+Current findings from the code-driven combined target in
+[max_pain.rs](/home/bresilla/data/code/bresilla/bic/test/stress/daemon/max_pain.rs):
+
+- the combined surface now scans through normal `HeaderConfig` usage without sidecar files
+- mixed records and hooks extract cleanly:
+  - `bic_daemon_packet`
+  - `bic_daemon_config`
+  - `bic_daemon_hooks`
+- mixed lifecycle and subsystem functions extract cleanly:
+  - `bic_daemon_create`
+  - `bic_daemon_submit_packet`
+  - `bic_daemon_enable_socketcan`
+  - `bic_daemon_enable_pcap`
+  - `bic_daemon_enable_tls`
+- layout probing is useful for the concrete packet/config records, which means the mixed target still
+  preserves ABI evidence for the parts that are passed by value or by pointer to concrete records
+- opaque handles remain intentionally opaque:
+  - `bic_daemon`
+  - `bic_tls_client`
+- the link surface stays honest about what the fixture actually declares:
+  - the combined target carries the host-side `dl` requirement
+  - it does not pretend that `pcap`, `curl`, or `OpenSSL` are proven native providers just because
+    the fixture surface mentions those subsystems
+
+## Extraction, Validation, and Link-Model Boundary
+
+The current combined target proves three different things at once:
+
+- extraction:
+  - `bic` can still extract a useful mixed API surface even when one header mixes event-loop,
+    packet, TLS, and plugin concepts
+- validation:
+  - validation is still a separate step that needs real native artifacts
+  - the fixture by itself is an API contract, not proof that a deployment artifact exports every
+    subsystem entry point
+- link-model:
+  - the combined target currently models the explicit host/runtime-loader dependency (`dl`)
+  - subsystem activation paths such as SocketCAN, packet capture, or TLS remain consumer policy
+    until a concrete native bundle is inspected
+
+## Practical Conclusion
+
+The combined daemon target is now useful as a realistic system-level analysis fixture.
+It is not yet an end-to-end deployment proof.
+
+That distinction is exactly the point of this target:
+
+- `bic` can describe the mixed C surface and preserve ABI evidence for it
+- downstream consumers still need to decide which optional subsystems must be present in a given
+  deployment and which validation findings are blocking
