@@ -168,12 +168,12 @@
 //!
 pub mod diagnostics;
 pub mod error;
-pub mod extract;
+pub(crate) mod extract;
 pub mod intake;
 pub mod ir;
 pub mod line_markers;
 pub mod link_plan;
-pub mod preprocess;
+pub(crate) mod preprocess;
 pub mod probe;
 pub mod raw_headers;
 
