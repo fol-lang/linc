@@ -786,4 +786,107 @@ mod integration_tests {
         assert_eq!(pkg.variable_count(), 1);
     }
 
+    #[test]
+    fn intake_to_validation_and_link_plan() {
+        use crate::intake::SourcePackage;
+        use crate::symbols::*;
+
+        // Build package through intake
+        let src = SourcePackage {
+            source_path: Some("api.h".into()),
+            declarations: vec![
+                SourceDeclaration::Function(SourceFunction {
+                    name: "api_init".into(),
+                    parameters: vec![],
+                    return_type: SourceType::Int,
+                    variadic: false,
+                    source_offset: None,
+                }),
+                SourceDeclaration::Function(SourceFunction {
+                    name: "api_shutdown".into(),
+                    parameters: vec![],
+                    return_type: SourceType::Void,
+                    variadic: false,
+                    source_offset: None,
+                }),
+                SourceDeclaration::Variable(SourceVariable {
+                    name: "api_version".into(),
+                    ty: SourceType::Int,
+                    source_offset: None,
+                }),
+            ],
+            ..SourcePackage::default()
+        };
+
+        let mut pkg = from_source_package(&src);
+        pkg.link.ordered_inputs.push(ir::LinkInput::Library(ir::LinkLibrary {
+            name: "api".into(),
+            kind: ir::LinkLibraryKind::Default,
+            source: ir::LinkRequirementSource::Declared,
+        }));
+
+        // Build a fake inventory
+        let inv = SymbolInventory {
+            artifact_path: "/usr/lib/libapi.so".into(),
+            format: ArtifactFormat::ElfSharedLibrary,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::SharedLibrary,
+            capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+            dependency_edges: vec!["libc.so.6".into()],
+            symbols: vec![
+                SymbolEntry {
+                    name: "api_init".into(),
+                    raw_name: None, version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(), alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None, section: None, archive_member: None, function_abi: None,
+                },
+                SymbolEntry {
+                    name: "api_shutdown".into(),
+                    raw_name: None, version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(), alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: true,
+                    binding: SymbolBinding::Global,
+                    size: None, section: None, archive_member: None, function_abi: None,
+                },
+                SymbolEntry {
+                    name: "api_version".into(),
+                    raw_name: None, version: None,
+                    direction: SymbolDirection::Exported,
+                    reexported_via: Vec::new(), alias_of: None,
+                    visibility: SymbolVisibility::Default,
+                    is_function: false,
+                    binding: SymbolBinding::Global,
+                    size: Some(4), section: None, archive_member: None, function_abi: None,
+                },
+            ],
+        };
+
+        // Validate
+        let report = validate::validate(&pkg, &inv);
+        assert_eq!(report.summary.total, 3);
+        assert_eq!(report.summary.matched, 3);
+        assert_eq!(report.summary.missing, 0);
+        assert!(report.all_matched());
+
+        // Resolve link plan
+        let plan = link_plan::resolve_link_plan_with_inventories(
+            &pkg,
+            std::slice::from_ref(&inv),
+        );
+        assert_eq!(plan.requirements.len(), 1);
+        assert_eq!(plan.requirements[0].resolution, link_plan::RequirementResolution::Resolved);
+        assert_eq!(plan.transitive_dependencies, vec!["libc.so.6"]);
+
+        // JSON roundtrip of the full package
+        let json = to_json(&pkg).unwrap();
+        let pkg2 = from_json(&json).unwrap();
+        assert_eq!(pkg.item_count(), pkg2.item_count());
+    }
+
 }
