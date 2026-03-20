@@ -41,6 +41,13 @@ The first goal is not to run the daemon.
 The first goal is to make the combined surface scanable and analyzable through pure Rust code, then
 record which mixed-surface assumptions hold and which break.
 
+The next most valuable deepening target is the daemon core object boundary itself:
+
+- it is defined in-repo by `max_pain.c`
+- it exports the lifecycle and subsystem entry points already modeled in the header
+- it lets `bic` prove one concrete validation path without pretending that optional packet, TLS, or
+  runtime-loader deployment dependencies are solved
+
 ## Consolidated Findings
 
 Current findings from the code-driven combined target in
