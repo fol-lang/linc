@@ -31,8 +31,8 @@ compile:
 c: compile
 
 test:
-	@cargo test
-	@cargo test -- --ignored
+	@cargo test -- --test-threads=1
+	@cargo test -- --ignored --test-threads=1
 
 t: test
 
