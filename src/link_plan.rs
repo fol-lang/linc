@@ -501,4 +501,80 @@ mod tests {
         );
         assert_eq!(plan.transitive_dependencies, vec!["/usr/lib/libc++.1.dylib".to_string()]);
     }
+
+    #[test]
+    fn resolve_link_plan_reports_unresolved_when_no_inventory_matches() {
+        let mut package = BindingPackage::new();
+        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
+            name: "missing".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
+
+        let plan = resolve_link_plan_with_inventories(&package, &[]);
+        assert_eq!(plan.requirements.len(), 1);
+        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Unresolved);
+        assert!(plan.requirements[0].providers.is_empty());
+    }
+
+    #[test]
+    fn resolve_link_plan_reports_ambiguous_when_multiple_inventories_match() {
+        let mut package = BindingPackage::new();
+        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
+            name: "z".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
+
+        let inventories = vec![
+            SymbolInventory {
+                artifact_path: "/usr/lib/libz.so".into(),
+                format: ArtifactFormat::ElfSharedLibrary,
+                platform: ArtifactPlatform::Elf,
+                kind: ArtifactKind::SharedLibrary,
+                capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+                dependency_edges: Vec::new(),
+                symbols: Vec::new(),
+            },
+            SymbolInventory {
+                artifact_path: "/opt/lib/libz.a".into(),
+                format: ArtifactFormat::ElfStaticLibrary,
+                platform: ArtifactPlatform::Elf,
+                kind: ArtifactKind::StaticLibrary,
+                capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+                dependency_edges: Vec::new(),
+                symbols: Vec::new(),
+            },
+        ];
+
+        let plan = resolve_link_plan_with_inventories(&package, &inventories);
+        assert_eq!(plan.requirements.len(), 1);
+        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Ambiguous);
+        assert_eq!(plan.requirements[0].providers.len(), 2);
+    }
+
+    #[test]
+    fn resolve_link_plan_concrete_artifact_matches_declared_path() {
+        let mut package = BindingPackage::new();
+        package.link.ordered_inputs.push(LinkInput::Artifact(LinkArtifact {
+            path: "/build/libvendor.a".into(),
+            kind: LinkArtifactKind::StaticLibrary,
+            source: LinkRequirementSource::Declared,
+        }));
+
+        let inventories = vec![SymbolInventory {
+            artifact_path: "/build/libvendor.a".into(),
+            format: ArtifactFormat::ElfStaticLibrary,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::StaticLibrary,
+            capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+            dependency_edges: Vec::new(),
+            symbols: Vec::new(),
+        }];
+
+        let plan = resolve_link_plan_with_inventories(&package, &inventories);
+        assert_eq!(plan.requirements.len(), 1);
+        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+        assert_eq!(plan.requirements[0].providers[0].match_kind, ProviderMatchKind::ExactArtifact);
+    }
 }
