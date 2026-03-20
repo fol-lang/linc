@@ -83,7 +83,7 @@ pub struct DeclarationProvenance {
     pub source_location: Option<SourceLocation>,
 }
 
-/// Primary machine-readable package emitted by `bic`.
+/// Primary machine-readable package emitted by LINC.
 ///
 /// Invariant: additive metadata fields default on deserialize so older snapshots remain consumable,
 /// while `items` and `diagnostics` remain the core declaration/result surface.
@@ -1080,5 +1080,41 @@ mod tests {
         assert!(decoded.framework_paths.is_empty());
         assert!(decoded.frameworks.is_empty());
         assert!(decoded.ordered_inputs.is_empty());
+    }
+
+    #[test]
+    fn binding_package_serialization_is_deterministic() {
+        let mut pkg = BindingPackage::new();
+        pkg.items.push(BindingItem::Function(FunctionBinding {
+            name: "init".into(),
+            calling_convention: CallingConvention::C,
+            parameters: vec![ParameterBinding { name: Some("flags".into()), ty: BindingType::UInt }],
+            return_type: BindingType::Int,
+            variadic: false,
+            source_offset: None,
+        }));
+        pkg.items.push(BindingItem::Variable(VariableBinding {
+            name: "version".into(),
+            ty: BindingType::Int,
+            source_offset: None,
+        }));
+        pkg.macros.push(MacroBinding {
+            name: "VERSION".into(),
+            body: "1".into(),
+            function_like: false,
+            form: MacroForm::ObjectLike,
+            kind: MacroKind::Integer,
+            category: MacroCategory::BindableConstant,
+            value: Some(MacroValue::Integer(1)),
+        });
+
+        let json1 = serde_json::to_string_pretty(&pkg).unwrap();
+        let json2 = serde_json::to_string_pretty(&pkg).unwrap();
+        assert_eq!(json1, json2, "serialization must be deterministic");
+
+        // Roundtrip preserves equality
+        let restored: BindingPackage = serde_json::from_str(&json1).unwrap();
+        let json3 = serde_json::to_string_pretty(&restored).unwrap();
+        assert_eq!(json1, json3, "roundtrip must preserve deterministic output");
     }
 }
