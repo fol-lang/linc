@@ -1,96 +1,48 @@
-//! `bic` is a library crate for C interop analysis.
+//! LINC — link and binary evidence layer for C interop analysis.
 //!
-//! The crate root is the preferred public entry point for downstream users.
-//! The goal is to keep common workflows available from the root while allowing
-//! advanced consumers to opt into lower-level modules when necessary.
+//! This crate (currently named `bic` during migration) is becoming **LINC**: the
+//! link-surface, symbol-inventory, validation, and ABI-evidence layer in the
+//! `PARC → LINC → GERC` pipeline.
 //!
-//! # Normative Consumer Guidance
+//! # What LINC Owns
 //!
-//! Downstream consumers should treat the following as the intended stable usage model:
+//! - intake of normalized frontend/source contracts via [`SourcePackage`]
+//! - binary symbol inspection via [`inspect_symbols`]
+//! - object/shared-library/archive metadata extraction
+//! - provider matching and link-plan construction
+//! - ABI probe orchestration and retained measurement evidence
+//! - declaration-vs-artifact validation via [`validate`]
+//! - link and binary evidence reporting
 //!
-//! 1. Prefer crate-root re-exports over deep module imports.
-//! 2. Use [`HeaderConfig`] or [`PreprocessedInput`] to produce a [`BindingPackage`].
-//! 3. Treat serialized [`BindingPackage`], `SymbolInventory`, and `ValidationReport`
-//!    values as the primary machine-to-machine contract.
-//! 4. Treat diagnostics and validation findings as part of normal analysis output,
-//!    not as exceptional control flow.
-//! 5. Avoid depending on exact `String` error text from operational APIs.
+//! # What LINC Does Not Own
 //!
-//! Downstream consumers should avoid:
+//! - source parsing and preprocessing (upstream: `parc`)
+//! - source-level declaration extraction (upstream: `parc`)
+//! - Rust FFI code generation (downstream: `gec`)
 //!
-//! - depending on undocumented formatting details in serialized JSON
-//! - matching on incidental implementation details from support-oriented modules
-//! - assuming every public module has the same long-term stability expectations
-//! - treating best-effort extracted data as full ABI proof without checking diagnostics,
-//!   layouts, and validation evidence
+//! # Preferred API
 //!
-//! # Crate API Policy
+//! New consumers should start with:
 //!
-//! The current intended policy for the public crate surface is:
-//!
-//! - the crate root is the primary consumer entry point
-//! - public modules remain available for advanced use, but not all modules have the same
-//!   long-term stability expectations
-//! - additive API growth is preferred over disruptive surface churn within the current
-//!   compatibility line
-//! - typed data contracts and documented semantics are the preferred stability boundary
-//! - diagnostics and validation reports are part of the API contract, not incidental logs
-//!
-//! In practice, downstream users should optimize for:
-//!
-//! - root re-exports
-//! - documented container concepts
-//! - compatibility-tested JSON payloads
-//! - explicit validation and diagnostic handling
-//!
-//! # Public API Tiers
-//!
-//! The current library surface is intentionally split into practical stability tiers.
-//! This is a documentation contract first; later slices in `PLAN.md` will tighten
-//! that contract further.
-//!
-//! ## Preferred Root-Level API
-//!
-//! New downstream users should start with these root-level APIs:
-//!
-//! - [`HeaderConfig`] for raw-header scanning
-//! - [`PreprocessedInput`] for already-preprocessed source
-//! - [`BindingPackage`] and the other re-exported IR types for serialized machine contracts
+//! - [`from_source_package`] to ingest a frontend-neutral [`SourcePackage`]
+//! - [`HeaderConfig`] for raw-header scanning (transitional, uses `parc` internally)
+//! - [`BindingPackage`] and IR types for serialized machine contracts
 //! - [`to_json`] and [`from_json`] for JSON transport
 //! - [`probe_type_layouts`] for compiler-assisted ABI layout probing
-//! - [`inspect_symbols`] for native artifact inventory when the `symbols` feature is enabled
-//! - [`validate`] and [`validate_many`] for declaration-vs-artifact validation when the
-//!   `symbols` feature is enabled
+//! - [`inspect_symbols`] for native artifact inventory
+//! - [`validate`] and [`validate_many`] for declaration-vs-artifact validation
 //!
-//! These root-level APIs are the intended long-term consumer surface.
-//! New documentation and integration guidance should assume this tier first.
+//! # Module Organization
 //!
-//! ## Advanced But Less Stable Module APIs
-//!
-//! The following modules are public because they are useful, but downstream users
-//! should treat them as more implementation-shaped than the root-level contract:
-//!
-//! - [`extract`]
-//! - [`probe`]
-//! - [`raw_headers`]
-//! - [`symbols`]
-//! - [`validate`]
-//!
-//! They are suitable for advanced integrations, but they are not yet as curated
-//! as the crate-root re-exports.
-//!
-//! ## Implementation-Oriented Modules
-//!
-//! These modules are public today but should be treated as lower-level support surfaces:
-//!
-//! - [`diagnostics`]
-//! - [`error`]
-//! - [`ir`]
-//! - [`line_markers`]
-//! - [`preprocess`]
-//!
-//! Downstream users may use them, but should prefer the crate-root re-exports and
-//! higher-level entry points unless they have a specific need for module-level control.
+//! - [`intake`]: Frontend-neutral source contract and adapters
+//! - [`ir`]: LINC intermediate representation (split into link, types, macros)
+//! - [`probe`]: ABI measurement and evidence
+//! - [`symbols`]: Binary symbol inspection
+//! - [`validate`]: Declaration-vs-artifact validation
+//! - [`link_plan`]: Link-plan construction and resolution
+//! - [`raw_headers`]: Header scanning (transitional)
+//! - [`diagnostics`]: Diagnostic types
+//! - [`error`]: Error surface
 //!
 //! # Library Usage Guidance
 //!
