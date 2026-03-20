@@ -4,6 +4,8 @@ mod libcurl;
 mod libpcap;
 #[path = "../test/stress/openssl.rs"]
 mod openssl;
+#[path = "../test/stress/plugin.rs"]
+mod plugin;
 #[path = "../test/stress/zlib.rs"]
 mod zlib;
 
@@ -108,4 +110,26 @@ fn openssl_example_is_code_driven_and_consumable() {
         .iter()
         .any(|macro_binding| macro_binding.name == "OPENSSL_VERSION_NUMBER"));
     assert!(result.package.layouts.is_empty() || result.package.layouts.iter().all(|layout| layout.name != "struct ssl_st"));
+}
+
+#[test]
+fn plugin_abi_example_is_code_driven_and_consumable() {
+    let environment = plugin::plugin_abi_environment().unwrap();
+    let config = plugin::plugin_abi_header_config().unwrap();
+    let result = plugin::analyze_plugin_abi().unwrap();
+
+    assert!(environment.header.ends_with("test/stress/plugin_abi.h"));
+    assert!(config
+        .linking()
+        .link_libraries
+        .iter()
+        .any(|library| library.name == "dl"));
+    assert!(result.package.find_function("bic_plugin_descriptor_v1").is_some());
+    assert!(result.package.find_record("bic_plugin_descriptor").is_some());
+    assert!(result.package.find_type_alias("bic_plugin_log_fn").is_some());
+    assert!(result
+        .package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct bic_plugin_descriptor" && layout.size > 0));
 }
