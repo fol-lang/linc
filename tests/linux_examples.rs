@@ -3,8 +3,40 @@
 mod epoll;
 
 #[cfg(target_os = "linux")]
+#[path = "../test/linus/linux_event_loop.rs"]
+mod linux_event_loop;
+
+#[cfg(target_os = "linux")]
 #[path = "../test/linus/socketcan.rs"]
 mod socketcan;
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_event_loop_example_combines_multiple_system_headers() {
+    let Ok(environment) = linux_event_loop::linux_event_loop_environment() else {
+        return;
+    };
+
+    let config = linux_event_loop::linux_event_loop_header_config().unwrap();
+    let result = linux_event_loop::analyze_linux_event_loop().unwrap();
+
+    assert_eq!(config.binding_surface().entry_headers.len(), environment.headers.len());
+    assert!(environment.headers.iter().any(|path| path.ends_with("sys/epoll.h")));
+    assert!(environment.headers.iter().any(|path| path.ends_with("sys/timerfd.h")));
+    assert!(environment.headers.iter().any(|path| path.ends_with("sys/signalfd.h")));
+    assert!(result.report.preprocessed_source.contains("signalfd_siginfo"));
+    assert!(result.report.preprocessed_source.contains("epoll_event"));
+    assert!(result
+        .package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct epoll_event" && layout.size > 0));
+    assert!(result
+        .package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct signalfd_siginfo" && layout.size > 0));
+}
 
 #[cfg(target_os = "linux")]
 #[test]

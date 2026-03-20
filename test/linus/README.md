@@ -16,6 +16,8 @@ Current examples:
   request ABI-sensitive layout probes entirely from code
 - `epoll.rs`: analyze `sys/epoll.h`, attach Linux/libc metadata, and request a layout probe for
   `struct epoll_event`
+- `linux_event_loop.rs`: combine `epoll`, `timerfd`, and `signalfd` headers into one code-driven
+  event-loop-style system example
 
 ## SocketCAN Runtime Boundary
 
