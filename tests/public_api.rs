@@ -44,6 +44,9 @@ fn binding_package_public_helpers_are_available_from_root() {
     assert_eq!(package.item_count(), 2);
     assert_eq!(package.function_count(), 1);
     assert_eq!(package.type_alias_count(), 1);
+    assert_eq!(package.probe_unavailable_count(), 0);
+    assert_eq!(package.probe_failure_count(), 0);
+    assert!(!package.has_probe_unavailable_diagnostics());
     assert_eq!(package.functions().next().map(|item| item.name.as_str()), Some("malloc"));
     assert_eq!(
         package.find_type_alias("size_t").map(|item| item.name.as_str()),

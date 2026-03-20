@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostics::Diagnostic;
+use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::line_markers::{SourceLocation, SourceOrigin};
 
 pub const SCHEMA_VERSION: u32 = 1;
@@ -370,6 +370,24 @@ impl BindingPackage {
 
     pub fn has_diagnostics(&self) -> bool {
         !self.diagnostics.is_empty()
+    }
+
+    pub fn probe_unavailable_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeUnavailable)
+            .count()
+    }
+
+    pub fn probe_failure_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeFailed)
+            .count()
+    }
+
+    pub fn has_probe_unavailable_diagnostics(&self) -> bool {
+        self.probe_unavailable_count() > 0
     }
 
     pub fn item_provenance(&self, index: usize) -> Option<&DeclarationProvenance> {
