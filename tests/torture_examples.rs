@@ -87,3 +87,37 @@ fn torture_header_still_supports_layout_probes() {
         .iter()
         .any(|layout| layout.name == "struct torture_buffer" && layout.size > 0));
 }
+
+#[test]
+fn aligned_torture_header_characterizes_current_boundary() {
+    let header =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/linus/c_interop_torture_aligned.h");
+    let result = bic::HeaderConfig::new()
+        .entry_header(&header)
+        .include_dir("/usr/include")
+        .include_dir("/usr/include/x86_64-linux-gnu")
+        .no_origin_filter()
+        .probe_type_layout("struct torture_aligned_packet")
+        .process()
+        .unwrap();
+
+    assert!(result
+        .report
+        .preprocessed_source
+        .contains("torture_aligned_size"));
+    assert!(result
+        .package
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.kind == DiagnosticKind::ParseFailed));
+    assert!(result
+        .package
+        .macros
+        .iter()
+        .any(|macro_binding| macro_binding.name == "TORTURE_ALIGNED_LEVEL"));
+    assert!(result
+        .package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct torture_aligned_packet" && layout.size > 0));
+}
