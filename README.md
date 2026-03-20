@@ -56,6 +56,20 @@ For ABI-sensitive or native-link-aware workflows, the recommended next steps are
 4. validate declarations against artifacts with `validate(...)`
 5. consume `package.link` or `resolve_link_plan(...)` downstream
 
+## Still Intentionally Downstream
+
+Some remaining concerns are not missing core-library features. They are intentionally downstream
+policy boundaries:
+
+- final linker invocation and filesystem-specific library resolution
+- runtime loader behavior such as `dlopen` / `dlsym` search policy
+- deployment-time subsystem availability for mixed targets such as SocketCAN, packet capture, TLS,
+  and plugin bundles
+- consumer-specific generation policy for optional or opaque API surfaces
+
+`bic` should keep producing evidence for those decisions.
+It should not claim to replace the downstream build, packaging, loader, or deployment layers.
+
 ## Building
 
 ```sh
