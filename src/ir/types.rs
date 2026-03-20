@@ -281,7 +281,7 @@ pub struct VariableBinding {
     pub source_offset: Option<usize>,
 }
 
-/// Placeholder for a declaration that `bic` recognized but could not model directly.
+/// Placeholder for a declaration that LINC recognized but could not model directly.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnsupportedItem {
     pub name: Option<String>,

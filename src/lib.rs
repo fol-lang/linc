@@ -46,7 +46,7 @@
 //!
 //! # Library Usage Guidance
 //!
-//! `bic` is intentionally a library, not an executable product. The recommended
+//! LINC is intentionally a library, not an executable product. The recommended
 //! usage pattern is:
 //!
 //! 1. produce a [`BindingPackage`] by scanning headers or parsing preprocessed input
@@ -340,7 +340,7 @@ mod integration_tests {
             void shutdown(void);
         "#;
 
-        // A downstream tool (like fol) would call bic like this:
+        // A downstream tool (like fol) would call LINC like this:
         let package = extract_from_source(headers).unwrap();
 
         // Inspect the package programmatically
