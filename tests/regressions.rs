@@ -378,6 +378,34 @@ fn regression_link_plan_and_validation_agree_on_resolved_and_unresolved_provider
 }
 
 #[test]
+fn regression_macos_text_stub_provider_is_currently_unresolved() {
+    let mut package = BindingPackage::new();
+    package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
+        name: "System".into(),
+        kind: LinkLibraryKind::Default,
+        source: LinkRequirementSource::Declared,
+    }));
+
+    let inventories = vec![SymbolInventory {
+        artifact_path: "/usr/lib/libSystem.tbd".into(),
+        format: ArtifactFormat::MachODylib,
+        platform: ArtifactPlatform::MachO,
+        kind: ArtifactKind::SharedLibrary,
+        capabilities: ArtifactCapabilities {
+            exports_symbols: true,
+            imports_symbols: true,
+        },
+        dependency_edges: Vec::new(),
+        symbols: Vec::new(),
+    }];
+
+    let plan = resolve_link_plan_with_inventories(&package, &inventories);
+    assert_eq!(plan.requirements.len(), 1);
+    assert_eq!(plan.requirements[0].resolution, bic::RequirementResolution::Unresolved);
+    assert!(plan.requirements[0].providers.is_empty());
+}
+
+#[test]
 fn regression_tricky_macro_fixture_stays_consumable() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/tricky_macros.h");
     let result = bic::HeaderConfig::new().entry_header(&header).process().unwrap();
