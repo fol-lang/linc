@@ -436,6 +436,40 @@ mod tests {
     }
 
     #[test]
+    fn resolved_link_plan_json_roundtrip() {
+        let plan = ResolvedLinkPlan {
+            preferred_mode: LinkResolutionMode::PreferStatic,
+            native_surface_kind: NativeSurfaceKind::ConcreteArtifacts,
+            platform_constraints: vec!["linux".into()],
+            inputs: vec![LinkInput::Library(LinkLibrary {
+                name: "z".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
+            })],
+            requirements: vec![ResolvedLinkRequirement {
+                declared: LinkInput::Library(LinkLibrary {
+                    name: "z".into(),
+                    kind: LinkLibraryKind::Default,
+                    source: LinkRequirementSource::Declared,
+                }),
+                source: LinkRequirementSource::Declared,
+                resolution: RequirementResolution::Resolved,
+                providers: vec![ResolvedProvider {
+                    artifact_path: "/usr/lib/libz.so".into(),
+                    match_kind: ProviderMatchKind::LibraryName,
+                    provenance: ProviderProvenance::DiscoveredInventory,
+                    dependency_edges: vec!["libc.so.6".into()],
+                }],
+            }],
+            transitive_dependencies: vec!["libc.so.6".into()],
+        };
+
+        let json = serde_json::to_string_pretty(&plan).unwrap();
+        let plan2: ResolvedLinkPlan = serde_json::from_str(&json).unwrap();
+        assert_eq!(plan, plan2);
+    }
+
+    #[test]
     fn resolve_link_plan_matches_macos_text_stub_library_names() {
         let mut package = BindingPackage::new();
         package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
