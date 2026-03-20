@@ -1,6 +1,6 @@
 //! LINC — link and binary evidence layer for C interop analysis.
 //!
-//! This crate (currently named `bic` during migration) is becoming **LINC**: the
+//! This crate is **LINC**: the
 //! link-surface, symbol-inventory, validation, and ABI-evidence layer in the
 //! `PARC → LINC → GERC` pipeline.
 //!
@@ -55,7 +55,7 @@
 //!
 //! # Current Error-Surface Inventory
 //!
-//! The long-term goal is a fully typed public error surface built around [`BicError`].
+//! The long-term goal is a fully typed public error surface built around [`LincError`].
 //! That work is not complete yet.
 //!
 //! Today, the remaining internal APIs that still return `Result<_, String>` are:
@@ -69,7 +69,7 @@
 //!
 //! - typed data structures on success
 //! - diagnostics carried in returned packages and reports
-//! - `BicError` for JSON and schema transport concerns
+//! - `LincError` for JSON and schema transport concerns
 //! - validation findings returned as structured report data
 //!
 //! Future plan slices will convert the remaining string-based operational failures
@@ -79,7 +79,7 @@
 //!
 //! For downstream consumers, the current package contract is best read with these rules:
 //!
-//! - identity/version fields such as `schema_version` and `bic_version` are contract-level metadata
+//! - identity/version fields such as `schema_version` and `linc_version` are contract-level metadata
 //! - top-level package sections such as `target`, `inputs`, `macros`, `layouts`, `link`,
 //!   `items`, and `diagnostics` are stable container concepts
 //! - many nested fields are still best treated as additive/defaultable rather than frozen in
@@ -92,7 +92,7 @@
 //! Producer/consumer compatibility expectations are:
 //!
 //! - producers should prefer additive, defaultable growth over silent semantic rewrites
-//! - consumers should gate compatibility on `schema_version`, not `bic_version`
+//! - consumers should gate compatibility on `schema_version`, not `linc_version`
 //! - future schema versions should be rejected rather than guessed at
 //!
 //! # Current Failure Model
@@ -133,7 +133,7 @@ pub mod symbols;
 #[cfg(feature = "symbols")]
 pub mod validate;
 
-pub use error::{BicError, LincError};
+pub use error::LincError;
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 // extract_from_source and extract_from_translation_unit are pub(crate) in extract.rs,
 // used internally by raw_headers and tests — not re-exported from the crate root.
@@ -193,8 +193,8 @@ pub fn from_source_package(source: &SourcePackage) -> BindingPackage {
 /// - the serialized payload includes `schema_version`
 /// - the semantic contract is the data model, not the exact whitespace layout
 /// - additive fields should prefer serde defaults where backward compatibility is intended
-pub fn to_json(package: &BindingPackage) -> Result<String, BicError> {
-    serde_json::to_string_pretty(package).map_err(BicError::from)
+pub fn to_json(package: &BindingPackage) -> Result<String, LincError> {
+    serde_json::to_string_pretty(package).map_err(LincError::from)
 }
 
 /// Deserialize a BindingPackage from a JSON string.
@@ -204,13 +204,13 @@ pub fn to_json(package: &BindingPackage) -> Result<String, BicError> {
 /// - older payloads that omit newer defaultable fields should deserialize successfully
 /// - payloads with a future `schema_version` are rejected
 /// - downstream users should treat `schema_version` as the compatibility gate, not
-///   `bic_version`
+///   `linc_version`
 ///
 /// Returns an error if the schema version is newer than what this version of BIC supports.
-pub fn from_json(json: &str) -> Result<BindingPackage, BicError> {
+pub fn from_json(json: &str) -> Result<BindingPackage, LincError> {
     let pkg: BindingPackage = serde_json::from_str(json)?;
     if pkg.schema_version > ir::SCHEMA_VERSION {
-        return Err(BicError::SchemaVersion {
+        return Err(LincError::SchemaVersion {
             found: pkg.schema_version,
             supported: ir::SCHEMA_VERSION,
         });
@@ -370,7 +370,7 @@ mod integration_tests {
     #[test]
     #[ignore] // Requires gcc/clang and cc/ar
     fn full_end_to_end_with_raw_headers_and_symbols() {
-        let dir = std::env::temp_dir().join("bic_e2e_test");
+        let dir = std::env::temp_dir().join("linc_e2e_test");
         std::fs::create_dir_all(&dir).unwrap();
 
         // Write a header and implementation
@@ -418,7 +418,7 @@ mod integration_tests {
         let pkg = extract_from_source("void foo(void);").unwrap();
         let json = to_json(&pkg).unwrap();
         assert!(json.contains("\"schema_version\": 1"));
-        assert!(json.contains("\"bic_version\""));
+        assert!(json.contains("\"linc_version\""));
     }
 
     #[test]
@@ -432,10 +432,10 @@ mod integration_tests {
 
     #[test]
     fn reject_future_schema_version() {
-        let json = r#"{"schema_version": 99, "bic_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#;
+        let json = r#"{"schema_version": 99, "linc_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#;
         let result = from_json(json);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), BicError::SchemaVersion { .. }));
+        assert!(matches!(result.unwrap_err(), LincError::SchemaVersion { .. }));
     }
 
     #[test]
@@ -491,7 +491,7 @@ mod integration_tests {
             ),
             (
                 "future schema rejected",
-                r#"{"schema_version": 999, "bic_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#,
+                r#"{"schema_version": 999, "linc_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#,
                 Expectation::FutureSchemaError,
             ),
         ];
@@ -513,7 +513,7 @@ mod integration_tests {
                 Expectation::FutureSchemaError => {
                     let err = from_json(json).unwrap_err();
                     assert!(
-                        matches!(err, BicError::SchemaVersion { .. }),
+                        matches!(err, LincError::SchemaVersion { .. }),
                         "{label} should reject future schema versions"
                     );
                 }
@@ -524,27 +524,27 @@ mod integration_tests {
     #[test]
     fn typed_error_matrix_for_public_operations() {
         let no_headers = HeaderConfig::new().process().unwrap_err();
-        assert!(matches!(no_headers, BicError::NoHeaders));
+        assert!(matches!(no_headers, LincError::NoHeaders));
 
         let probe_no_headers = probe_type_layouts(&HeaderConfig::new(), &["struct widget"])
             .unwrap_err();
-        assert!(matches!(probe_no_headers, BicError::NoHeaders));
+        assert!(matches!(probe_no_headers, LincError::NoHeaders));
 
         let probe_no_types = probe_type_layouts(
             &HeaderConfig::new().header("demo.h"),
             &[] as &[&str],
         )
         .unwrap_err();
-        assert!(matches!(probe_no_types, BicError::NoProbeTypes));
+        assert!(matches!(probe_no_types, LincError::NoProbeTypes));
 
         let symbol_read = inspect_symbols("/nonexistent/path.o").unwrap_err();
-        assert!(matches!(symbol_read, BicError::SymbolRead { .. }));
+        assert!(matches!(symbol_read, LincError::SymbolRead { .. }));
 
         let future_schema = from_json(
-            r#"{"schema_version": 999, "bic_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#,
+            r#"{"schema_version": 999, "linc_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#,
         )
         .unwrap_err();
-        assert!(matches!(future_schema, BicError::SchemaVersion { .. }));
+        assert!(matches!(future_schema, LincError::SchemaVersion { .. }));
     }
 
     #[test]

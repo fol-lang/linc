@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use bic::SymbolInventory;
-use bic::{validate, MatchStatus};
+use linc::SymbolInventory;
+use linc::{validate, MatchStatus};
 
 #[path = "../test/stress/daemon/max_pain.rs"]
 mod max_pain;

@@ -8,7 +8,7 @@ It is intentionally explicit because one of the main goals of the new roadmap is
 
 LINC currently has two different public error styles:
 
-- typed errors via `BicError` (also available as the `LincError` alias)
+- typed errors via `LincError` (also available as the `LincError` alias)
 - unstructured `Result<_, String>` returns on several operational APIs
 
 That split is functional, but it is not yet the final intended API shape.
@@ -17,8 +17,8 @@ That split is functional, but it is not yet the final intended API shape.
 
 The clearest typed error boundary today is around JSON transport:
 
-- `to_json(...) -> Result<String, BicError>`
-- `from_json(...) -> Result<BindingPackage, BicError>`
+- `to_json(...) -> Result<String, LincError>`
+- `from_json(...) -> Result<BindingPackage, LincError>`
 
 This is currently the most structured part of the error model.
 

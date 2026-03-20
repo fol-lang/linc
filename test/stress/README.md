@@ -3,7 +3,7 @@
 This directory carries code-driven stress examples for real libraries with increasing difficulty.
 
 The rolling findings ledger for these examples lives in
-[FINDINGS.md](/home/bresilla/data/code/bresilla/bic/test/stress/FINDINGS.md).
+[FINDINGS.md](/home/bresilla/data/code/bresilla/linc/test/stress/FINDINGS.md).
 
 Current ladder:
 
@@ -52,18 +52,18 @@ The current stress/example surfaces are not equally hermetic.
 
 ## Runtime-Loaded Boundary
 
-The plugin ABI fixture in [plugin_abi.h](/home/bresilla/data/code/bresilla/bic/test/stress/plugin_abi.h)
+The plugin ABI fixture in [plugin_abi.h](/home/bresilla/data/code/bresilla/linc/test/stress/plugin_abi.h)
 is deliberately separate from the normal library ladder because it models a different kind of
 problem.
 
-What `bic` can model well here:
+What `linc` can model well here:
 
 - the plugin ABI header itself
 - callback and opaque-state signatures
 - declared host-side dependencies such as an explicit `dl` requirement
 - record and function-pointer layout evidence for the ABI surface
 
-What `bic` should not pretend to prove here:
+What `linc` should not pretend to prove here:
 
 - that a specific plugin shared object will be discovered at runtime
 - that `dlsym` name resolution policy is equivalent to ordinary link resolution
@@ -71,14 +71,14 @@ What `bic` should not pretend to prove here:
 
 So the runtime-loaded rule is:
 
-- use `bic` to model the ABI contract
+- use `linc` to model the ABI contract
 - use downstream runtime policy to model `dlopen`/`dlsym` discovery and failure handling
 
 ## Plugin Findings
 
 Current findings from the plugin ABI stress fixture:
 
-- `bic` models the plugin ABI header well as a normal C surface:
+- `linc` models the plugin ABI header well as a normal C surface:
   - callback typedefs
   - opaque handles
   - descriptor records
@@ -96,6 +96,6 @@ Current limitations exposed by this fixture:
 
 Practical implication:
 
-- use `bic` to define and check the plugin ABI contract
-- do not use `bic` as a substitute for runtime loader policy, plugin search paths, or deployment-time
+- use `linc` to define and check the plugin ABI contract
+- do not use `linc` as a substitute for runtime loader policy, plugin search paths, or deployment-time
   symbol lookup handling

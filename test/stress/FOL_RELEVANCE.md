@@ -43,7 +43,7 @@ For each stress target, ask four questions:
 If the answer to questions 1 or 2 is no, the finding is usually `blocking`.
 
 If the answer to question 3 is no but the target is runtime-loaded by design, the finding is often
-`non-blocking` because it belongs to downstream policy rather than `bic` pretending to be a full
+`non-blocking` because it belongs to downstream policy rather than `linc` pretending to be a full
 loader simulator.
 
 ## SocketCAN Classification
@@ -106,7 +106,7 @@ loader simulator.
     not turn optional SocketCAN, packet capture, TLS, and plugin availability into a library-level
     guarantee
 - explicit `dl` metadata is only host/runtime-loader intent
-  - reason: `fol` still needs its own runtime-loader and packaging policy, and `bic` should not
+  - reason: `fol` still needs its own runtime-loader and packaging policy, and `linc` should not
     pretend otherwise
 
 ### `future`

@@ -13,7 +13,7 @@ Use a local path dependency while developing in the workspace:
 
 ```toml
 [dependencies]
-bic = { path = "../bic" }
+linc = { path = "../linc" }
 ```
 
 If you need Rust FFI generation, enable the `codegen` feature.
@@ -23,13 +23,13 @@ Example:
 
 ```toml
 [dependencies]
-bic = { path = "../bic", features = ["codegen", "symbols"] }
+linc = { path = "../linc", features = ["codegen", "symbols"] }
 ```
 
 ## Smallest Useful Example
 
 ```rust
-use bic::HeaderConfig;
+use linc::HeaderConfig;
 
 fn main() -> Result<(), String> {
     let result = HeaderConfig::new()
@@ -54,7 +54,7 @@ fn main() -> Result<(), String> {
 Most real scans need include paths, defines, and some native link metadata:
 
 ```rust
-use bic::HeaderConfig;
+use linc::HeaderConfig;
 
 let result = HeaderConfig::new()
     .header("api.h")
@@ -84,7 +84,7 @@ required before generation is allowed.
 `BindingPackage` is designed to be exchanged across tools.
 
 ```rust
-use bic::{from_json, to_json, HeaderConfig};
+use linc::{from_json, to_json, HeaderConfig};
 
 let result = HeaderConfig::new()
     .header("mylib.h")
@@ -104,7 +104,7 @@ Sometimes you already have a `.i` file or a preprocessor pipeline elsewhere.
 In that case, skip raw-header driving and feed the preprocessed text directly.
 
 ```rust
-use bic::PreprocessedInput;
+use linc::PreprocessedInput;
 
 let pkg = PreprocessedInput::from_string("int add(int a, int b);")
     .with_path("generated.i")

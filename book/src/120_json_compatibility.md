@@ -26,7 +26,7 @@ Consumers should not depend on:
 Two version-like fields exist in the package:
 
 - `schema_version`
-- `bic_version`
+- `linc_version`
 
 They do different jobs.
 
@@ -42,9 +42,9 @@ Rules:
 - if `schema_version` is older, deserialization may still succeed when missing fields are intentionally defaultable
 - schema changes should be deliberate, documented, and fixture-tested
 
-## `bic_version`
+## `linc_version`
 
-`bic_version` identifies the producing crate version.
+`linc_version` identifies the producing crate version.
 
 It is useful for:
 
@@ -114,7 +114,7 @@ If a library or build step produces `BindingPackage` JSON for other tools, it sh
 1. preserve `schema_version` exactly
 2. treat additive/defaultable fields as the preferred way to evolve the payload
 3. avoid changing the meaning of an existing field without explicit schema review
-4. avoid using `bic_version` as a substitute for wire compatibility
+4. avoid using `linc_version` as a substitute for wire compatibility
 5. keep compatibility fixtures in sync with any newly relied-on field
 
 This matters because the producer side can break consumers long before deserialization fails.

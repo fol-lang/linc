@@ -1,6 +1,6 @@
 # Linux Code-Driven Examples
 
-This directory carries Linux-focused, code-driven integration examples for `bic`.
+This directory carries Linux-focused, code-driven integration examples for `linc`.
 
 These examples are intentionally library-first:
 
@@ -62,7 +62,7 @@ The example keeps those layers separate on purpose:
 - `socketcan_runtime_smoke_check()` exercises the syscall/libc boundary
 
 That split is important for downstream consumers such as `fol`.
-They should use `bic` to understand the C surface and native requirements, then apply their own
+They should use `linc` to understand the C surface and native requirements, then apply their own
 runtime/build policy on top.
 
 ## Linux System Findings
@@ -96,7 +96,7 @@ Current limitations exposed by these examples:
 
 What this means for downstream consumers:
 
-- `bic` is already a good fit for Linux system-header analysis when consumers want code-driven
+- `linc` is already a good fit for Linux system-header analysis when consumers want code-driven
   inputs
 - downstream generators should treat runtime behavior as a separate policy layer instead of assuming
   that a successful scan proves runtime availability
@@ -104,7 +104,7 @@ What this means for downstream consumers:
 ## Planned Torture Target
 
 The synthetic torture target is meant to concentrate difficult C interop constructs into one
-header-level surface so `bic` limitations are easier to observe and classify.
+header-level surface so `linc` limitations are easier to observe and classify.
 
 The first version is intended to include:
 
@@ -128,7 +128,7 @@ The purpose is to force one scan to answer:
 
 ## First Torture Findings
 
-Current first-pass findings from [c_interop_torture.h](/home/bresilla/data/code/bresilla/bic/test/linus/c_interop_torture.h):
+Current first-pass findings from [c_interop_torture.h](/home/bresilla/data/code/bresilla/linc/test/linus/c_interop_torture.h):
 
 - the header preprocesses cleanly through `HeaderConfig`
 - the public declarations remain visible in `PreprocessingReport.preprocessed_source`
@@ -144,7 +144,7 @@ Current first-pass findings from [c_interop_torture.h](/home/bresilla/data/code/
 
 What this means today:
 
-- `bic` can now recover at least one important parser-hostile record typedef form instead of
+- `linc` can now recover at least one important parser-hostile record typedef form instead of
   collapsing into parse failure
 - downstream consumers should still distinguish fully clean extraction from extraction that required
   retained partial diagnostics

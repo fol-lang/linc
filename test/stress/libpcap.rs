@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use bic::{BicError, HeaderConfig, RawHeaderResult};
+use linc::{LincError, HeaderConfig, RawHeaderResult};
 
 const HEADER_CANDIDATES: &[&str] = &["/usr/include/pcap/pcap.h", "/usr/include/pcap.h"];
 const SUPPORT_HEADER_CANDIDATES: &[&str] = &[
@@ -15,12 +15,12 @@ pub struct LibpcapEnvironment {
     pub include_dirs: Vec<PathBuf>,
 }
 
-pub fn libpcap_environment() -> Result<LibpcapEnvironment, BicError> {
+pub fn libpcap_environment() -> Result<LibpcapEnvironment, LincError> {
     let header = HEADER_CANDIDATES
         .iter()
         .find(|path| Path::new(path).exists())
         .map(PathBuf::from)
-        .ok_or_else(|| BicError::InvalidConfig {
+        .ok_or_else(|| LincError::InvalidConfig {
             reason: "libpcap example requires pcap headers".into(),
         })?;
 
@@ -42,7 +42,7 @@ pub fn libpcap_environment() -> Result<LibpcapEnvironment, BicError> {
     })
 }
 
-pub fn libpcap_header_config() -> Result<HeaderConfig, BicError> {
+pub fn libpcap_header_config() -> Result<HeaderConfig, LincError> {
     let environment = libpcap_environment()?;
     let mut cfg = HeaderConfig::new().link_lib("pcap").no_origin_filter();
 
@@ -58,6 +58,6 @@ pub fn libpcap_header_config() -> Result<HeaderConfig, BicError> {
     Ok(cfg)
 }
 
-pub fn analyze_libpcap() -> Result<RawHeaderResult, BicError> {
+pub fn analyze_libpcap() -> Result<RawHeaderResult, LincError> {
     libpcap_header_config()?.process()
 }

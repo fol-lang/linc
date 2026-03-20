@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use bic::{BicError, HeaderConfig, RawHeaderResult};
+use linc::{LincError, HeaderConfig, RawHeaderResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZlibVendoredEnvironment {
@@ -8,7 +8,7 @@ pub struct ZlibVendoredEnvironment {
     pub entry_header: PathBuf,
 }
 
-pub fn zlib_vendored_environment() -> Result<ZlibVendoredEnvironment, BicError> {
+pub fn zlib_vendored_environment() -> Result<ZlibVendoredEnvironment, LincError> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("test")
         .join("full_apps")
@@ -19,7 +19,7 @@ pub fn zlib_vendored_environment() -> Result<ZlibVendoredEnvironment, BicError> 
     let entry_header = include_dir.join("zlib.h");
 
     if !include_dir.exists() || !entry_header.exists() {
-        return Err(BicError::InvalidConfig {
+        return Err(LincError::InvalidConfig {
             reason: "vendored zlib example requires the test corpus headers".into(),
         });
     }
@@ -30,7 +30,7 @@ pub fn zlib_vendored_environment() -> Result<ZlibVendoredEnvironment, BicError> 
     })
 }
 
-pub fn zlib_vendored_header_config() -> Result<HeaderConfig, BicError> {
+pub fn zlib_vendored_header_config() -> Result<HeaderConfig, LincError> {
     let environment = zlib_vendored_environment()?;
     Ok(HeaderConfig::new()
         .entry_header(environment.entry_header)
@@ -39,6 +39,6 @@ pub fn zlib_vendored_header_config() -> Result<HeaderConfig, BicError> {
         .probe_type_layout("z_stream"))
 }
 
-pub fn analyze_zlib_vendored() -> Result<RawHeaderResult, BicError> {
+pub fn analyze_zlib_vendored() -> Result<RawHeaderResult, LincError> {
     zlib_vendored_header_config()?.process()
 }

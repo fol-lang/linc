@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use bic::*;
+use linc::*;
 
 /// Path to the vendored test corpus.
 fn corpus_dir() -> PathBuf {
@@ -50,7 +50,7 @@ fn zlib_vendored_parse() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let main_c = corpus_dir().join("zlib/header/main.c");
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&main_c)
         .include_dir(&zlib_inc)
         .no_origin_filter() // include all declarations
@@ -84,7 +84,7 @@ fn zlib_vendored_origin_filter() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
         .process() // default filter: exclude system
@@ -112,7 +112,7 @@ fn zlib_vendored_types() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
         .no_origin_filter()
@@ -141,7 +141,7 @@ fn zlib_vendored_package_and_json_roundtrip() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
         .no_origin_filter()
@@ -152,8 +152,8 @@ fn zlib_vendored_package_and_json_roundtrip() {
     assert!(result.package.find_function("inflate").is_some(), "expected inflate function");
 
     // JSON roundtrip
-    let json = bic::to_json(&result.package).unwrap();
-    let pkg2 = bic::from_json(&json).unwrap();
+    let json = linc::to_json(&result.package).unwrap();
+    let pkg2 = linc::from_json(&json).unwrap();
     assert_eq!(result.package, pkg2);
 }
 
@@ -162,21 +162,21 @@ fn zlib_vendored_determinism() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let r1 = bic::raw_headers::HeaderConfig::new()
+    let r1 = linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
         .no_origin_filter()
         .process()
         .unwrap();
-    let r2 = bic::raw_headers::HeaderConfig::new()
+    let r2 = linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
         .no_origin_filter()
         .process()
         .unwrap();
 
-    let json1 = bic::to_json(&r1.package).unwrap();
-    let json2 = bic::to_json(&r2.package).unwrap();
+    let json1 = linc::to_json(&r1.package).unwrap();
+    let json2 = linc::to_json(&r2.package).unwrap();
     assert_eq!(json1, json2, "JSON output should be deterministic");
 }
 
@@ -189,7 +189,7 @@ fn libpng_vendored_parse() {
     let png_inc = corpus_dir().join("libpng/header/include");
     let main_c = corpus_dir().join("libpng/header/main.c");
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&main_c)
         .include_dir(&png_inc)
         .no_origin_filter()
@@ -218,7 +218,7 @@ fn libpng_vendored_package_inspection() {
     let png_inc = corpus_dir().join("libpng/header/include");
     let png_h = png_inc.join("png.h");
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&png_h)
         .include_dir(&png_inc)
         .no_origin_filter()
@@ -239,7 +239,7 @@ fn musl_stdint_vendored_parse() {
     let musl_inc = corpus_dir().join("musl/stdint/include");
     let main_c = corpus_dir().join("musl/stdint/main.c");
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&main_c)
         .include_dir(&musl_inc)
         .no_origin_filter()
@@ -280,7 +280,7 @@ fn string_h_parse() {
         None => return,
     };
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&header)
         .process()
         .unwrap();
@@ -309,7 +309,7 @@ fn string_h_const_correctness() {
         None => return,
     };
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&header)
         .process()
         .unwrap();
@@ -348,7 +348,7 @@ fn string_h_const_correctness() {
             BindingType::Pointer {
                 pointee: Box::new(BindingType::Void),
                 const_pointee: false,
-                qualifiers: bic::TypeQualifiers {
+                qualifiers: linc::TypeQualifiers {
                     is_const: false,
                     is_volatile: false,
                     is_restrict: true,
@@ -362,7 +362,7 @@ fn string_h_const_correctness() {
             BindingType::Pointer {
                 pointee: Box::new(BindingType::Void),
                 const_pointee: true,
-                qualifiers: bic::TypeQualifiers {
+                qualifiers: linc::TypeQualifiers {
                     is_const: false,
                     is_volatile: false,
                     is_restrict: true,
@@ -386,7 +386,7 @@ fn zlib_system_parse_filtered() {
         None => return,
     };
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&header)
         .process()
         .unwrap();
@@ -415,8 +415,8 @@ fn zlib_system_parse_filtered() {
     assert!(result.package.find_function("inflate").is_some(), "expected inflate");
 
     // JSON roundtrip
-    let json = bic::to_json(&result.package).unwrap();
-    let pkg2 = bic::from_json(&json).unwrap();
+    let json = linc::to_json(&result.package).unwrap();
+    let pkg2 = linc::from_json(&json).unwrap();
     assert_eq!(result.package, pkg2);
 }
 
@@ -428,7 +428,7 @@ fn libpng_system_parse() {
         None => return,
     };
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&header)
         .process()
         .unwrap();
@@ -466,7 +466,7 @@ fn libpng_system_validate_symbols() {
         None => return,
     };
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&header)
         .process()
         .unwrap();
@@ -496,7 +496,7 @@ fn zlib_system_validate_symbols() {
         None => return,
     };
 
-    let result = bic::raw_headers::HeaderConfig::new()
+    let result = linc::raw_headers::HeaderConfig::new()
         .header(&header)
         .process()
         .unwrap();

@@ -66,7 +66,7 @@ problem, even though both can leave `BindingPackage.layouts` without the request
 The key contract boundaries are:
 
 - `schema_version` is the wire-compatibility gate
-- `bic_version` is producer provenance
+- `linc_version` is producer provenance
 - `BindingPackage` is the declaration/metadata contract
 - `ValidationReport` is evidence, not an exception channel
 - diagnostics are part of the data contract, not incidental logs

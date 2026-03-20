@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostics::{Diagnostic, DiagnosticKind};
-use crate::error::BicError;
+use crate::error::LincError;
 use crate::extract::Extractor;
 use crate::ir::{
     AbiConfidence, BindingDefine, BindingInputs, BindingItem, BindingItemKind,
@@ -479,13 +479,13 @@ impl HeaderConfig {
         self.origin_filter.as_ref()
     }
 
-    pub fn validate(&self) -> Result<(), BicError> {
+    pub fn validate(&self) -> Result<(), LincError> {
         if self.entry_headers.is_empty() {
-            return Err(BicError::NoHeaders);
+            return Err(LincError::NoHeaders);
         }
 
-        fn invalid(reason: impl Into<String>) -> BicError {
-            BicError::InvalidConfig {
+        fn invalid(reason: impl Into<String>) -> LincError {
+            LincError::InvalidConfig {
                 reason: reason.into(),
             }
         }
@@ -555,7 +555,7 @@ impl HeaderConfig {
         Ok(())
     }
 
-    pub fn process(&self) -> Result<RawHeaderResult, BicError> {
+    pub fn process(&self) -> Result<RawHeaderResult, LincError> {
         self.validate()?;
 
         // Build a combined header source that includes all entry headers
@@ -565,9 +565,9 @@ impl HeaderConfig {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
-        let tmp_dir = std::env::temp_dir().join(format!("bic_raw_{unique_id}_{ts}"));
+        let tmp_dir = std::env::temp_dir().join(format!("linc_raw_{unique_id}_{ts}"));
         std::fs::create_dir_all(&tmp_dir)?;
-        let tmp_file = tmp_dir.join("_bic_combined.c");
+        let tmp_file = tmp_dir.join("_linc_combined.c");
         std::fs::write(&tmp_file, &combined)?;
 
         let pac_config = self.build_pac_config();
@@ -720,7 +720,7 @@ impl HeaderConfig {
         macros: Vec<MacroBinding>,
         macro_provenance: Vec<MacroProvenance>,
         report: PreprocessingReport,
-    ) -> Result<RawHeaderResult, BicError> {
+    ) -> Result<RawHeaderResult, LincError> {
         let source_desc = self
             .entry_headers
             .iter()
@@ -827,7 +827,7 @@ impl HeaderConfig {
         }
     }
 
-    fn attach_requested_probes(&self, package: &mut BindingPackage) -> Result<(), BicError> {
+    fn attach_requested_probes(&self, package: &mut BindingPackage) -> Result<(), LincError> {
         if self.probe_types.is_empty() {
             return Ok(());
         }
@@ -838,8 +838,8 @@ impl HeaderConfig {
                 attach_probe_evidence(&mut package.items, &probe_report.subjects);
                 Ok(())
             }
-            Err(error @ BicError::InvalidConfig { .. }) => Err(error),
-            Err(error @ BicError::NoProbeTypes) => Err(error),
+            Err(error @ LincError::InvalidConfig { .. }) => Err(error),
+            Err(error @ LincError::NoProbeTypes) => Err(error),
             Err(error) => {
                 package.diagnostics.push(Diagnostic::warning(
                     classify_probe_diagnostic_kind(&error),
@@ -943,9 +943,9 @@ impl HeaderConfig {
     }
 }
 
-fn classify_probe_diagnostic_kind(error: &BicError) -> DiagnosticKind {
+fn classify_probe_diagnostic_kind(error: &LincError) -> DiagnosticKind {
     match error {
-        BicError::ProbeCompile { stderr, .. }
+        LincError::ProbeCompile { stderr, .. }
             if stderr.contains("incomplete type")
                 || stderr.contains("incomplete typedef")
                 || stderr.contains("invalid application of 'sizeof'")
@@ -1507,7 +1507,7 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let id = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("bic_raw_{}_{}", name, id));
+        let dir = std::env::temp_dir().join(format!("linc_raw_{}_{}", name, id));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -1559,7 +1559,7 @@ mod tests {
         let cfg = HeaderConfig::new();
         let result = cfg.process();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), BicError::NoHeaders));
+        assert!(matches!(result.unwrap_err(), LincError::NoHeaders));
     }
 
     #[test]
@@ -1724,17 +1724,17 @@ mod tests {
     fn config_validation_rejects_empty_values() {
         let bad_header = HeaderConfig::new().header("");
         let err = bad_header.validate().unwrap_err();
-        assert!(matches!(err, BicError::InvalidConfig { .. }));
+        assert!(matches!(err, LincError::InvalidConfig { .. }));
         assert!(err.to_string().contains("entry header path"));
 
         let bad_define = HeaderConfig::new().header("api.h").define("", None);
         let err = bad_define.validate().unwrap_err();
-        assert!(matches!(err, BicError::InvalidConfig { .. }));
+        assert!(matches!(err, LincError::InvalidConfig { .. }));
         assert!(err.to_string().contains("define name"));
 
         let bad_probe = HeaderConfig::new().header("api.h").probe_type_layout("");
         let err = bad_probe.validate().unwrap_err();
-        assert!(matches!(err, BicError::InvalidConfig { .. }));
+        assert!(matches!(err, LincError::InvalidConfig { .. }));
         assert!(err.to_string().contains("probe type name"));
     }
 

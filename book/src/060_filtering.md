@@ -54,7 +54,7 @@ This is usually the right tradeoff for binding generation because it preserves y
 If you want the complete preprocessed declaration world:
 
 ```rust
-use bic::HeaderConfig;
+use linc::HeaderConfig;
 
 let result = HeaderConfig::new()
     .header("mylib.h")
@@ -73,7 +73,7 @@ This is useful for:
 You can provide an explicit `OriginFilter`:
 
 ```rust
-use bic::{HeaderConfig, OriginFilter};
+use linc::{HeaderConfig, OriginFilter};
 
 let result = HeaderConfig::new()
     .header("mylib.h")

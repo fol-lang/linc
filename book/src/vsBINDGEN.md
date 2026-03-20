@@ -105,7 +105,7 @@ is fully serializable to JSON via serde:
 ```rust
 pub struct BindingPackage {
     pub schema_version: u32,
-    pub bic_version: String,
+    pub linc_version: String,
     pub source_path: Option<String>,
     pub target: BindingTarget,         // compiler identity
     pub inputs: BindingInputs,         // headers, include dirs, defines
@@ -603,10 +603,10 @@ placeholder type.
 BIC separates **operational failures** from **analysis findings**:
 
 - Hard failures (can't find the preprocessor, can't parse the file, can't read an artifact)
-  are returned as `Err(BicError)` with typed variants:
+  are returned as `Err(LincError)` with typed variants:
 
   ```rust
-  pub enum BicError {
+  pub enum LincError {
       NoHeaders,
       NoProbeTypes,
       ProbeCompile { compiler, stderr },
@@ -715,7 +715,7 @@ System requirement: **libclang** (typically 50-200 MB installed). Build times ar
 ```toml
 # Cargo.toml
 [dependencies]
-bic = { version = "0.1", features = ["symbols", "codegen"] }
+linc = { version = "0.1", features = ["symbols", "codegen"] }
 ```
 
 Transitive deps: `pac` (git), `serde`, `serde_json`, optionally `object` (for symbol

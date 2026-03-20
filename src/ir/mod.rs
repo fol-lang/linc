@@ -91,8 +91,8 @@ pub struct DeclarationProvenance {
 pub struct BindingPackage {
     #[serde(default = "default_schema_version")]
     pub schema_version: u32,
-    #[serde(default = "default_bic_version")]
-    pub bic_version: String,
+    #[serde(default = "default_linc_version")]
+    pub linc_version: String,
     #[serde(default)]
     pub target: BindingTarget,
     #[serde(default)]
@@ -118,7 +118,7 @@ fn default_schema_version() -> u32 {
     SCHEMA_VERSION
 }
 
-fn default_bic_version() -> String {
+fn default_linc_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
@@ -126,7 +126,7 @@ impl BindingPackage {
     pub fn new() -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
-            bic_version: env!("CARGO_PKG_VERSION").to_string(),
+            linc_version: env!("CARGO_PKG_VERSION").to_string(),
             target: BindingTarget::default(),
             inputs: BindingInputs::default(),
             macros: Vec::new(),
@@ -785,7 +785,7 @@ mod tests {
     fn binding_package_defaults_on_old_json() {
         let json = r#"{
             "schema_version": 1,
-            "bic_version": "0.1.0",
+            "linc_version": "0.1.0",
             "source_path": "legacy.h",
             "items": [],
             "diagnostics": []
@@ -802,7 +802,7 @@ mod tests {
     fn binding_package_accepts_empty_nested_metadata_objects() {
         let json = r#"{
             "schema_version": 1,
-            "bic_version": "0.1.0",
+            "linc_version": "0.1.0",
             "target": {},
             "inputs": {},
             "link": {},

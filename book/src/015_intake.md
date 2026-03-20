@@ -9,8 +9,8 @@ The primary intake type is `SourcePackage`. A frontend (like `parc`) produces
 this after scanning and extracting source-level information.
 
 ```rust
-use bic::{SourcePackage, SourceDeclaration, SourceFunction, SourceType};
-use bic::from_source_package;
+use linc::{SourcePackage, SourceDeclaration, SourceFunction, SourceType};
+use linc::from_source_package;
 
 let mut src = SourcePackage::default();
 src.source_path = Some("mylib.h".into());

@@ -3,7 +3,7 @@
 This document is the rolling evidence ledger for the stress-plan examples.
 
 `fol`-specific priority labels are defined separately in
-[FOL_RELEVANCE.md](/home/bresilla/data/code/bresilla/bic/test/stress/FOL_RELEVANCE.md).
+[FOL_RELEVANCE.md](/home/bresilla/data/code/bresilla/linc/test/stress/FOL_RELEVANCE.md).
 
 It is deliberately short and operational:
 

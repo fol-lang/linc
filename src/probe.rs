@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use pac::ast::TranslationUnit;
 use serde::{Deserialize, Serialize};
 
-use crate::error::BicError;
+use crate::error::LincError;
 use crate::extract::Extractor;
 use crate::ir::{BindingItem, BindingTarget, TypeLayout};
 use crate::raw_headers::{Flavor, HeaderConfig};
@@ -69,10 +69,10 @@ pub struct AbiProbeReport {
 pub fn probe_type_layouts(
     config: &HeaderConfig,
     type_names: &[impl AsRef<str>],
-) -> Result<AbiProbeReport, BicError> {
+) -> Result<AbiProbeReport, LincError> {
     config.validate()?;
     if type_names.is_empty() {
-        return Err(BicError::NoProbeTypes);
+        return Err(LincError::NoProbeTypes);
     }
 
     let compiler = compiler_command(config);
@@ -103,14 +103,14 @@ pub fn probe_type_layouts(
 
     let compile_output = compile
         .output()
-        .map_err(|e| BicError::ProbeCompile {
+        .map_err(|e| LincError::ProbeCompile {
             compiler: compiler.clone(),
             stderr: e.to_string(),
         })?;
     if !compile_output.status.success() {
         let stderr = String::from_utf8_lossy(&compile_output.stderr);
         cleanup_probe_root(&temp_root);
-        return Err(BicError::ProbeCompile {
+        return Err(LincError::ProbeCompile {
             compiler,
             stderr: stderr.trim().to_string(),
         });
@@ -118,19 +118,19 @@ pub fn probe_type_layouts(
 
     let run_output = std::process::Command::new(&exe_path)
         .output()
-        .map_err(|e| BicError::ProbeExecution {
+        .map_err(|e| LincError::ProbeExecution {
             reason: e.to_string(),
         })?;
     if !run_output.status.success() {
         let stderr = String::from_utf8_lossy(&run_output.stderr);
         cleanup_probe_root(&temp_root);
-        return Err(BicError::ProbeExecution {
+        return Err(LincError::ProbeExecution {
             reason: stderr.trim().to_string(),
         });
     }
 
     let stdout = String::from_utf8(run_output.stdout)
-        .map_err(|e| BicError::ProbeOutput {
+        .map_err(|e| LincError::ProbeOutput {
             reason: e.to_string(),
         })?;
     let parsed = parse_layout_output(&stdout)?;
@@ -261,7 +261,7 @@ struct ProbedFieldSpec {
     bit_width: Option<u64>,
 }
 
-fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError> {
+fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError> {
     let mut entries = Vec::<ParsedProbeLayout>::new();
     let mut entry_indexes = std::collections::HashMap::<String, usize>::new();
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
@@ -270,30 +270,30 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
             Some("L") => {
                 let name = parts
                     .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!("invalid probe output line: {}", line),
                     })?;
                 let size = parts
                     .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!("invalid probe output line: {}", line),
                     })?
                     .parse::<u64>()
-                    .map_err(|e| BicError::ProbeOutput {
+                    .map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid size in probe output '{}': {}", line, e),
                     })?;
                 let align = parts
                     .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!("invalid probe output line: {}", line),
                     })?
                     .parse::<u64>()
-                    .map_err(|e| BicError::ProbeOutput {
+                    .map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid align in probe output '{}': {}", line, e),
                     })?;
                 let enum_underlying_size = match parts.next() {
                     Some("-") | None => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| BicError::ProbeOutput {
+                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid enum size in probe output '{}': {}", line, e),
                     })?),
                 };
@@ -302,7 +302,7 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
                     Some("0") => Some(false),
                     Some("1") => Some(true),
                     Some(value) => {
-                        return Err(BicError::ProbeOutput {
+                        return Err(LincError::ProbeOutput {
                             reason: format!(
                                 "invalid enum signedness in probe output '{}': {}",
                                 line, value
@@ -325,28 +325,28 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
             Some("F") => {
                 let subject = parts
                     .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!("invalid field probe output line: {}", line),
                     })?;
                 let field_name = parts
                     .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!("invalid field probe output line: {}", line),
                     })?;
                 let offset_bytes = match parts.next() {
                     Some("-") => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| BicError::ProbeOutput {
+                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid field offset in probe output '{}': {}", line, e),
                     })?),
                     None => {
-                        return Err(BicError::ProbeOutput {
+                        return Err(LincError::ProbeOutput {
                             reason: format!("invalid field probe output line: {}", line),
                         })
                     }
                 };
                 let bit_width = match parts.next() {
                     Some("-") | None => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| BicError::ProbeOutput {
+                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid bitfield width in probe output '{}': {}", line, e),
                     })?),
                 };
@@ -354,7 +354,7 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
                     .get(subject)
                     .copied()
                     .and_then(|index| entries.get_mut(index))
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!(
                             "field probe output '{}' referenced unknown subject '{}'",
                             line, subject
@@ -373,31 +373,31 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
                 } else {
                     legacy_parts
                         .next()
-                        .ok_or_else(|| BicError::ProbeOutput {
+                        .ok_or_else(|| LincError::ProbeOutput {
                             reason: format!("invalid probe output line: {}", line),
                         })?
                 };
                 let size = legacy_parts
                     .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!("invalid probe output line: {}", line),
                     })?
                     .parse::<u64>()
-                    .map_err(|e| BicError::ProbeOutput {
+                    .map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid size in probe output '{}': {}", line, e),
                     })?;
                 let align = legacy_parts
                     .next()
-                    .ok_or_else(|| BicError::ProbeOutput {
+                    .ok_or_else(|| LincError::ProbeOutput {
                         reason: format!("invalid probe output line: {}", line),
                     })?
                     .parse::<u64>()
-                    .map_err(|e| BicError::ProbeOutput {
+                    .map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid align in probe output '{}': {}", line, e),
                     })?;
                 let enum_underlying_size = match legacy_parts.next() {
                     Some("-") | None => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| BicError::ProbeOutput {
+                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
                         reason: format!("invalid enum size in probe output '{}': {}", line, e),
                     })?),
                 };
@@ -406,7 +406,7 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, BicError>
                     Some("0") => Some(false),
                     Some("1") => Some(true),
                     Some(value) => {
-                        return Err(BicError::ProbeOutput {
+                        return Err(LincError::ProbeOutput {
                             reason: format!(
                                 "invalid enum signedness in probe output '{}': {}",
                                 line, value
@@ -484,7 +484,7 @@ fn parse_probe_translation_unit(config: &HeaderConfig) -> Option<TranslationUnit
         .collect::<String>();
     let tmp_root = temp_probe_root().join("parse");
     std::fs::create_dir_all(&tmp_root).ok()?;
-    let tmp_file = tmp_root.join("_bic_probe_fields.c");
+    let tmp_file = tmp_root.join("linc_probe_fields.c");
     std::fs::write(&tmp_file, combined).ok()?;
     let compiler = compiler_command(config);
     let flavor = config.flavor.unwrap_or(Flavor::GnuC11);
@@ -520,7 +520,7 @@ fn temp_probe_root() -> PathBuf {
     use std::sync::atomic::{AtomicU64, Ordering};
     static NEXT_ID: AtomicU64 = AtomicU64::new(0);
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("bic_probe_{}_{}", std::process::id(), id))
+    std::env::temp_dir().join(format!("linc_probe_{}_{}", std::process::id(), id))
 }
 
 fn cleanup_probe_root(root: &std::path::Path) {
@@ -535,7 +535,7 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("bic_probe_test_{label}_{}_{}", std::process::id(), id));
+        let dir = std::env::temp_dir().join(format!("linc_probe_test_{label}_{}_{}", std::process::id(), id));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -619,7 +619,7 @@ mod tests {
 
         let err = probe_type_layouts(&HeaderConfig::new().header(&header), &[] as &[&str])
             .unwrap_err();
-        assert!(matches!(err, BicError::NoProbeTypes));
+        assert!(matches!(err, LincError::NoProbeTypes));
 
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -631,7 +631,7 @@ mod tests {
             &["size_t"],
         )
         .unwrap_err();
-        assert!(matches!(err, BicError::InvalidConfig { .. }));
+        assert!(matches!(err, LincError::InvalidConfig { .. }));
     }
 
     #[test]

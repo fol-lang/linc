@@ -52,7 +52,7 @@ That is more durable than guessing from whether an operation happened to return 
 If your tool stores or consumes package JSON:
 
 - gate on `schema_version`
-- treat `bic_version` as provenance, not wire compatibility
+- treat `linc_version` as provenance, not wire compatibility
 - keep fixture coverage for the payload shapes you rely on
 
 This is safer than keying behavior off the producing crate version string.

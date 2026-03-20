@@ -19,7 +19,7 @@ You need both when you want to answer questions such as:
 ## Entry Point
 
 ```rust
-use bic::inspect_symbols;
+use linc::inspect_symbols;
 
 let inventory = inspect_symbols("build/libdemo.so").unwrap();
 ```

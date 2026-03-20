@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use bic::{BicError, HeaderConfig, RawHeaderResult};
+use linc::{LincError, HeaderConfig, RawHeaderResult};
 
 const EPOLL_HEADER_CANDIDATES: &[&str] = &[
     "/usr/include/sys/epoll.h",
@@ -16,7 +16,7 @@ pub struct EpollEnvironment {
     pub is_fixture: bool,
 }
 
-pub fn epoll_environment() -> Result<EpollEnvironment, BicError> {
+pub fn epoll_environment() -> Result<EpollEnvironment, LincError> {
     let system_header = EPOLL_HEADER_CANDIDATES
         .iter()
         .find(|path| Path::new(path).exists())
@@ -28,7 +28,7 @@ pub fn epoll_environment() -> Result<EpollEnvironment, BicError> {
     } else if fixture_header.exists() {
         (fixture_header, true)
     } else {
-        return Err(BicError::InvalidConfig {
+        return Err(LincError::InvalidConfig {
             reason: "epoll example requires a sys/epoll.h header or repo fixture".into(),
         });
     };
@@ -46,7 +46,7 @@ pub fn epoll_environment() -> Result<EpollEnvironment, BicError> {
     })
 }
 
-pub fn epoll_header_config() -> Result<HeaderConfig, BicError> {
+pub fn epoll_header_config() -> Result<HeaderConfig, LincError> {
     let environment = epoll_environment()?;
     let mut cfg = HeaderConfig::new()
         .target_constraint("linux")
@@ -64,6 +64,6 @@ pub fn epoll_header_config() -> Result<HeaderConfig, BicError> {
     Ok(cfg)
 }
 
-pub fn analyze_epoll() -> Result<RawHeaderResult, BicError> {
+pub fn analyze_epoll() -> Result<RawHeaderResult, LincError> {
     epoll_header_config()?.process()
 }
