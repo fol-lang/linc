@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use bic::SymbolInventory;
+use bic::{validate, MatchStatus};
 
 #[path = "../test/stress/daemon/max_pain.rs"]
 mod max_pain;
@@ -44,10 +45,7 @@ fn combined_daemon_fixture_is_code_driven_and_consumable() {
 
 #[test]
 fn combined_daemon_inventory_fixture_is_consumable() {
-    let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/daemon_core_inventory_fixture.json"
-    ))
-    .unwrap();
+    let inventory: SymbolInventory = max_pain::daemon_core_inventory_fixture();
 
     assert_eq!(inventory.artifact_path, "test/stress/daemon/max_pain.o");
     assert_eq!(inventory.symbols.len(), 6);
@@ -55,4 +53,30 @@ fn combined_daemon_inventory_fixture_is_consumable() {
         .symbols
         .iter()
         .any(|symbol| symbol.name == "bic_daemon_enable_tls" && symbol.is_function));
+}
+
+#[test]
+fn combined_daemon_fixture_validates_against_daemon_core_inventory() {
+    let result = max_pain::analyze_max_pain().unwrap();
+    let inventory = max_pain::daemon_core_inventory_fixture();
+    let report = validate(&result.package, &inventory);
+
+    let daemon_entries: Vec<_> = report
+        .matches
+        .iter()
+        .filter(|entry| entry.name.starts_with("bic_daemon_"))
+        .collect();
+
+    assert_eq!(daemon_entries.len(), 6);
+    assert!(daemon_entries
+        .iter()
+        .all(|entry| entry.status == MatchStatus::Matched));
+    assert_eq!(
+        report
+            .missing()
+            .iter()
+            .filter(|entry| entry.name.starts_with("bic_daemon_"))
+            .count(),
+        0
+    );
 }

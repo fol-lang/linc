@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use bic::{BicError, HeaderConfig, RawHeaderResult};
+use bic::{BicError, HeaderConfig, RawHeaderResult, SymbolInventory};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MaxPainEnvironment {
@@ -37,4 +37,9 @@ pub fn max_pain_header_config() -> Result<HeaderConfig, BicError> {
 
 pub fn analyze_max_pain() -> Result<RawHeaderResult, BicError> {
     max_pain_header_config()?.process()
+}
+
+pub fn daemon_core_inventory_fixture() -> SymbolInventory {
+    serde_json::from_str(include_str!("../../contracts/daemon_core_inventory_fixture.json"))
+        .expect("daemon core inventory fixture should deserialize")
 }
