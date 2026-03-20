@@ -1,4 +1,4 @@
-//! Real-world corpus tests for BIC.
+//! Real-world corpus tests for LINC.
 //!
 //! Uses vendored headers from test/full_apps/external/ (copied from pac).
 //! System-header tests (string.h, symbol validation) are #[ignore] and
@@ -137,7 +137,7 @@ fn zlib_vendored_types() {
 }
 
 #[test]
-fn zlib_vendored_codegen() {
+fn zlib_vendored_package_and_json_roundtrip() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
@@ -214,7 +214,7 @@ fn libpng_vendored_parse() {
 }
 
 #[test]
-fn libpng_vendored_codegen() {
+fn libpng_vendored_package_inspection() {
     let png_inc = corpus_dir().join("libpng/header/include");
     let png_h = png_inc.join("png.h");
 
