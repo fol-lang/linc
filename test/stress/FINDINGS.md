@@ -23,6 +23,23 @@ It is deliberately short and operational:
 | `SF-006` | link planning | macOS-style provider inventories | text stub provider paths such as `libSystem.tbd` are realistic planning artifacts and should resolve like ordinary declared library providers | fixed with regression |
 | `SF-004` | mixed-surface realism | combined daemon target | the mixed fixture now has a concrete daemon-core validation path, but runtime subsystem availability still depends on downstream artifact inspection and deployment policy | observed |
 
+## Current State After Follow-Up Fixes
+
+Fixed in the current follow-up cycle:
+
+- aligned typedef extraction recovery
+- probe diagnostic split between unavailable layout evidence and operational probe failure
+- macOS `.tbd` provider matching
+- a more hermetic `epoll` example path
+- daemon-core artifact-backed validation
+
+Still open or intentionally limited:
+
+- `socketcan` analysis still depends on host-installed Linux headers
+- `linux_event_loop` still depends on host-installed Linux headers
+- the real-library ladder is still mostly host-package dependent
+- runtime loader and deployment policy remain downstream concerns by design
+
 ## Example-by-Example Notes
 
 ### Synthetic Torture Header
