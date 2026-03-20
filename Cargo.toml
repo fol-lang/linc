@@ -9,9 +9,8 @@ keywords = ["c", "ffi", "bindings", "parser"]
 categories = ["development-tools::ffi", "parser-implementations"]
 
 [features]
-default = ["symbols", "codegen"]
+default = ["symbols"]
 symbols = ["dep:object"]
-codegen = []
 
 [dependencies]
 pac = { git = "https://github.com/follang/pac" }

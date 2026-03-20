@@ -61,7 +61,6 @@
 //! - [`inspect_symbols`] for native artifact inventory when the `symbols` feature is enabled
 //! - [`validate`] and [`validate_many`] for declaration-vs-artifact validation when the
 //!   `symbols` feature is enabled
-//! - [`emit_rust_ffi`] for baseline Rust FFI emission when the `codegen` feature is enabled
 //!
 //! These root-level APIs are the intended long-term consumer surface.
 //! New documentation and integration guidance should assume this tier first.
@@ -178,16 +177,11 @@ pub mod preprocess;
 pub mod probe;
 pub mod raw_headers;
 
-#[cfg(feature = "codegen")]
-pub mod codegen_rust;
-
 #[cfg(feature = "symbols")]
 pub mod symbols;
 #[cfg(feature = "symbols")]
 pub mod validate;
 
-#[cfg(feature = "codegen")]
-pub use codegen_rust::emit_rust_ffi;
 pub use error::BicError;
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 pub use extract::{extract_from_source, extract_from_translation_unit};
@@ -273,7 +267,7 @@ pub fn from_json(json: &str) -> Result<BindingPackage, BicError> {
 }
 
 #[cfg(test)]
-#[cfg(all(feature = "symbols", feature = "codegen"))]
+#[cfg(feature = "symbols")]
 mod integration_tests {
     use super::*;
 
@@ -297,13 +291,12 @@ mod integration_tests {
         let pkg2 = from_json(&json).unwrap();
         assert_eq!(pkg, pkg2);
 
-        // Step 3: Emit Rust FFI
-        let rust = emit_rust_ffi(&pkg);
-        assert!(rust.contains("pub type size_t"));
-        assert!(rust.contains("pub struct FILE"));
-        assert!(rust.contains("pub fn malloc"));
-        assert!(rust.contains("pub fn free"));
-        assert!(rust.contains("pub static errno"));
+        // Step 3: Verify expected items
+        assert!(pkg.find_type_alias("size_t").is_some());
+        assert!(pkg.find_record("FILE").is_some());
+        assert!(pkg.find_function("malloc").is_some());
+        assert!(pkg.find_function("free").is_some());
+        assert!(pkg.find_variable("errno").is_some());
     }
 
     #[test]
@@ -382,8 +375,7 @@ mod integration_tests {
     /// Demonstrates the downstream consumer pattern described in PLAN.md:
     /// 1. Parse headers -> BindingPackage
     /// 2. Serialize to JSON for machine consumption
-    /// 3. Emit Rust FFI
-    /// 4. (Optional) Validate against symbols
+    /// 3. (Optional) Validate against symbols
     #[test]
     fn downstream_consumer_pattern() {
         let headers = r#"
@@ -419,12 +411,6 @@ mod integration_tests {
         let json = to_json(&package).unwrap();
         assert!(json.contains("\"init\""));
         assert!(json.contains("\"config\""));
-
-        // Generate Rust FFI
-        let rust_ffi = emit_rust_ffi(&package);
-        assert!(rust_ffi.contains("pub fn init"));
-        assert!(rust_ffi.contains("pub fn shutdown"));
-        assert!(rust_ffi.contains("pub struct config"));
     }
 
     #[test]
@@ -467,11 +453,7 @@ mod integration_tests {
         // Step 4: JSON export
         let json = to_json(&package).unwrap();
         assert!(json.contains("add"));
-
-        // Step 5: Rust FFI
-        let rust = emit_rust_ffi(&package);
-        assert!(rust.contains("pub fn add"));
-        assert!(rust.contains("pub fn mul"));
+        assert!(json.contains("mul"));
 
         // Cleanup
         std::fs::remove_dir_all(&dir).ok();
@@ -758,26 +740,4 @@ mod integration_tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn codegen_compile_check_zlib_vendored() {
-        // Parse vendored zlib headers and verify generated Rust FFI is valid syntax
-        let zlib_inc = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("test/full_apps/external/zlib/header/include");
-        let zlib_h = zlib_inc.join("zlib.h");
-
-        let result = HeaderConfig::new()
-            .header(&zlib_h)
-            .include_dir(&zlib_inc)
-            .no_origin_filter()
-            .process()
-            .unwrap();
-
-        let rust_ffi = emit_rust_ffi(&result.package);
-        // Basic sanity: should have extern "C", functions, and types
-        assert!(rust_ffi.contains("extern \"C\""));
-        assert!(rust_ffi.contains("pub fn deflate"));
-        assert!(rust_ffi.contains("pub fn inflate"));
-        // Should have a reasonable amount of output
-        assert!(rust_ffi.len() > 500, "generated FFI too short: {} bytes", rust_ffi.len());
-    }
 }

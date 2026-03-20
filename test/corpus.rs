@@ -148,10 +148,8 @@ fn zlib_vendored_codegen() {
         .process()
         .unwrap();
 
-    let rust_ffi = emit_rust_ffi(&result.package);
-    assert!(rust_ffi.contains("extern \"C\""));
-    assert!(rust_ffi.contains("pub fn deflate"));
-    assert!(rust_ffi.contains("pub fn inflate"));
+    assert!(result.package.find_function("deflate").is_some(), "expected deflate function");
+    assert!(result.package.find_function("inflate").is_some(), "expected inflate function");
 
     // JSON roundtrip
     let json = bic::to_json(&result.package).unwrap();
@@ -227,10 +225,9 @@ fn libpng_vendored_codegen() {
         .process()
         .unwrap();
 
-    let rust_ffi = emit_rust_ffi(&result.package);
-    assert!(rust_ffi.contains("extern \"C\""));
-    // Should have at least some png_ functions in the output
-    assert!(rust_ffi.contains("png_"), "expected png_ in generated FFI");
+    // Should have at least some png_ functions in the extracted package
+    let has_png_func = result.package.functions().any(|f| f.name.starts_with("png_"));
+    assert!(has_png_func, "expected png_ functions in extracted package");
 }
 
 // ============================================================================
@@ -413,11 +410,9 @@ fn zlib_system_parse_filtered() {
 
     eprintln!("zlib system: {} functions extracted", funcs.len());
 
-    // Codegen
-    let rust_ffi = emit_rust_ffi(&result.package);
-    assert!(rust_ffi.contains("pub fn deflate"));
-    assert!(rust_ffi.contains("pub fn inflate"));
-    assert!(rust_ffi.contains("*const")); // const correctness
+    // Verify key functions extracted
+    assert!(result.package.find_function("deflate").is_some(), "expected deflate");
+    assert!(result.package.find_function("inflate").is_some(), "expected inflate");
 
     // JSON roundtrip
     let json = bic::to_json(&result.package).unwrap();
