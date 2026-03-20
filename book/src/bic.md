@@ -91,24 +91,19 @@ Most users touch one or more of these library entry points:
 
 ## Recommended Reading Order
 
-If you are new to the repository, read the book in this order:
+The book is structured in a few bigger blocks now:
 
-1. Getting Started
-2. Header Processing
-3. IR Model
-4. Macros and Layouts
-5. Link Surface
-6. Symbol Inventories
-7. Validation
-8. API Contract
-9. End-to-End Workflows
-10. JSON Compatibility
+1. Getting Started and the core extraction chapters
+2. Native Evidence
+3. API Contract and the contract/policy chapters
+4. End-To-End Workflows
+5. Operations And Release
 
 If you only want to integrate `bic` into another tool, focus on:
 
 - [Header Processing](./020_headers.md)
 - [IR Model](./030_ir.md)
-- [Link Surface](./070_link_surface.md)
+- [Native Evidence](./095_native_evidence.md)
 - [API Contract](./100_api_contract.md)
-- [JSON Compatibility](./120_json_compatibility.md)
-- [End-to-End Workflows](./110_workflows.md)
+- [Contracts And Policy](./115_contracts_and_policy.md)
+- [End-To-End Workflows](./110_workflows.md)

@@ -1,0 +1,15 @@
+# Contracts And Policy
+
+This section groups the durable contract and policy chapters.
+
+Read this section when you need to answer questions such as:
+
+- what parts of the public API are intended to stay stable
+- what JSON compatibility means in practice
+- which failures are operational errors versus report data
+- which fields are identity, stable transport, or evolving evidence
+
+These chapters are the narrowest statement of what downstream consumers should rely on.
+
+If you are integrating `bic` into another tool, this section matters more than the implementation
+details of lower-level modules.
