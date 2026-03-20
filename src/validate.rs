@@ -2542,4 +2542,46 @@ mod tests {
         assert_eq!(report.hidden()[0].name, "beta");
         assert_eq!(report.resolved_provider_entries().len(), 2); // alpha + data
     }
+
+    #[test]
+    fn validate_many_entries_cover_mixed_states() {
+        let pkg = make_package_with_vars(&["found_func", "missing_func"], &["found_var"]);
+        let inv1 = make_inventory(&["found_func"], &[]);
+        let inv2 = SymbolInventory {
+            artifact_path: "data.o".into(),
+            format: ArtifactFormat::ElfObject,
+            platform: ArtifactPlatform::Elf,
+            kind: ArtifactKind::Object,
+            capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+            dependency_edges: Vec::new(),
+            symbols: vec![SymbolEntry {
+                name: "found_var".into(),
+                raw_name: None, version: None,
+                direction: SymbolDirection::Exported,
+                reexported_via: Vec::new(), alias_of: None,
+                visibility: SymbolVisibility::Default,
+                is_function: false,
+                binding: SymbolBinding::Global,
+                size: Some(4), section: None, archive_member: None, function_abi: None,
+            }],
+        };
+
+        let report = validate_many(&pkg, &[inv1, inv2]);
+
+        // Summary should reflect mixed state
+        assert_eq!(report.summary.total, 3);
+        assert_eq!(report.summary.matched, 2);
+        assert_eq!(report.summary.missing, 1);
+
+        // Entries surface should have all 3 declarations
+        assert_eq!(report.entries.len(), 3);
+        assert_eq!(report.resolved_provider_entries().len(), 2);
+        assert_eq!(report.unresolved_provider_entries().len(), 1);
+
+        // Helper methods agree
+        assert_eq!(report.matched().len(), 2);
+        assert_eq!(report.missing().len(), 1);
+        assert_eq!(report.missing()[0].name, "missing_func");
+        assert!(!report.all_matched());
+    }
 }
