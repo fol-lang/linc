@@ -13,8 +13,8 @@ pub mod source;
 
 pub use source::{
     SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
-    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord, SourceType,
-    SourceTypeAlias, SourceVariable,
+    SourceLinkKind, SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter,
+    SourceRecord, SourceType, SourceTypeAlias, SourceVariable,
 };
 
 #[cfg(test)]

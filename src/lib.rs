@@ -133,8 +133,8 @@ pub use error::LincError;
 pub use analysis::LinkAnalysisPackage;
 pub use intake::{
     SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
-    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord, SourceType,
-    SourceTypeAlias, SourceVariable,
+    SourceLinkKind, SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter,
+    SourceRecord, SourceType, SourceTypeAlias, SourceVariable,
 };
 pub use ir::{
     AbiConfidence, AliasResolution, BindingDefine, BindingInputs, BindingItem, BindingItemKind,
@@ -183,6 +183,16 @@ pub fn from_source_package(source: &SourcePackage) -> BindingPackage {
 /// link-analysis contract that downstream generators should consume.
 pub fn link_analysis_from_binding_package(package: &BindingPackage) -> LinkAnalysisPackage {
     LinkAnalysisPackage::from_binding_package(package)
+}
+
+/// Analyze a frontend-neutral [`SourcePackage`] into the explicit
+/// [`LinkAnalysisPackage`] contract.
+///
+/// This is the preferred contract-first entrypoint for downstream consumers
+/// that do not want to traffic in `BindingPackage`.
+pub fn analyze_source_package(source: &SourcePackage) -> LinkAnalysisPackage {
+    let binding = from_source_package(source);
+    link_analysis_from_binding_package(&binding)
 }
 
 /// Serialize a BindingPackage to a deterministic JSON string.

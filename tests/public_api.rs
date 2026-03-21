@@ -1,5 +1,6 @@
 mod common;
 use linc::{
+    analyze_source_package,
     from_source_package,
     probe_type_layouts,
     AbiConfidence,
@@ -14,6 +15,7 @@ use linc::{
     FieldLayout,
     FunctionBinding,
     HeaderConfig,
+    LinkAnalysisPackage,
     LincError,
     LinkResolutionMode,
     MacroBinding,
@@ -35,6 +37,8 @@ use linc::{
     SourceDeclaration,
     SourceEnum,
     SourceFunction,
+    SourceLinkKind,
+    SourceLinkRequirement,
     // Intake types (Phase 1)
     SourcePackage,
     SourceRecord,
@@ -462,6 +466,37 @@ fn intake_types_reachable_from_root() {
     assert!(pkg.find_function("init").is_some());
     assert!(pkg.find_record("config").is_some());
     assert!(pkg.find_type_alias("size_t").is_some());
+}
+
+#[test]
+fn source_analysis_contract_is_reachable_from_root() {
+    let mut src = SourcePackage::default();
+    src.declarations
+        .push(SourceDeclaration::Function(SourceFunction {
+            name: "open_widget".into(),
+            parameters: vec![],
+            return_type: SourceType::Int,
+            variadic: false,
+            source_offset: None,
+        }));
+    src.link_requirements.push(SourceLinkRequirement {
+        name: "widget".into(),
+        kind: SourceLinkKind::Library,
+    });
+
+    let analysis: LinkAnalysisPackage = analyze_source_package(&src);
+
+    assert_eq!(analysis.schema_version, linc::SCHEMA_VERSION);
+    assert_eq!(analysis.declared_link_surface.ordered_inputs.len(), 1);
+    assert_eq!(
+        analysis
+            .resolved_link_plan
+            .as_ref()
+            .expect("resolved plan")
+            .inputs
+            .len(),
+        1
+    );
 }
 
 #[test]
