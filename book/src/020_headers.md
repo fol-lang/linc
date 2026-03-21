@@ -1,6 +1,13 @@
 # Header Processing
 
-`HeaderConfig` is the main driver for turning raw headers into a `BindingPackage`.
+`HeaderConfig` is the transitional bootstrap driver for turning raw headers into a `BindingPackage`.
+
+It is still useful inside this repo, but it is not the architectural center of LINC.
+The target split is:
+
+- `parc` owns source/header understanding
+- `linc` consumes `SourcePackage`
+- `HeaderConfig` remains only as a temporary convenience path while that split lands
 
 It owns three separate concerns:
 
@@ -23,6 +30,9 @@ For production use, it is better to think about `HeaderConfig` as five conceptua
 
 The implementation is still a single builder type.
 This categorization matters because future API cleanup work is likely to preserve these domains even if the concrete type layout changes.
+
+If you are writing new downstream integration code, do not make `HeaderConfig` your primary
+contract boundary. Prefer `SourcePackage -> LinkAnalysisPackage` instead.
 
 The current library API also exposes borrowed views for these domains, so downstream code can
 already treat them separately without waiting for a full type split:

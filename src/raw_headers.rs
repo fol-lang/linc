@@ -1,3 +1,9 @@
+//! Transitional raw-header bootstrap layer.
+//!
+//! This module exists so the repo can still start from real headers while
+//! `parc` finishes owning the frontend boundary. It is not the long-term
+//! preferred intake path for downstream consumers.
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -15,6 +21,10 @@ use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::ProbeSubjectReport;
 
 /// High-level scan configuration for turning headers into a `BindingPackage`.
+///
+/// This type is transitional bootstrap infrastructure. New downstream code
+/// should prefer `SourcePackage -> LinkAnalysisPackage` and only use
+/// `HeaderConfig` when raw-header ownership genuinely belongs inside LINC.
 ///
 /// Invariant: builder methods append in declaration order, and validation is expected to run before
 /// preprocessing, extraction, or probing.
