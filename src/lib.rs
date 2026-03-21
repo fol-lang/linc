@@ -591,4 +591,5 @@ mod integration_tests {
         let pkg2: ir::BindingPackage = serde_json::from_str(&json).unwrap();
         assert_eq!(pkg.item_count(), pkg2.item_count());
     }
+
 }

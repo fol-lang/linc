@@ -586,4 +586,5 @@ mod tests {
             _ => panic!("expected FunctionPointer"),
         }
     }
+
 }
