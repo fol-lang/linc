@@ -5,10 +5,17 @@ ABI probing, validation, and binary evidence production.
 
 It sits in the `PARC -> LINC -> GERC` pipeline:
 
-- **PARC** (`pac`) handles C preprocessing, parsing, and declaration extraction
+- **PARC** (`parc`) handles C preprocessing, parsing, and declaration extraction
 - **LINC** (`linc`) consumes normalized source contracts, inspects native artifacts,
   validates declarations against symbols, and produces link/binary evidence
 - **GERC** (`gec`) consumes that evidence to emit Rust projections
+
+Architecturally, `linc` owns its own model and artifact.
+
+- `linc` library code must not depend on `parc` or `gec`
+- `linc` may use `parc` only in tests/examples or external harnesses
+- there is no shared ABI crate
+- if `linc` consumes `parc` output, that translation belongs outside `linc/src/**`
 
 ## What LINC Produces
 
@@ -34,8 +41,11 @@ let json = serde_json::to_string_pretty(&analysis).unwrap();
 ```
 
 Raw-header scanning still exists as a repo-local bootstrap path, but it is not
-the normal `linc` API story. New downstream code should start from a source
-contract produced by `parc` or another compatible frontend.
+the long-term architecture. The preferred story is:
+
+1. `parc` or another frontend emits a source artifact
+2. tests/examples or an external harness translate that artifact into `linc` input
+3. `linc` emits a `LinkAnalysisPackage` or other evidence artifacts
 
 For ABI-sensitive workflows:
 

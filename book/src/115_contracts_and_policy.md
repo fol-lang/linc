@@ -13,3 +13,11 @@ These chapters are the narrowest statement of what downstream consumers should r
 
 If you are integrating LINC into another tool, this section matters more than the implementation
 details of lower-level modules.
+
+The most important policy rule is architectural:
+
+- `linc/src/**` must not depend on `parc` or `gec`
+- cross-package translation belongs in tests/examples/harnesses
+- `linc` owns its own internal model and its own evidence artifacts
+- there is no shared ABI crate and no backward-compatibility burden for old
+  pipeline shapes

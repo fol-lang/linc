@@ -22,7 +22,17 @@ The resulting file now contains:
 - optional probe/validation attachment points
 - target and input provenance
 
-## Workflow 2: Repo-Local Raw-Header Bootstrap
+## Workflow 2: Test Or Harness Translation From PARC
+
+The intended cross-package architecture is artifact-based, not shared-type based.
+
+That means `linc` library code should not import `parc`.
+Instead, a test, example, or external harness can translate a PARC-owned source
+artifact into `linc` input and then run `analyze_source_package(...)`.
+
+That translator should live outside `linc/src/**`.
+
+## Workflow 3: Repo-Local Raw-Header Bootstrap
 
 ```rust
 use linc::analyze_source_package;
@@ -40,7 +50,7 @@ let analysis = analyze_source_package(&source);
 This exists only as a repo-local bootstrap path while difficult test fixtures
 and stress scenarios are being moved fully onto `parc`.
 
-## Workflow 3: Inspect A Native Artifact
+## Workflow 4: Inspect A Native Artifact
 
 ```rust
 use linc::inspect_symbols;
@@ -58,7 +68,7 @@ Typical reasons:
 - checking archive member provenance
 - checking shared-library dependency edges
 
-## Workflow 4: Validate Source-Derived Bindings Against Artifacts
+## Workflow 5: Validate Source-Derived Bindings Against Artifacts
 
 ```rust
 use linc::{inspect_symbols, validate, SourcePackage};
@@ -83,7 +93,7 @@ let support = inspect_symbols("build/libsupport.a")?;
 let report = validate_many(&binding, &[core, support]);
 ```
 
-## Workflow 5: Extract Just The Link Surface
+## Workflow 6: Extract Just The Link Surface
 
 ```rust
 let declared = &analysis.declared_link_surface;
@@ -98,7 +108,7 @@ This is the useful boundary if a downstream tool only wants:
 - platform constraints
 - ordering and link preference metadata
 
-## Workflow 6: ABI-Sensitive Packages
+## Workflow 7: ABI-Sensitive Packages
 
 For packages with important struct ABI:
 
@@ -125,15 +135,16 @@ This gives you:
 - a source-level contract that can be re-analyzed
 - a separate validation decision surface
 
-## Workflow 7: Downstream `fol` / `gerc` Consumption
+## Workflow 8: Downstream `fol` / `gerc` Consumption
 
 The intended downstream pattern is:
 
-1. `parc` produces `SourcePackage`
-2. `linc` produces `LinkAnalysisPackage`
-3. downstream generation reads source and link analysis in parallel
-4. downstream generation reads `analysis.resolved_link_plan` to construct native link inputs
-5. downstream generation may use validation output as a gate or diagnostic surface
+1. `parc` produces a PARC-owned source artifact
+2. tests/examples/harnesses translate that artifact into `linc` input
+3. `linc` produces `LinkAnalysisPackage`
+4. downstream generation reads source and link analysis in parallel
+5. downstream generation reads `analysis.resolved_link_plan` to construct native link inputs
+6. downstream generation may use validation output as a gate or diagnostic surface
 
 That division keeps LINC focused on analysis and normalization rather than owning final build execution.
 
