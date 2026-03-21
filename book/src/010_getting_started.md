@@ -1,7 +1,7 @@
 # Getting Started
 
-This chapter shows the shortest path from "I have a header" to "I have machine-readable binding
-metadata".
+This chapter shows the shortest path from "I have parsed source metadata" to "I have
+machine-readable link analysis".
 
 LINC should be read as a library that produces analysis artifacts.
 It should not be read as a promise that every successful scan is ready for generation without
@@ -16,7 +16,6 @@ Use a local path dependency while developing in the workspace:
 linc = { path = "../linc" }
 ```
 
-If you need Rust FFI generation, enable the `codegen` feature.
 If you need native artifact inspection and validation, enable the `symbols` feature.
 
 Example:
@@ -26,35 +25,43 @@ Example:
 linc = { path = "../linc", features = ["codegen", "symbols"] }
 ```
 
-## Smallest Useful Example
+## Preferred Contract-First Example
 
 ```rust
-use linc::HeaderConfig;
+use linc::{analyze_source_package, SourceDeclaration, SourceFunction, SourcePackage, SourceType};
 
 fn main() -> Result<(), String> {
-    let result = HeaderConfig::new()
-        .header("mylib.h")
-        .process()?;
+    let mut source = SourcePackage::default();
+    source.declarations.push(SourceDeclaration::Function(SourceFunction {
+        name: "mylib_init".into(),
+        parameters: vec![],
+        return_type: SourceType::Int,
+        variadic: false,
+        source_offset: None,
+    }));
 
-    println!("items: {}", result.package.items.len());
-    println!("macros: {}", result.package.macros.len());
-    println!("layouts: {}", result.package.layouts.len());
+    let analysis = analyze_source_package(&source);
+
+    println!(
+        "declared link inputs: {}",
+        analysis.declared_link_surface.ordered_inputs.len()
+    );
+    println!(
+        "has resolved plan: {}",
+        analysis.resolved_link_plan.is_some()
+    );
 
     Ok(())
 }
 ```
 
-`process()` returns a `RawHeaderResult` with two parts:
+The preferred output contract is `LinkAnalysisPackage`.
+That is the value downstream generators should learn to consume.
 
-- `package`: the durable output you usually keep or serialize
-- `report`: the immediate preprocessing invocation details and preprocessed source
-
-## Typical Scan With Real Inputs
-
-Most real scans need include paths, defines, and some native link metadata:
+## Transitional Raw-Header Scan
 
 ```rust
-use linc::HeaderConfig;
+use linc::{analyze_source_package, HeaderConfig};
 
 let result = HeaderConfig::new()
     .header("api.h")
@@ -65,91 +72,62 @@ let result = HeaderConfig::new()
     .link_shared_lib("dl")
     .probe_type_layout("struct api_context")
     .process()?;
+
+let analysis = analyze_source_package(&linc::intake::adapters::from_binding_package(&result.package));
 ```
 
-That single scan can now carry:
+This path still exists so the repository can bootstrap itself from real headers, but it is not the
+architectural target.
 
-- extracted declarations
-- captured preprocessor macros
-- link requirements
-- probed type layouts
-- diagnostics
+The long-term split is:
 
-Treat those as evidence surfaces.
-Downstream generators should still decide which diagnostics, layouts, and validation findings are
-required before generation is allowed.
+- `parc` owns source/header understanding
+- `linc` owns link and binary evidence
+- `gerc` consumes both in parallel
 
 ## JSON Round Trip
 
-`BindingPackage` is designed to be exchanged across tools.
+`LinkAnalysisPackage` is the contract intended to be exchanged across tools.
 
 ```rust
-use linc::{from_json, to_json, HeaderConfig};
+use linc::{analyze_source_package, LinkAnalysisPackage, SourcePackage};
 
-let result = HeaderConfig::new()
-    .header("mylib.h")
-    .process()?;
+let analysis = analyze_source_package(&SourcePackage::default());
 
-let json = to_json(&result.package).unwrap();
-let restored = from_json(&json).unwrap();
+let json = serde_json::to_string_pretty(&analysis).unwrap();
+let restored: LinkAnalysisPackage = serde_json::from_str(&json).unwrap();
 
-assert_eq!(result.package, restored);
+assert_eq!(analysis, restored);
 ```
-
-This is the normal handoff point to another system.
-
-## Preprocessed Input Path
-
-Sometimes you already have a `.i` file or a preprocessor pipeline elsewhere.
-In that case, skip raw-header driving and feed the preprocessed text directly.
-
-```rust
-use linc::PreprocessedInput;
-
-let pkg = PreprocessedInput::from_string("int add(int a, int b);")
-    .with_path("generated.i")
-    .extract();
-
-assert_eq!(pkg.items.len(), 1);
-```
-
-Use this mode when:
-
-- another build system already owns preprocessing
-- you want fully reproducible parser input checked into tests
-- you need to debug extraction separate from compiler invocation
 
 ## Common Integration Pattern
 
 The most common downstream pattern is:
 
-1. Run `HeaderConfig::process()`
-2. Serialize the `BindingPackage`
+1. Produce a `SourcePackage` in `parc` or another frontend
+2. Call `analyze_source_package`
 3. Optionally inspect artifacts with `inspect_symbols`
-4. Optionally validate the package against those artifacts
-5. Feed the package and validation results into your generator/build system
-
-That is the intended shape for `fol` integration as well, but it is also the general recommended
-shape for other consumers that want stable machine contracts instead of ad hoc extraction.
+4. Optionally validate against those artifacts
+5. Feed `SourcePackage` plus `LinkAnalysisPackage` into your generator/build system
 
 ## First Things To Inspect
 
-When a scan does not look right, inspect these fields first:
+When an analysis result does not look right, inspect these fields first:
 
-- `package.items`
-- `package.macros`
-- `package.layouts`
-- `package.link`
-- `package.diagnostics`
-- `report.preprocessed_source`
+- `analysis.declared_link_surface`
+- `analysis.resolved_link_plan`
+- `analysis.diagnostics`
+- `analysis.abi_probe`
+- `analysis.validation`
+- `analysis.symbol_inventories`
 
-Those six surfaces usually tell you whether the problem is:
+Those surfaces usually tell you whether the problem is:
 
-- preprocessing
-- extraction
-- macro visibility
+- source intake adaptation
 - ABI probing
 - link metadata declaration
+- provider discovery
+- validation
 
 ## Library-Only Design
 
@@ -157,6 +135,6 @@ LINC is intended to be consumed as a Rust library.
 
 That means the normal integration path is:
 
-1. call `HeaderConfig::process()` or other library APIs directly
+1. call `analyze_source_package()` or other library APIs directly
 2. serialize the resulting values if another tool needs JSON
 3. keep executable/tooling policy in the downstream crate rather than in LINC itself
