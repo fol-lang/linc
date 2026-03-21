@@ -1,3 +1,4 @@
+mod common;
 #[path = "stress/libcurl.rs"]
 mod libcurl;
 #[path = "stress/libpcap.rs"]
@@ -16,7 +17,9 @@ fn zlib_vendored_example_is_code_driven_and_consumable() {
     let result = zlib::analyze_zlib_vendored().unwrap();
 
     assert!(environment.include_dir.ends_with("zlib/header/include"));
-    assert!(environment.entry_header.ends_with("zlib/header/include/zlib.h"));
+    assert!(environment
+        .entry_header
+        .ends_with("zlib/header/include/zlib.h"));
     assert_eq!(config.binding_surface().entry_headers.len(), 1);
     assert_eq!(config.preprocessing().include_dirs.len(), 1);
     assert!(result.package.find_function("deflate").is_some());
@@ -109,7 +112,14 @@ fn openssl_example_is_code_driven_and_consumable() {
         .macros
         .iter()
         .any(|macro_binding| macro_binding.name == "OPENSSL_VERSION_NUMBER"));
-    assert!(result.package.layouts.is_empty() || result.package.layouts.iter().all(|layout| layout.name != "struct ssl_st"));
+    assert!(
+        result.package.layouts.is_empty()
+            || result
+                .package
+                .layouts
+                .iter()
+                .all(|layout| layout.name != "struct ssl_st")
+    );
 }
 
 #[test]
@@ -124,9 +134,18 @@ fn plugin_abi_example_is_code_driven_and_consumable() {
         .link_libraries
         .iter()
         .any(|library| library.name == "dl"));
-    assert!(result.package.find_function("bic_plugin_descriptor_v1").is_some());
-    assert!(result.package.find_record("bic_plugin_descriptor").is_some());
-    assert!(result.package.find_type_alias("bic_plugin_log_fn").is_some());
+    assert!(result
+        .package
+        .find_function("bic_plugin_descriptor_v1")
+        .is_some());
+    assert!(result
+        .package
+        .find_record("bic_plugin_descriptor")
+        .is_some());
+    assert!(result
+        .package
+        .find_type_alias("bic_plugin_log_fn")
+        .is_some());
     assert!(result
         .package
         .layouts

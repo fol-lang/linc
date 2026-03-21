@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult, SymbolInventory};
+use linc::{HeaderConfig, LincError, RawHeaderResult, SymbolInventory};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MaxPainEnvironment {
@@ -36,10 +36,12 @@ pub fn max_pain_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_max_pain() -> Result<RawHeaderResult, LincError> {
-    max_pain_header_config()?.process()
+    super::common::process(&max_pain_header_config()?)
 }
 
 pub fn daemon_core_inventory_fixture() -> SymbolInventory {
-    serde_json::from_str(include_str!("../../contracts/daemon_core_inventory_fixture.json"))
-        .expect("daemon core inventory fixture should deserialize")
+    serde_json::from_str(include_str!(
+        "../../contracts/daemon_core_inventory_fixture.json"
+    ))
+    .expect("daemon core inventory fixture should deserialize")
 }

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
 const REQUIRED_HEADERS: &[&str] = &[
     "/usr/include/sys/epoll.h",
@@ -24,7 +24,10 @@ pub struct LinuxEventLoopEnvironment {
 pub fn linux_event_loop_environment() -> Result<LinuxEventLoopEnvironment, LincError> {
     let header_candidates = if REQUIRED_HEADERS.iter().all(|path| Path::new(path).exists()) {
         REQUIRED_HEADERS
-    } else if MULTIARCH_HEADERS.iter().all(|path| Path::new(path).exists()) {
+    } else if MULTIARCH_HEADERS
+        .iter()
+        .all(|path| Path::new(path).exists())
+    {
         MULTIARCH_HEADERS
     } else {
         return Err(LincError::InvalidConfig {
@@ -66,5 +69,5 @@ pub fn linux_event_loop_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_linux_event_loop() -> Result<RawHeaderResult, LincError> {
-    linux_event_loop_header_config()?.process()
+    super::common::process(&linux_event_loop_header_config()?)
 }

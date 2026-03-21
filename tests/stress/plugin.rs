@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginAbiEnvironment {
@@ -33,5 +33,5 @@ pub fn plugin_abi_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_plugin_abi() -> Result<RawHeaderResult, LincError> {
-    plugin_abi_header_config()?.process()
+    super::common::process(&plugin_abi_header_config()?)
 }

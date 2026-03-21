@@ -1,9 +1,16 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
-const HEADER_CANDIDATES: &[&str] = &["/usr/include/openssl/ssl.h", "/usr/include/x86_64-linux-gnu/openssl/ssl.h"];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &["/usr/include", "/usr/include/openssl", "/usr/include/x86_64-linux-gnu"];
+const HEADER_CANDIDATES: &[&str] = &[
+    "/usr/include/openssl/ssl.h",
+    "/usr/include/x86_64-linux-gnu/openssl/ssl.h",
+];
+const INCLUDE_DIR_CANDIDATES: &[&str] = &[
+    "/usr/include",
+    "/usr/include/openssl",
+    "/usr/include/x86_64-linux-gnu",
+];
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpensslEnvironment {
     pub header: PathBuf,
@@ -25,7 +32,10 @@ pub fn openssl_environment() -> Result<OpensslEnvironment, LincError> {
         .map(PathBuf::from)
         .collect();
 
-    Ok(OpensslEnvironment { header, include_dirs })
+    Ok(OpensslEnvironment {
+        header,
+        include_dirs,
+    })
 }
 
 pub fn openssl_header_config() -> Result<HeaderConfig, LincError> {
@@ -44,5 +54,5 @@ pub fn openssl_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_openssl() -> Result<RawHeaderResult, LincError> {
-    openssl_header_config()?.process()
+    super::common::process(&openssl_header_config()?)
 }

@@ -331,13 +331,7 @@ pub fn validate_many(
                         .collect(),
                 }),
             ),
-            BindingItem::Variable(v) => (
-                &v.name,
-                ItemKind::Variable,
-                false,
-                Some(&v.ty),
-                None,
-            ),
+            BindingItem::Variable(v) => (&v.name, ItemKind::Variable, false, Some(&v.ty), None),
             _ => continue,
         };
 
@@ -406,7 +400,10 @@ pub fn validate_many(
                     })
                     .collect();
                 if visible.is_empty() {
-                    (MatchStatus::Hidden, Some(candidates[0].1.visibility.clone()))
+                    (
+                        MatchStatus::Hidden,
+                        Some(candidates[0].1.visibility.clone()),
+                    )
                 } else {
                     let typed: Vec<_> = visible
                         .iter()
@@ -415,9 +412,15 @@ pub fn validate_many(
                         .collect();
                     if typed.is_empty() {
                         if expect_function {
-                            (MatchStatus::NotAFunction, Some(visible[0].1.visibility.clone()))
+                            (
+                                MatchStatus::NotAFunction,
+                                Some(visible[0].1.visibility.clone()),
+                            )
                         } else {
-                            (MatchStatus::NotAVariable, Some(visible[0].1.visibility.clone()))
+                            (
+                                MatchStatus::NotAVariable,
+                                Some(visible[0].1.visibility.clone()),
+                            )
                         }
                     } else if typed
                         .iter()
@@ -507,20 +510,23 @@ pub fn validate_many(
                         |(expected_parameter_count, observed_parameter_count)| {
                             expected_parameter_count != observed_parameter_count
                         },
-                    ) || return_size.is_some_and(|(expected_return_size, observed_return_size)| {
-                        expected_return_size != observed_return_size
-                    }) || parameter_sizes.as_ref().is_some_and(|(expected, observed)| {
-                        expected
-                            .iter()
-                            .zip(observed.iter())
-                            .any(|(expected_size, observed_size)| {
-                                expected_size
-                                    .zip(*observed_size)
-                                    .is_some_and(|(expected_size, observed_size)| {
-                                        expected_size != observed_size
-                                    })
-                            })
-                    });
+                    ) || return_size.is_some_and(
+                        |(expected_return_size, observed_return_size)| {
+                            expected_return_size != observed_return_size
+                        },
+                    ) || parameter_sizes.as_ref().is_some_and(
+                        |(expected, observed)| {
+                            expected.iter().zip(observed.iter()).any(
+                                |(expected_size, observed_size)| {
+                                    expected_size.zip(*observed_size).is_some_and(
+                                        |(expected_size, observed_size)| {
+                                            expected_size != observed_size
+                                        },
+                                    )
+                                },
+                            )
+                        },
+                    );
                     if mismatch {
                         status = MatchStatus::AbiShapeMismatch;
                     }
@@ -528,18 +534,10 @@ pub fn validate_many(
                         evidence_kind: Some(if mismatch {
                             RoutineAbiEvidenceKind::Mismatch
                         } else {
-                            match (
-                                has_parameter_count,
-                                has_return_shape,
-                                has_parameter_shapes,
-                            ) {
-                                (true, false, false) => {
-                                    RoutineAbiEvidenceKind::ParameterCountOnly
-                                }
+                            match (has_parameter_count, has_return_shape, has_parameter_shapes) {
+                                (true, false, false) => RoutineAbiEvidenceKind::ParameterCountOnly,
                                 (false, true, false) => RoutineAbiEvidenceKind::ReturnShapeOnly,
-                                (false, false, true) => {
-                                    RoutineAbiEvidenceKind::ParameterShapesOnly
-                                }
+                                (false, false, true) => RoutineAbiEvidenceKind::ParameterShapesOnly,
                                 (true, true, false) => {
                                     RoutineAbiEvidenceKind::ParameterCountAndReturnShape
                                 }
@@ -555,7 +553,8 @@ pub fn validate_many(
                         }),
                         confidence: Some(if mismatch {
                             RoutineAbiConfidence::Mismatch
-                        } else if has_parameter_shapes || (has_parameter_count && has_return_shape) {
+                        } else if has_parameter_shapes || (has_parameter_count && has_return_shape)
+                        {
                             RoutineAbiConfidence::Strong
                         } else {
                             RoutineAbiConfidence::Partial
@@ -756,12 +755,10 @@ fn expected_abi_size_inner(
             if !seen_aliases.insert(name.clone()) {
                 return None;
             }
-            package
-                .find_type_alias(name)
-                .and_then(|alias| {
-                    expected_typedef_size(package, alias, seen_aliases)
-                        .or_else(|| expected_abi_size_inner(package, &alias.target, seen_aliases))
-                })
+            package.find_type_alias(name).and_then(|alias| {
+                expected_typedef_size(package, alias, seen_aliases)
+                    .or_else(|| expected_abi_size_inner(package, &alias.target, seen_aliases))
+            })
         }
         _ => None,
     }
@@ -779,11 +776,9 @@ fn expected_typedef_size(
         }
     }
     find_layout_size(package, &layout_names).or_else(|| {
-        alias.canonical_resolution
-            .as_ref()
-            .and_then(|resolution| {
-                expected_abi_size_inner(package, &resolution.terminal_target, seen_aliases)
-            })
+        alias.canonical_resolution.as_ref().and_then(|resolution| {
+            expected_abi_size_inner(package, &resolution.terminal_target, seen_aliases)
+        })
     })
 }
 
@@ -834,9 +829,7 @@ mod tests {
     use crate::ir::*;
     use crate::symbols::*;
 
-    fn make_inventory_with_vis(
-        entries: &[(&str, bool, SymbolVisibility)],
-    ) -> SymbolInventory {
+    fn make_inventory_with_vis(entries: &[(&str, bool, SymbolVisibility)]) -> SymbolInventory {
         let symbols = entries
             .iter()
             .map(|(name, is_func, vis)| SymbolEntry {
@@ -902,10 +895,7 @@ mod tests {
         }
     }
 
-    fn make_package_with_vars(
-        func_names: &[&str],
-        var_names: &[&str],
-    ) -> BindingPackage {
+    fn make_package_with_vars(func_names: &[&str], var_names: &[&str]) -> BindingPackage {
         let mut items: Vec<BindingItem> = func_names
             .iter()
             .map(|name| {
@@ -963,11 +953,13 @@ mod tests {
             kind: LinkLibraryKind::Default,
             source: LinkRequirementSource::Declared,
         });
-        pkg.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-            name: "demo".into(),
-            kind: LinkLibraryKind::Default,
-            source: LinkRequirementSource::Declared,
-        }));
+        pkg.link
+            .ordered_inputs
+            .push(LinkInput::Library(LinkLibrary {
+                name: "demo".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
+            }));
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches.len(), 1);
@@ -1023,7 +1015,10 @@ mod tests {
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches.len(), 1);
         assert_eq!(report.matches[0].status, MatchStatus::Matched);
-        assert_eq!(report.matches[0].provider_artifacts, vec!["demo.lib:demo.obj"]);
+        assert_eq!(
+            report.matches[0].provider_artifacts,
+            vec!["demo.lib:demo.obj"]
+        );
     }
 
     #[test]
@@ -1067,7 +1062,10 @@ mod tests {
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::Missing);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::ReexportedCandidate);
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::ReexportedCandidate
+        );
     }
 
     #[test]
@@ -1162,7 +1160,10 @@ mod tests {
         let report = validate(&pkg, &inv);
         assert_eq!(report.entries.len(), 1);
         assert_eq!(report.entries[0].declaration.name, "foo");
-        assert_eq!(report.entries[0].evidence.provider_artifacts, vec!["decorated.o"]);
+        assert_eq!(
+            report.entries[0].evidence.provider_artifacts,
+            vec!["decorated.o"]
+        );
         assert_eq!(report.entries[0].evidence.raw_symbol_names, vec!["_foo"]);
         assert_eq!(
             report.entries[0].evidence.visibility,
@@ -1170,7 +1171,10 @@ mod tests {
         );
         assert_eq!(report.entries[0].evidence.confidence, MatchConfidence::High);
         assert_eq!(report.matches[0].confidence, MatchConfidence::High);
-        assert_eq!(report.entries[0].evidence.evidence_kind, EvidenceKind::ExactExported);
+        assert_eq!(
+            report.entries[0].evidence.evidence_kind,
+            EvidenceKind::ExactExported
+        );
         assert_eq!(report.matches[0].evidence_kind, EvidenceKind::ExactExported);
     }
 
@@ -1205,7 +1209,10 @@ mod tests {
         let pkg = make_package(&["foo"]);
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].confidence, MatchConfidence::Medium);
-        assert_eq!(report.entries[0].evidence.confidence, MatchConfidence::Medium);
+        assert_eq!(
+            report.entries[0].evidence.confidence,
+            MatchConfidence::Medium
+        );
         assert_eq!(report.matches[0].evidence_kind, EvidenceKind::WeakExported);
     }
 
@@ -1232,8 +1239,14 @@ mod tests {
         };
 
         let report = validate(&pkg, &inv);
-        assert_eq!(report.matches[0].status, MatchStatus::UnresolvedDeclaredLinkInputs);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::ReexportedCandidate);
+        assert_eq!(
+            report.matches[0].status,
+            MatchStatus::UnresolvedDeclaredLinkInputs
+        );
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::ReexportedCandidate
+        );
     }
 
     #[test]
@@ -1273,8 +1286,14 @@ mod tests {
         };
 
         let report = validate(&pkg, &inv);
-        assert_eq!(report.matches[0].status, MatchStatus::UnresolvedDeclaredLinkInputs);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::ReexportedCandidate);
+        assert_eq!(
+            report.matches[0].status,
+            MatchStatus::UnresolvedDeclaredLinkInputs
+        );
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::ReexportedCandidate
+        );
         assert_eq!(report.entries[0].evidence.raw_symbol_names, vec!["foo"]);
     }
 
@@ -1382,8 +1401,16 @@ mod tests {
 
         let report = validate_many(&pkg, &[inv1, inv2]);
         assert_eq!(report.matches.len(), 2);
-        let foo = report.matches.iter().find(|entry| entry.name == "foo").unwrap();
-        let bar = report.matches.iter().find(|entry| entry.name == "bar").unwrap();
+        let foo = report
+            .matches
+            .iter()
+            .find(|entry| entry.name == "foo")
+            .unwrap();
+        let bar = report
+            .matches
+            .iter()
+            .find(|entry| entry.name == "bar")
+            .unwrap();
         assert_eq!(foo.status, MatchStatus::Matched);
         assert_eq!(foo.provider_artifacts, vec!["test.o".to_string()]);
         assert_eq!(bar.status, MatchStatus::Matched);
@@ -1521,7 +1548,10 @@ mod tests {
         let pkg = make_package_with_vars(&[], &["errno"]);
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::Matched);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::AbiShapeVerified);
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::AbiShapeVerified
+        );
         assert_eq!(
             report.entries[0].evidence.abi_shape,
             Some(AbiShapeEvidence {
@@ -1589,7 +1619,10 @@ mod tests {
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::Matched);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::AbiShapeVerified);
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::AbiShapeVerified
+        );
         assert_eq!(
             report.entries[0].evidence.routine_abi,
             Some(RoutineAbiEvidence {
@@ -1663,7 +1696,10 @@ mod tests {
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::AbiShapeMismatch);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::AbiShapeMismatch);
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::AbiShapeMismatch
+        );
         assert_eq!(report.summary.abi_shape_mismatches, 1);
         assert_eq!(
             report.entries[0].evidence.routine_abi,
@@ -1940,7 +1976,10 @@ mod tests {
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::Matched);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::AbiShapeVerified);
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::AbiShapeVerified
+        );
     }
 
     #[test]
@@ -2030,13 +2069,14 @@ mod tests {
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches.len(), 2);
-        assert!(report.matches.iter().all(|entry| entry.status == MatchStatus::Matched));
-        assert!(
-            report
-                .entries
-                .iter()
-                .all(|entry| entry.evidence.abi_shape.is_some())
-        );
+        assert!(report
+            .matches
+            .iter()
+            .all(|entry| entry.status == MatchStatus::Matched));
+        assert!(report
+            .entries
+            .iter()
+            .all(|entry| entry.evidence.abi_shape.is_some()));
     }
 
     #[test]
@@ -2126,13 +2166,14 @@ mod tests {
 
         let report = validate(&pkg, &inv);
         assert_eq!(report.layout_backed_entries().len(), 2);
-        assert!(report.entries.iter().all(|entry| entry.has_layout_backed_confidence()));
-        assert!(
-            report
-                .entries
-                .iter()
-                .all(|entry| entry.evidence.has_layout_backed_confidence())
-        );
+        assert!(report
+            .entries
+            .iter()
+            .all(|entry| entry.has_layout_backed_confidence()));
+        assert!(report
+            .entries
+            .iter()
+            .all(|entry| entry.evidence.has_layout_backed_confidence()));
     }
 
     #[test]
@@ -2212,24 +2253,18 @@ mod tests {
         assert_eq!(report.resolved_provider_entries().len(), 1);
         assert_eq!(report.unresolved_provider_entries().len(), 1);
         assert_eq!(report.ambiguous_provider_entries().len(), 1);
-        assert!(
-            report
-                .resolved_provider_entries()
-                .iter()
-                .all(|entry| entry.has_resolved_provider_state())
-        );
-        assert!(
-            report
-                .unresolved_provider_entries()
-                .iter()
-                .all(|entry| entry.has_unresolved_provider_state())
-        );
-        assert!(
-            report
-                .ambiguous_provider_entries()
-                .iter()
-                .all(|entry| entry.has_ambiguous_provider_state())
-        );
+        assert!(report
+            .resolved_provider_entries()
+            .iter()
+            .all(|entry| entry.has_resolved_provider_state()));
+        assert!(report
+            .unresolved_provider_entries()
+            .iter()
+            .all(|entry| entry.has_unresolved_provider_state()));
+        assert!(report
+            .ambiguous_provider_entries()
+            .iter()
+            .all(|entry| entry.has_ambiguous_provider_state()));
     }
 
     #[test]
@@ -2263,7 +2298,10 @@ mod tests {
         let pkg = make_package_with_vars(&[], &["errno"]);
         let report = validate(&pkg, &inv);
         assert_eq!(report.matches[0].status, MatchStatus::AbiShapeMismatch);
-        assert_eq!(report.matches[0].evidence_kind, EvidenceKind::AbiShapeMismatch);
+        assert_eq!(
+            report.matches[0].evidence_kind,
+            EvidenceKind::AbiShapeMismatch
+        );
         assert_eq!(report.summary.abi_shape_mismatches, 1);
         assert_eq!(
             report.entries[0].evidence.abi_shape,
@@ -2291,10 +2329,7 @@ mod tests {
         let report = validate(&pkg, &inv);
         assert!(!report.all_matched());
         assert_eq!(report.hidden().len(), 1);
-        assert_eq!(
-            report.matches[0].visibility,
-            Some(SymbolVisibility::Hidden)
-        );
+        assert_eq!(report.matches[0].visibility, Some(SymbolVisibility::Hidden));
     }
 
     #[test]
@@ -2367,7 +2402,8 @@ mod tests {
     /// End-to-end: parse C, compile it, validate symbols.
     #[test]
     fn end_to_end_validation() {
-        let c_src = "int add(int a, int b) { return a + b; }\nint mul(int a, int b) { return a * b; }\n";
+        let c_src =
+            "int add(int a, int b) { return a + b; }\nint mul(int a, int b) { return a * b; }\n";
         let dir = std::env::temp_dir().join("linc_validate_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("funcs.c");
@@ -2382,9 +2418,8 @@ mod tests {
             .expect("cc not found");
         assert!(status.success());
 
-        // Parse declarations
-        let header = "int add(int a, int b); int mul(int a, int b); int missing_func(void);";
-        let pkg = crate::extract::extract_from_source(header).unwrap();
+        // Build declarations via intake
+        let pkg = make_package(&["add", "mul", "missing_func"]);
 
         // Inspect symbols
         let inv = crate::symbols::inspect_file(&o_path).unwrap();
@@ -2432,7 +2467,10 @@ mod tests {
     #[test]
     fn validation_entry_provider_state_helpers() {
         let matched_entry = ValidationEntry {
-            declaration: ValidationDeclaration { name: "foo".into(), item_kind: ItemKind::Function },
+            declaration: ValidationDeclaration {
+                name: "foo".into(),
+                item_kind: ItemKind::Function,
+            },
             status: MatchStatus::Matched,
             evidence: ValidationEvidence {
                 provider_artifacts: vec!["lib.so".into()],
@@ -2450,7 +2488,10 @@ mod tests {
         assert!(!matched_entry.has_layout_backed_confidence());
 
         let missing_entry = ValidationEntry {
-            declaration: ValidationDeclaration { name: "bar".into(), item_kind: ItemKind::Function },
+            declaration: ValidationDeclaration {
+                name: "bar".into(),
+                item_kind: ItemKind::Function,
+            },
             status: MatchStatus::Missing,
             evidence: ValidationEvidence {
                 provider_artifacts: vec![],
@@ -2466,7 +2507,10 @@ mod tests {
         assert!(missing_entry.has_unresolved_provider_state());
 
         let dup_entry = ValidationEntry {
-            declaration: ValidationDeclaration { name: "baz".into(), item_kind: ItemKind::Function },
+            declaration: ValidationDeclaration {
+                name: "baz".into(),
+                item_kind: ItemKind::Function,
+            },
             status: MatchStatus::DuplicateProviders,
             evidence: ValidationEvidence {
                 provider_artifacts: vec!["a.so".into(), "b.so".into()],
@@ -2490,7 +2534,10 @@ mod tests {
             visibility: Some(SymbolVisibility::Default),
             confidence: MatchConfidence::High,
             evidence_kind: EvidenceKind::AbiShapeVerified,
-            abi_shape: Some(AbiShapeEvidence { expected_size: Some(4), observed_size: Some(4) }),
+            abi_shape: Some(AbiShapeEvidence {
+                expected_size: Some(4),
+                observed_size: Some(4),
+            }),
             routine_abi: None,
         };
         assert!(with_abi_shape.has_layout_backed_confidence());
@@ -2552,17 +2599,25 @@ mod tests {
             format: ArtifactFormat::ElfObject,
             platform: ArtifactPlatform::Elf,
             kind: ArtifactKind::Object,
-            capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
             dependency_edges: Vec::new(),
             symbols: vec![SymbolEntry {
                 name: "found_var".into(),
-                raw_name: None, version: None,
+                raw_name: None,
+                version: None,
                 direction: SymbolDirection::Exported,
-                reexported_via: Vec::new(), alias_of: None,
+                reexported_via: Vec::new(),
+                alias_of: None,
                 visibility: SymbolVisibility::Default,
                 is_function: false,
                 binding: SymbolBinding::Global,
-                size: Some(4), section: None, archive_member: None, function_abi: None,
+                size: Some(4),
+                section: None,
+                archive_member: None,
+                function_abi: None,
             }],
         };
 

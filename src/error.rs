@@ -6,7 +6,7 @@ use std::path::PathBuf;
 /// Covers:
 ///
 /// - scan/configuration failures
-/// - preprocessing and parse failures (transitional, will move to parc)
+/// - preprocessing and parse failures
 /// - probe execution failures
 /// - artifact inspection failures
 /// - serialization/schema failures
@@ -50,7 +50,11 @@ impl fmt::Display for LincError {
             LincError::InvalidConfig { reason } => write!(f, "invalid configuration: {}", reason),
             LincError::NoProbeTypes => write!(f, "no type names specified for probing"),
             LincError::ProbeCompile { compiler, stderr } => {
-                write!(f, "layout probe compilation with '{}' failed: {}", compiler, stderr)
+                write!(
+                    f,
+                    "layout probe compilation with '{}' failed: {}",
+                    compiler, stderr
+                )
             }
             LincError::ProbeExecution { reason } => {
                 write!(f, "layout probe execution failed: {}", reason)
@@ -67,7 +71,12 @@ impl fmt::Display for LincError {
             LincError::Io(e) => write!(f, "I/O error: {}", e),
             LincError::Serialization(msg) => write!(f, "serialization error: {}", msg),
             LincError::SymbolRead { path, reason } => {
-                write!(f, "failed to read symbols from {}: {}", path.display(), reason)
+                write!(
+                    f,
+                    "failed to read symbols from {}: {}",
+                    path.display(),
+                    reason
+                )
             }
             LincError::UnsupportedFormat { path, format } => {
                 write!(f, "unsupported format '{}' for {}", format, path.display())
@@ -165,7 +174,10 @@ mod tests {
 
     #[test]
     fn error_display_schema() {
-        let e = LincError::SchemaVersion { found: 99, supported: 1 };
+        let e = LincError::SchemaVersion {
+            found: 99,
+            supported: 1,
+        };
         assert!(e.to_string().contains("99"));
     }
 
@@ -178,7 +190,9 @@ mod tests {
 
     #[test]
     fn error_to_string() {
-        let e = LincError::ParseFailed { source: "bad".into() };
+        let e = LincError::ParseFailed {
+            source: "bad".into(),
+        };
         let s: String = e.into();
         assert!(s.contains("bad"));
     }

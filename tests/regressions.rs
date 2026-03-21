@@ -1,15 +1,19 @@
+mod common;
+use linc::symbols::{ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform};
 use linc::{
     from_json, resolve_link_plan_for_target, resolve_link_plan_with_inventories, validate,
     AbiProbeReport, BindingItem, BindingPackage, BindingType, CallingConvention, DiagnosticKind,
     FunctionBinding, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource, MacroValue,
     ParameterBinding, SymbolInventory, ValidationReport,
 };
-use linc::symbols::{ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform};
 use std::path::PathBuf;
 
 #[test]
 fn regression_old_json_with_empty_nested_objects_stays_consumable() {
-    let pkg = from_json(include_str!("../tests/contracts/v1_empty_nested_objects.json")).unwrap();
+    let pkg = from_json(include_str!(
+        "../tests/contracts/v1_empty_nested_objects.json"
+    ))
+    .unwrap();
     assert_eq!(pkg.schema_version, linc::SCHEMA_VERSION);
     assert!(pkg.inputs.entry_headers.is_empty());
     assert!(pkg.link.ordered_inputs.is_empty());
@@ -19,11 +23,14 @@ fn regression_old_json_with_empty_nested_objects_stays_consumable() {
 fn regression_target_filtered_link_plan_keeps_transitive_edges() {
     let mut package = BindingPackage::new();
     package.link.platform_constraints.push("linux".into());
-    package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-        name: "z".into(),
-        kind: LinkLibraryKind::Default,
-        source: LinkRequirementSource::Declared,
-    }));
+    package
+        .link
+        .ordered_inputs
+        .push(LinkInput::Library(LinkLibrary {
+            name: "z".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
     let inventories = vec![SymbolInventory {
         artifact_path: "/usr/lib/libz.so".into(),
         format: ArtifactFormat::ElfSharedLibrary,
@@ -71,7 +78,10 @@ fn regression_decorated_fixture_validates_against_normalized_name() {
 
 #[test]
 fn regression_extended_contract_fixture_keeps_macro_value() {
-    let pkg = from_json(include_str!("../tests/contracts/fol_extended_contract.json")).unwrap();
+    let pkg = from_json(include_str!(
+        "../tests/contracts/fol_extended_contract.json"
+    ))
+    .unwrap();
     assert_eq!(pkg.macros[0].value, Some(MacroValue::Integer(3)));
 }
 
@@ -106,10 +116,9 @@ fn regression_probe_diagnostics_distinguish_unavailable_and_operational_failures
     )
     .unwrap();
 
-    let unavailable = linc::HeaderConfig::new()
+    let unavailable = common::process(&linc::HeaderConfig::new()
         .entry_header(&header)
-        .probe_type_layout("struct opaque_widget")
-        .process()
+        .probe_type_layout("struct opaque_widget"))
         .unwrap();
     assert_eq!(unavailable.package.probe_unavailable_count(), 1);
     assert_eq!(unavailable.package.probe_failure_count(), 0);
@@ -119,10 +128,9 @@ fn regression_probe_diagnostics_distinguish_unavailable_and_operational_failures
         .iter()
         .any(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeUnavailable));
 
-    let failed = linc::HeaderConfig::new()
+    let failed = common::process(&linc::HeaderConfig::new()
         .entry_header(&header)
-        .probe_type_layout("struct invalid[")
-        .process()
+        .probe_type_layout("struct invalid["))
         .unwrap();
     assert_eq!(failed.package.probe_unavailable_count(), 0);
     assert_eq!(failed.package.probe_failure_count(), 1);
@@ -144,7 +152,10 @@ fn regression_duplicate_provider_report_fixture_stays_consumable() {
     .unwrap();
     assert_eq!(report.summary.duplicate_providers, 1);
     assert_eq!(report.duplicate_providers().len(), 1);
-    assert_eq!(report.entries[0].evidence.evidence_kind, linc::EvidenceKind::DuplicateVisibleProviders);
+    assert_eq!(
+        report.entries[0].evidence.evidence_kind,
+        linc::EvidenceKind::DuplicateVisibleProviders
+    );
 }
 
 #[test]
@@ -154,10 +165,19 @@ fn regression_function_abi_questionable_fixture_stays_consumable() {
     ))
     .unwrap();
     assert_eq!(report.summary.abi_shape_mismatches, 1);
-    assert_eq!(report.matches[0].status, linc::MatchStatus::AbiShapeMismatch);
+    assert_eq!(
+        report.matches[0].status,
+        linc::MatchStatus::AbiShapeMismatch
+    );
     let routine = report.entries[0].evidence.routine_abi.as_ref().unwrap();
-    assert_eq!(routine.evidence_kind, Some(linc::RoutineAbiEvidenceKind::Mismatch));
-    assert_eq!(routine.confidence, Some(linc::RoutineAbiConfidence::Mismatch));
+    assert_eq!(
+        routine.evidence_kind,
+        Some(linc::RoutineAbiEvidenceKind::Mismatch)
+    );
+    assert_eq!(
+        routine.confidence,
+        Some(linc::RoutineAbiConfidence::Mismatch)
+    );
     assert_eq!(routine.expected_parameter_sizes, vec![Some(8), Some(4)]);
     assert_eq!(routine.observed_parameter_sizes, vec![Some(8), Some(8)]);
 }
@@ -165,11 +185,10 @@ fn regression_function_abi_questionable_fixture_stays_consumable() {
 #[test]
 fn regression_tricky_layout_fixture_stays_consumable() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_layouts.h");
-    let result = linc::HeaderConfig::new()
+    let result = common::process(&linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("struct packed_flags")
-        .probe_type_layout("enum widget_mode")
-        .process()
+        .probe_type_layout("enum widget_mode"))
         .unwrap();
 
     let alias = result.package.find_type_alias("my_size_ptr").unwrap();
@@ -177,7 +196,10 @@ fn regression_tricky_layout_fixture_stays_consumable() {
     assert_eq!(resolution.alias_chain, vec!["my_size_t", "size_t"]);
 
     let record = result.package.find_record("packed_flags").unwrap();
-    assert_eq!(record.abi_confidence, Some(linc::AbiConfidence::PartialBitfieldLayout));
+    assert_eq!(
+        record.abi_confidence,
+        Some(linc::AbiConfidence::PartialBitfieldLayout)
+    );
     let fields = record.fields.as_ref().unwrap();
     assert_eq!(fields[0].bit_width, Some(3));
     assert_eq!(fields[1].bit_width, Some(5));
@@ -191,13 +213,12 @@ fn regression_tricky_layout_fixture_stays_consumable() {
 
 #[test]
 fn regression_typedef_layout_fixture_validates_record_and_enum_aliases() {
-    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/typedef_layout_bridge.h");
-    let result = linc::HeaderConfig::new()
+    let header =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/typedef_layout_bridge.h");
+    let result = common::process(&linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("widget_t")
-        .probe_type_layout("mode_t")
-        .process()
+        .probe_type_layout("mode_t"))
         .unwrap();
 
     let inventory = SymbolInventory {
@@ -246,23 +267,28 @@ fn regression_typedef_layout_fixture_validates_record_and_enum_aliases() {
 
     let report = validate(&result.package, &inventory);
     assert_eq!(report.matches.len(), 2);
-    assert!(report.matches.iter().all(|entry| entry.status == linc::MatchStatus::Matched));
+    assert!(report
+        .matches
+        .iter()
+        .all(|entry| entry.status == linc::MatchStatus::Matched));
     assert_eq!(report.layout_backed_entries().len(), 2);
 }
 
 #[test]
 fn regression_packed_bitfield_fixture_preserves_partial_layout_signal() {
-    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/packed_bitfield_extreme.h");
-    let result = linc::HeaderConfig::new()
+    let header =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/packed_bitfield_extreme.h");
+    let result = common::process(&linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("struct packed_registers")
-        .probe_type_layout("packed_registers_t")
-        .process()
+        .probe_type_layout("packed_registers_t"))
         .unwrap();
 
     let record = result.package.find_record("packed_registers").unwrap();
-    assert_eq!(record.abi_confidence, Some(linc::AbiConfidence::PartialBitfieldLayout));
+    assert_eq!(
+        record.abi_confidence,
+        Some(linc::AbiConfidence::PartialBitfieldLayout)
+    );
     let representation = record.representation.as_ref().unwrap();
     assert!(representation.size.is_some());
     let fields = record.fields.as_ref().unwrap();
@@ -270,26 +296,39 @@ fn regression_packed_bitfield_fixture_preserves_partial_layout_signal() {
     assert_eq!(fields[1].bit_width, Some(3));
     assert_eq!(fields[2].bit_width, Some(1));
     assert_eq!(fields[3].bit_width, Some(3));
-    assert!(result.package.layouts.iter().any(|layout| layout.name == "struct packed_registers"));
-    assert!(result.package.layouts.iter().any(|layout| layout.name == "packed_registers_t"));
+    assert!(result
+        .package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct packed_registers"));
+    assert!(result
+        .package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "packed_registers_t"));
 }
 
 #[test]
 fn regression_link_plan_and_validation_agree_on_resolved_and_unresolved_providers() {
     let mut resolved_package = BindingPackage::new();
-    resolved_package.items.push(BindingItem::Function(FunctionBinding {
-        name: "zlibVersion".into(),
-        calling_convention: CallingConvention::C,
-        parameters: Vec::new(),
-        return_type: BindingType::ptr(BindingType::Char),
-        variadic: false,
-        source_offset: None,
-    }));
-    resolved_package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-        name: "z".into(),
-        kind: LinkLibraryKind::Default,
-        source: LinkRequirementSource::Declared,
-    }));
+    resolved_package
+        .items
+        .push(BindingItem::Function(FunctionBinding {
+            name: "zlibVersion".into(),
+            calling_convention: CallingConvention::C,
+            parameters: Vec::new(),
+            return_type: BindingType::ptr(BindingType::Char),
+            variadic: false,
+            source_offset: None,
+        }));
+    resolved_package
+        .link
+        .ordered_inputs
+        .push(LinkInput::Library(LinkLibrary {
+            name: "z".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
 
     let resolved_inventory = SymbolInventory {
         artifact_path: "/usr/lib/libz.so".into(),
@@ -332,19 +371,24 @@ fn regression_link_plan_and_validation_agree_on_resolved_and_unresolved_provider
     assert_eq!(resolved_report.unresolved_provider_entries().len(), 0);
 
     let mut unresolved_package = BindingPackage::new();
-    unresolved_package.items.push(BindingItem::Function(FunctionBinding {
-        name: "missing_symbol".into(),
-        calling_convention: CallingConvention::C,
-        parameters: Vec::new(),
-        return_type: BindingType::Void,
-        variadic: false,
-        source_offset: None,
-    }));
-    unresolved_package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-        name: "missing".into(),
-        kind: LinkLibraryKind::Default,
-        source: LinkRequirementSource::Declared,
-    }));
+    unresolved_package
+        .items
+        .push(BindingItem::Function(FunctionBinding {
+            name: "missing_symbol".into(),
+            calling_convention: CallingConvention::C,
+            parameters: Vec::new(),
+            return_type: BindingType::Void,
+            variadic: false,
+            source_offset: None,
+        }));
+    unresolved_package
+        .link
+        .ordered_inputs
+        .push(LinkInput::Library(LinkLibrary {
+            name: "missing".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
 
     let unresolved_inventory = SymbolInventory {
         artifact_path: "/tmp/other.so".into(),
@@ -380,11 +424,14 @@ fn regression_link_plan_and_validation_agree_on_resolved_and_unresolved_provider
 #[test]
 fn regression_macos_text_stub_provider_resolves_after_name_refinement() {
     let mut package = BindingPackage::new();
-    package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-        name: "System".into(),
-        kind: LinkLibraryKind::Default,
-        source: LinkRequirementSource::Declared,
-    }));
+    package
+        .link
+        .ordered_inputs
+        .push(LinkInput::Library(LinkLibrary {
+            name: "System".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
 
     let inventories = vec![SymbolInventory {
         artifact_path: "/usr/lib/libSystem.tbd".into(),
@@ -401,7 +448,10 @@ fn regression_macos_text_stub_provider_resolves_after_name_refinement() {
 
     let plan = resolve_link_plan_with_inventories(&package, &inventories);
     assert_eq!(plan.requirements.len(), 1);
-    assert_eq!(plan.requirements[0].resolution, linc::RequirementResolution::Resolved);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        linc::RequirementResolution::Resolved
+    );
     assert_eq!(plan.requirements[0].providers.len(), 1);
     assert_eq!(
         plan.requirements[0].providers[0].artifact_path,
@@ -412,7 +462,9 @@ fn regression_macos_text_stub_provider_resolves_after_name_refinement() {
 #[test]
 fn regression_tricky_macro_fixture_stays_consumable() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_macros.h");
-    let result = linc::HeaderConfig::new().entry_header(&header).process().unwrap();
+    let result = common::process(&linc::HeaderConfig::new()
+        .entry_header(&header))
+        .unwrap();
 
     let api_level = result
         .package
@@ -449,9 +501,11 @@ fn regression_tricky_macro_fixture_stays_consumable() {
 
 #[test]
 fn regression_macro_public_api_fixture_preserves_configuration_and_abi_macros() {
-    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/macro_public_api.h");
-    let result = linc::HeaderConfig::new().entry_header(&header).process().unwrap();
+    let header =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/macro_public_api.h");
+    let result = common::process(&linc::HeaderConfig::new()
+        .entry_header(&header))
+        .unwrap();
 
     let api_level = result
         .package
@@ -510,7 +564,10 @@ fn regression_linux_elf_mixed_fixture_preserves_versions_and_imports() {
     assert_eq!(inventory.dependency_edges, vec!["libc.so.6", "libm.so.6"]);
     assert_eq!(inventory.symbols.len(), 3);
     assert_eq!(inventory.symbols[0].version.as_deref(), Some("WIDGET_1.0"));
-    assert_eq!(inventory.symbols[1].direction, linc::SymbolDirection::Imported);
+    assert_eq!(
+        inventory.symbols[1].direction,
+        linc::SymbolDirection::Imported
+    );
     assert_eq!(inventory.symbols[1].reexported_via, vec!["libm.so.6"]);
     assert_eq!(inventory.symbols[2].size, Some(4));
 }
@@ -547,7 +604,10 @@ fn regression_elf_alias_fixture_preserves_aliases_without_duplicate_provider_con
     };
     let report = validate(&package, &inventory);
     assert_eq!(report.matches.len(), 2);
-    assert!(report.matches.iter().all(|entry| entry.status == linc::MatchStatus::Matched));
+    assert!(report
+        .matches
+        .iter()
+        .all(|entry| entry.status == linc::MatchStatus::Matched));
     assert_eq!(report.duplicate_providers().len(), 0);
 }
 
@@ -570,9 +630,18 @@ fn regression_macos_dylib_mixed_fixture_preserves_imported_and_exported_symbols(
     .unwrap();
     assert_eq!(inventory.platform, ArtifactPlatform::MachO);
     assert_eq!(inventory.format, ArtifactFormat::MachODylib);
-    assert_eq!(inventory.dependency_edges, vec!["/usr/lib/libSystem.B.dylib"]);
-    assert_eq!(inventory.symbols[0].raw_name.as_deref(), Some("_widget_init"));
-    assert_eq!(inventory.symbols[1].direction, linc::SymbolDirection::Imported);
+    assert_eq!(
+        inventory.dependency_edges,
+        vec!["/usr/lib/libSystem.B.dylib"]
+    );
+    assert_eq!(
+        inventory.symbols[0].raw_name.as_deref(),
+        Some("_widget_init")
+    );
+    assert_eq!(
+        inventory.symbols[1].direction,
+        linc::SymbolDirection::Imported
+    );
     assert_eq!(
         inventory.symbols[1].reexported_via,
         vec!["/usr/lib/libSystem.B.dylib"]
@@ -588,7 +657,10 @@ fn regression_windows_artifact_fixture_stays_consumable() {
     assert_eq!(inventory.platform, ArtifactPlatform::Windows);
     assert_eq!(inventory.format, ArtifactFormat::CoffObject);
     assert!(inventory.capabilities.exports_symbols);
-    assert_eq!(inventory.symbols[0].raw_name.as_deref(), Some("_demo_init@4"));
+    assert_eq!(
+        inventory.symbols[0].raw_name.as_deref(),
+        Some("_demo_init@4")
+    );
 }
 
 #[test]
@@ -601,5 +673,8 @@ fn regression_windows_import_library_fixture_stays_consumable() {
     assert_eq!(inventory.format, ArtifactFormat::CoffImportLibrary);
     assert_eq!(inventory.kind, ArtifactKind::ImportLibrary);
     assert!(inventory.capabilities.imports_symbols);
-    assert_eq!(inventory.symbols[0].direction, linc::SymbolDirection::Imported);
+    assert_eq!(
+        inventory.symbols[0].direction,
+        linc::SymbolDirection::Imported
+    );
 }

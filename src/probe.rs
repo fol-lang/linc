@@ -4,7 +4,121 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::LincError;
 use crate::ir::{BindingTarget, TypeLayout};
-use crate::raw_headers::{Flavor, HeaderConfig};
+use crate::raw_headers::{detect_compiler_version, detect_target_triple, Flavor};
+
+/// Self-contained probe configuration for ABI layout measurement.
+///
+/// This type captures exactly the information needed to compile and execute a
+/// probe binary: entry headers, include paths, preprocessor defines, and
+/// compiler identity.  It deliberately does **not** include link declarations,
+/// origin-filtering, or other concerns that belong to other LINC domains.
+#[derive(Debug, Clone, Default)]
+pub struct ProbeConfig {
+    /// Entry-point headers whose types will be probed.
+    pub entry_headers: Vec<PathBuf>,
+    /// Preprocessor include-search directories.
+    pub include_dirs: Vec<PathBuf>,
+    /// Preprocessor defines that shape the ABI surface.
+    pub defines: Vec<(String, Option<String>)>,
+    /// Compiler or driver used for compiling the probe.
+    pub compiler: Option<String>,
+    /// C dialect / compiler-flavor assumptions.
+    pub flavor: Option<Flavor>,
+}
+
+impl ProbeConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn header(mut self, path: impl Into<PathBuf>) -> Self {
+        self.entry_headers.push(path.into());
+        self
+    }
+
+    pub fn add_include_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.include_dirs.push(dir.into());
+        self
+    }
+
+    pub fn define(mut self, name: impl Into<String>, value: Option<String>) -> Self {
+        self.defines.push((name.into(), value));
+        self
+    }
+
+    pub fn compiler_name(mut self, compiler: impl Into<String>) -> Self {
+        self.compiler = Some(compiler.into());
+        self
+    }
+
+    pub fn with_flavor(mut self, flavor: Flavor) -> Self {
+        self.flavor = Some(flavor);
+        self
+    }
+
+    fn validate(&self) -> Result<(), LincError> {
+        if self.entry_headers.is_empty() {
+            return Err(LincError::NoHeaders);
+        }
+        if self
+            .entry_headers
+            .iter()
+            .any(|path| path.as_os_str().is_empty())
+        {
+            return Err(LincError::InvalidConfig {
+                reason: "entry header path must not be empty".into(),
+            });
+        }
+        if self
+            .include_dirs
+            .iter()
+            .any(|path| path.as_os_str().is_empty())
+        {
+            return Err(LincError::InvalidConfig {
+                reason: "include directory path must not be empty".into(),
+            });
+        }
+        Ok(())
+    }
+
+    fn compiler_command(&self) -> String {
+        let flavor = self.flavor.unwrap_or(Flavor::GnuC11);
+        self.compiler.clone().unwrap_or_else(|| match flavor {
+            Flavor::ClangC11 => "clang".into(),
+            _ => "gcc".into(),
+        })
+    }
+
+    fn flavor_label(&self) -> String {
+        match self.flavor.unwrap_or(Flavor::GnuC11) {
+            Flavor::GnuC11 => "gnu-c11".into(),
+            Flavor::ClangC11 => "clang-c11".into(),
+            Flavor::StdC11 => "std-c11".into(),
+        }
+    }
+
+    fn binding_target(&self) -> BindingTarget {
+        let cmd = self.compiler_command();
+        BindingTarget {
+            target_triple: detect_target_triple(&cmd),
+            compiler_command: Some(cmd.clone()),
+            compiler_version: detect_compiler_version(&cmd),
+            flavor: Some(self.flavor_label()),
+        }
+    }
+}
+
+impl From<&crate::raw_headers::HeaderConfig> for ProbeConfig {
+    fn from(hc: &crate::raw_headers::HeaderConfig) -> Self {
+        ProbeConfig {
+            entry_headers: hc.entry_headers.clone(),
+            include_dirs: hc.include_dirs.clone(),
+            defines: hc.defines.clone(),
+            compiler: hc.compiler.clone(),
+            flavor: hc.flavor,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProbeSubjectKind {
@@ -65,7 +179,7 @@ pub struct AbiProbeReport {
 }
 
 pub fn probe_type_layouts(
-    config: &HeaderConfig,
+    config: &ProbeConfig,
     type_names: &[impl AsRef<str>],
 ) -> Result<AbiProbeReport, LincError> {
     probe_type_layouts_with_fields(config, type_names, &std::collections::BTreeMap::new())
@@ -77,7 +191,7 @@ pub fn probe_type_layouts(
 /// When `field_specs` is empty, only sizeof/alignof are measured (no field offsets).
 /// Field specs keys should be qualified type names like `"struct foo"` or `"union bar"`.
 pub fn probe_type_layouts_with_fields(
-    config: &HeaderConfig,
+    config: &ProbeConfig,
     type_names: &[impl AsRef<str>],
     field_specs: &std::collections::BTreeMap<String, Vec<ProbedFieldSpec>>,
 ) -> Result<AbiProbeReport, LincError> {
@@ -86,13 +200,16 @@ pub fn probe_type_layouts_with_fields(
         return Err(LincError::NoProbeTypes);
     }
 
-    let compiler = compiler_command(config);
+    let compiler = config.compiler_command();
     let temp_root = temp_probe_root();
     std::fs::create_dir_all(&temp_root)?;
     let source_path = temp_root.join("probe.c");
     let exe_path = temp_root.join("probe-bin");
 
-    std::fs::write(&source_path, build_probe_source(config, type_names, &field_specs))?;
+    std::fs::write(
+        &source_path,
+        build_probe_source(config, type_names, &field_specs),
+    )?;
 
     let mut compile = std::process::Command::new(&compiler);
     compile.arg("-std=c11");
@@ -111,12 +228,10 @@ pub fn probe_type_layouts_with_fields(
     }
     compile.arg(&source_path).arg("-o").arg(&exe_path);
 
-    let compile_output = compile
-        .output()
-        .map_err(|e| LincError::ProbeCompile {
-            compiler: compiler.clone(),
-            stderr: e.to_string(),
-        })?;
+    let compile_output = compile.output().map_err(|e| LincError::ProbeCompile {
+        compiler: compiler.clone(),
+        stderr: e.to_string(),
+    })?;
     if !compile_output.status.success() {
         let stderr = String::from_utf8_lossy(&compile_output.stderr);
         cleanup_probe_root(&temp_root);
@@ -139,10 +254,9 @@ pub fn probe_type_layouts_with_fields(
         });
     }
 
-    let stdout = String::from_utf8(run_output.stdout)
-        .map_err(|e| LincError::ProbeOutput {
-            reason: e.to_string(),
-        })?;
+    let stdout = String::from_utf8(run_output.stdout).map_err(|e| LincError::ProbeOutput {
+        reason: e.to_string(),
+    })?;
     let parsed = parse_layout_output(&stdout)?;
     let layouts = parsed
         .iter()
@@ -178,8 +292,7 @@ pub fn probe_type_layouts_with_fields(
 }
 
 fn classify_probe_subject(type_name: &str) -> ProbeSubjectKind {
-    if type_name.trim_start().starts_with("struct ")
-        || type_name.trim_start().starts_with("union ")
+    if type_name.trim_start().starts_with("struct ") || type_name.trim_start().starts_with("union ")
     {
         ProbeSubjectKind::Record
     } else if type_name.trim_start().starts_with("enum ") {
@@ -198,19 +311,8 @@ fn default_probe_confidence() -> ProbeConfidence {
     ProbeConfidence::MeasuredLayout
 }
 
-fn compiler_command(config: &HeaderConfig) -> String {
-    let flavor = config.flavor.unwrap_or(Flavor::GnuC11);
-    config
-        .compiler
-        .clone()
-        .unwrap_or_else(|| match flavor {
-            Flavor::ClangC11 => "clang".into(),
-            _ => "gcc".into(),
-        })
-}
-
 fn build_probe_source(
-    config: &HeaderConfig,
+    config: &ProbeConfig,
     type_names: &[impl AsRef<str>],
     field_specs: &std::collections::BTreeMap<String, Vec<ProbedFieldSpec>>,
 ) -> String {
@@ -283,11 +385,9 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError
         let mut parts = line.split('\t');
         match parts.next() {
             Some("L") => {
-                let name = parts
-                    .next()
-                    .ok_or_else(|| LincError::ProbeOutput {
-                        reason: format!("invalid probe output line: {}", line),
-                    })?;
+                let name = parts.next().ok_or_else(|| LincError::ProbeOutput {
+                    reason: format!("invalid probe output line: {}", line),
+                })?;
                 let size = parts
                     .next()
                     .ok_or_else(|| LincError::ProbeOutput {
@@ -308,9 +408,11 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError
                     })?;
                 let enum_underlying_size = match parts.next() {
                     Some("-") | None => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
-                        reason: format!("invalid enum size in probe output '{}': {}", line, e),
-                    })?),
+                    Some(value) => {
+                        Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
+                            reason: format!("invalid enum size in probe output '{}': {}", line, e),
+                        })?)
+                    }
                 };
                 let enum_is_signed = match parts.next() {
                     Some("-") | None => None,
@@ -338,21 +440,22 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError
                 });
             }
             Some("F") => {
-                let subject = parts
-                    .next()
-                    .ok_or_else(|| LincError::ProbeOutput {
-                        reason: format!("invalid field probe output line: {}", line),
-                    })?;
-                let field_name = parts
-                    .next()
-                    .ok_or_else(|| LincError::ProbeOutput {
-                        reason: format!("invalid field probe output line: {}", line),
-                    })?;
+                let subject = parts.next().ok_or_else(|| LincError::ProbeOutput {
+                    reason: format!("invalid field probe output line: {}", line),
+                })?;
+                let field_name = parts.next().ok_or_else(|| LincError::ProbeOutput {
+                    reason: format!("invalid field probe output line: {}", line),
+                })?;
                 let offset_bytes = match parts.next() {
                     Some("-") => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
-                        reason: format!("invalid field offset in probe output '{}': {}", line, e),
-                    })?),
+                    Some(value) => {
+                        Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
+                            reason: format!(
+                                "invalid field offset in probe output '{}': {}",
+                                line, e
+                            ),
+                        })?)
+                    }
                     None => {
                         return Err(LincError::ProbeOutput {
                             reason: format!("invalid field probe output line: {}", line),
@@ -361,9 +464,14 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError
                 };
                 let bit_width = match parts.next() {
                     Some("-") | None => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
-                        reason: format!("invalid bitfield width in probe output '{}': {}", line, e),
-                    })?),
+                    Some(value) => {
+                        Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
+                            reason: format!(
+                                "invalid bitfield width in probe output '{}': {}",
+                                line, e
+                            ),
+                        })?)
+                    }
                 };
                 let entry = entry_indexes
                     .get(subject)
@@ -386,11 +494,9 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError
                 let name = if other == line {
                     other
                 } else {
-                    legacy_parts
-                        .next()
-                        .ok_or_else(|| LincError::ProbeOutput {
-                            reason: format!("invalid probe output line: {}", line),
-                        })?
+                    legacy_parts.next().ok_or_else(|| LincError::ProbeOutput {
+                        reason: format!("invalid probe output line: {}", line),
+                    })?
                 };
                 let size = legacy_parts
                     .next()
@@ -412,9 +518,11 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError
                     })?;
                 let enum_underlying_size = match legacy_parts.next() {
                     Some("-") | None => None,
-                    Some(value) => Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
-                        reason: format!("invalid enum size in probe output '{}': {}", line, e),
-                    })?),
+                    Some(value) => {
+                        Some(value.parse::<u64>().map_err(|e| LincError::ProbeOutput {
+                            reason: format!("invalid enum size in probe output '{}': {}", line, e),
+                        })?)
+                    }
                 };
                 let enum_is_signed = match legacy_parts.next() {
                     Some("-") | None => None,
@@ -466,7 +574,11 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("linc_probe_test_{label}_{}_{}", std::process::id(), id));
+        let dir = std::env::temp_dir().join(format!(
+            "linc_probe_test_{label}_{}_{}",
+            std::process::id(),
+            id
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -515,12 +627,18 @@ mod tests {
         field_specs.insert(
             "struct widget".to_string(),
             vec![
-                ProbedFieldSpec { name: "a".into(), bit_width: None },
-                ProbedFieldSpec { name: "b".into(), bit_width: None },
+                ProbedFieldSpec {
+                    name: "a".into(),
+                    bit_width: None,
+                },
+                ProbedFieldSpec {
+                    name: "b".into(),
+                    bit_width: None,
+                },
             ],
         );
         let report = probe_type_layouts_with_fields(
-            &HeaderConfig::new().header(&header),
+            &ProbeConfig::new().header(&header),
             &["value_t", "struct widget"],
             &field_specs,
         )
@@ -532,7 +650,10 @@ mod tests {
         assert_eq!(report.subjects.len(), 2);
         assert_eq!(report.subjects[0].kind, ProbeSubjectKind::Type);
         assert_eq!(report.subjects[1].kind, ProbeSubjectKind::Record);
-        assert_eq!(report.subjects[0].confidence, ProbeConfidence::MeasuredLayout);
+        assert_eq!(
+            report.subjects[0].confidence,
+            ProbeConfidence::MeasuredLayout
+        );
         assert_eq!(
             report.subjects[1].record_completeness,
             Some(RecordCompleteness::Complete)
@@ -541,9 +662,10 @@ mod tests {
         assert_eq!(report.subjects[1].fields[0].name, "a");
         assert_eq!(report.subjects[1].fields[0].offset_bytes, Some(0));
         assert_eq!(report.subjects[1].fields[1].name, "b");
-        assert!(report.layouts.iter().any(|layout| {
-            layout.name == "value_t" && layout.size >= 4 && layout.align >= 4
-        }));
+        assert!(report
+            .layouts
+            .iter()
+            .any(|layout| { layout.name == "value_t" && layout.size >= 4 && layout.align >= 4 }));
         assert!(report.layouts.iter().any(|layout| {
             layout.name == "struct widget" && layout.size >= 16 && layout.align >= 8
         }));
@@ -557,8 +679,8 @@ mod tests {
         let header = dir.join("api.h");
         std::fs::write(&header, "struct widget { int a; };\n").unwrap();
 
-        let err = probe_type_layouts(&HeaderConfig::new().header(&header), &[] as &[&str])
-            .unwrap_err();
+        let err =
+            probe_type_layouts(&ProbeConfig::new().header(&header), &[] as &[&str]).unwrap_err();
         assert!(matches!(err, LincError::NoProbeTypes));
 
         std::fs::remove_dir_all(&dir).ok();
@@ -567,7 +689,7 @@ mod tests {
     #[test]
     fn probe_rejects_invalid_config_before_execution() {
         let err = probe_type_layouts(
-            &HeaderConfig::new().header("").probe_type_layout("size_t"),
+            &ProbeConfig::new().header(""),
             &["size_t"],
         )
         .unwrap_err();
@@ -668,7 +790,10 @@ mod tests {
           "layouts": [{ "name": "struct widget", "size": 16, "align": 8 }]
         }"#;
         let report: AbiProbeReport = serde_json::from_str(json).unwrap();
-        assert_eq!(report.subjects[0].confidence, ProbeConfidence::MeasuredLayout);
+        assert_eq!(
+            report.subjects[0].confidence,
+            ProbeConfidence::MeasuredLayout
+        );
         assert_eq!(report.subjects[0].record_completeness, None);
         assert!(report.subjects[0].fields.is_empty());
     }
@@ -697,10 +822,9 @@ mod tests {
 
     #[test]
     fn parse_layout_output_captures_partial_bitfield_probe_data() {
-        let parsed = parse_layout_output(
-            "L\tstruct flags\t4\t4\t-\t-\nF\tstruct flags\tvalue\t-\t3\n",
-        )
-        .unwrap();
+        let parsed =
+            parse_layout_output("L\tstruct flags\t4\t4\t-\t-\nF\tstruct flags\tvalue\t-\t3\n")
+                .unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].fields.len(), 1);
         assert_eq!(parsed[0].fields[0].name, "value");
@@ -714,12 +838,15 @@ mod tests {
         let header = dir.join("api.h");
         std::fs::write(&header, "enum mode { MODE_A = 0, MODE_B = 7 };\n").unwrap();
 
-        let report = probe_type_layouts(&HeaderConfig::new().header(&header), &["enum mode"])
-            .unwrap();
+        let report =
+            probe_type_layouts(&ProbeConfig::new().header(&header), &["enum mode"]).unwrap();
 
         assert_eq!(report.subjects.len(), 1);
         assert_eq!(report.subjects[0].kind, ProbeSubjectKind::Enum);
-        assert_eq!(report.subjects[0].enum_underlying_size, Some(report.layouts[0].size));
+        assert_eq!(
+            report.subjects[0].enum_underlying_size,
+            Some(report.layouts[0].size)
+        );
         assert!(report.subjects[0].enum_is_signed.is_some());
 
         std::fs::remove_dir_all(&dir).ok();
@@ -729,19 +856,28 @@ mod tests {
     fn probe_type_layouts_reports_partial_bitfield_field_data() {
         let dir = temp_dir("bitfield_header");
         let header = dir.join("api.h");
-        std::fs::write(&header, "struct flags { unsigned value:3; unsigned other:5; };\n")
-            .unwrap();
+        std::fs::write(
+            &header,
+            "struct flags { unsigned value:3; unsigned other:5; };\n",
+        )
+        .unwrap();
 
         let mut field_specs = std::collections::BTreeMap::new();
         field_specs.insert(
             "struct flags".to_string(),
             vec![
-                ProbedFieldSpec { name: "value".into(), bit_width: Some(3) },
-                ProbedFieldSpec { name: "other".into(), bit_width: Some(5) },
+                ProbedFieldSpec {
+                    name: "value".into(),
+                    bit_width: Some(3),
+                },
+                ProbedFieldSpec {
+                    name: "other".into(),
+                    bit_width: Some(5),
+                },
             ],
         );
         let report = probe_type_layouts_with_fields(
-            &HeaderConfig::new().header(&header),
+            &ProbeConfig::new().header(&header),
             &["struct flags"],
             &field_specs,
         )
@@ -773,10 +909,22 @@ mod tests {
                     enum_underlying_size: None,
                     enum_is_signed: None,
                     fields: vec![
-                        ProbedFieldLayout { name: "x".into(), offset_bytes: Some(0), bit_width: None },
-                        ProbedFieldLayout { name: "y".into(), offset_bytes: Some(4), bit_width: None },
+                        ProbedFieldLayout {
+                            name: "x".into(),
+                            offset_bytes: Some(0),
+                            bit_width: None,
+                        },
+                        ProbedFieldLayout {
+                            name: "y".into(),
+                            offset_bytes: Some(4),
+                            bit_width: None,
+                        },
                     ],
-                    layout: TypeLayout { name: "my_struct".into(), size: 8, align: 4 },
+                    layout: TypeLayout {
+                        name: "my_struct".into(),
+                        size: 8,
+                        align: 4,
+                    },
                 },
                 ProbeSubjectReport {
                     name: "my_enum".into(),
@@ -786,12 +934,24 @@ mod tests {
                     enum_underlying_size: Some(4),
                     enum_is_signed: Some(true),
                     fields: Vec::new(),
-                    layout: TypeLayout { name: "my_enum".into(), size: 4, align: 4 },
+                    layout: TypeLayout {
+                        name: "my_enum".into(),
+                        size: 4,
+                        align: 4,
+                    },
                 },
             ],
             layouts: vec![
-                TypeLayout { name: "my_struct".into(), size: 8, align: 4 },
-                TypeLayout { name: "my_enum".into(), size: 4, align: 4 },
+                TypeLayout {
+                    name: "my_struct".into(),
+                    size: 8,
+                    align: 4,
+                },
+                TypeLayout {
+                    name: "my_enum".into(),
+                    size: 4,
+                    align: 4,
+                },
             ],
         };
 
@@ -839,9 +999,84 @@ mod tests {
 
     #[test]
     fn classify_probe_subject_categories() {
-        assert_eq!(classify_probe_subject("struct foo"), ProbeSubjectKind::Record);
-        assert_eq!(classify_probe_subject("union bar"), ProbeSubjectKind::Record);
+        assert_eq!(
+            classify_probe_subject("struct foo"),
+            ProbeSubjectKind::Record
+        );
+        assert_eq!(
+            classify_probe_subject("union bar"),
+            ProbeSubjectKind::Record
+        );
         assert_eq!(classify_probe_subject("enum baz"), ProbeSubjectKind::Enum);
         assert_eq!(classify_probe_subject("size_t"), ProbeSubjectKind::Type);
+    }
+
+    #[test]
+    fn probe_incomplete_type_produces_compile_error() {
+        let dir = temp_dir("incomplete");
+        let header = dir.join("api.h");
+        std::fs::write(&header, "struct opaque;\n").unwrap();
+
+        let err = probe_type_layouts(
+            &ProbeConfig::new().header(&header),
+            &["struct opaque"],
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, LincError::ProbeCompile { .. }),
+            "incomplete type should fail at compilation: {err}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_nonexistent_header_produces_compile_error() {
+        let err = probe_type_layouts(
+            &ProbeConfig::new().header("/nonexistent/path/to/header.h"),
+            &["int"],
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, LincError::ProbeCompile { .. }),
+            "missing header should fail at compilation: {err}"
+        );
+    }
+
+    #[test]
+    fn probe_undeclared_type_produces_compile_error() {
+        let dir = temp_dir("undeclared");
+        let header = dir.join("api.h");
+        std::fs::write(&header, "typedef int known_t;\n").unwrap();
+
+        let err = probe_type_layouts(
+            &ProbeConfig::new().header(&header),
+            &["struct completely_unknown_type"],
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, LincError::ProbeCompile { .. }),
+            "undeclared type should fail at compilation: {err}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn probe_config_from_header_config_preserves_fields() {
+        use crate::raw_headers::HeaderConfig;
+        let hc = HeaderConfig::new()
+            .entry_header("/tmp/demo.h")
+            .include_dir("/usr/include")
+            .define("FOO", Some("1".into()))
+            .compiler("clang")
+            .flavor(Flavor::ClangC11);
+
+        let pc = ProbeConfig::from(&hc);
+        assert_eq!(pc.entry_headers.len(), 1);
+        assert_eq!(pc.include_dirs.len(), 1);
+        assert_eq!(pc.defines.len(), 1);
+        assert_eq!(pc.compiler.as_deref(), Some("clang"));
+        assert_eq!(pc.flavor, Some(Flavor::ClangC11));
     }
 }

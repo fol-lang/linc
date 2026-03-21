@@ -276,7 +276,8 @@ impl BindingPackage {
     }
 
     pub fn find_record(&self, name: &str) -> Option<&RecordBinding> {
-        self.records().find(|item| item.name.as_deref() == Some(name))
+        self.records()
+            .find(|item| item.name.as_deref() == Some(name))
     }
 
     pub fn find_enum(&self, name: &str) -> Option<&EnumBinding> {
@@ -478,18 +479,34 @@ mod tests {
             source_offset: Some(6),
         }));
 
-        assert_eq!(pkg.functions().map(|item| item.name.as_str()).collect::<Vec<_>>(), vec!["malloc"]);
         assert_eq!(
-            pkg.records().map(|item| item.name.as_deref()).collect::<Vec<_>>(),
+            pkg.functions()
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["malloc"]
+        );
+        assert_eq!(
+            pkg.records()
+                .map(|item| item.name.as_deref())
+                .collect::<Vec<_>>(),
             vec![Some("point")]
         );
-        assert_eq!(pkg.enums().map(|item| item.name.as_deref()).collect::<Vec<_>>(), vec![Some("mode")]);
         assert_eq!(
-            pkg.type_aliases().map(|item| item.name.as_str()).collect::<Vec<_>>(),
+            pkg.enums()
+                .map(|item| item.name.as_deref())
+                .collect::<Vec<_>>(),
+            vec![Some("mode")]
+        );
+        assert_eq!(
+            pkg.type_aliases()
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
             vec!["size_t"]
         );
         assert_eq!(
-            pkg.variables().map(|item| item.name.as_str()).collect::<Vec<_>>(),
+            pkg.variables()
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
             vec!["errno"]
         );
         assert_eq!(
@@ -570,16 +587,30 @@ mod tests {
             source_offset: Some(6),
         }));
 
-        assert_eq!(pkg.find_function("malloc").map(|item| item.name.as_str()), Some("malloc"));
-        assert_eq!(pkg.find_record("point").and_then(|item| item.name.as_deref()), Some("point"));
-        assert_eq!(pkg.find_enum("mode").and_then(|item| item.name.as_deref()), Some("mode"));
+        assert_eq!(
+            pkg.find_function("malloc").map(|item| item.name.as_str()),
+            Some("malloc")
+        );
+        assert_eq!(
+            pkg.find_record("point")
+                .and_then(|item| item.name.as_deref()),
+            Some("point")
+        );
+        assert_eq!(
+            pkg.find_enum("mode").and_then(|item| item.name.as_deref()),
+            Some("mode")
+        );
         assert_eq!(
             pkg.find_type_alias("size_t").map(|item| item.name.as_str()),
             Some("size_t")
         );
-        assert_eq!(pkg.find_variable("errno").map(|item| item.name.as_str()), Some("errno"));
         assert_eq!(
-            pkg.find_unsupported("flags").and_then(|item| item.name.as_deref()),
+            pkg.find_variable("errno").map(|item| item.name.as_str()),
+            Some("errno")
+        );
+        assert_eq!(
+            pkg.find_unsupported("flags")
+                .and_then(|item| item.name.as_deref()),
             Some("flags")
         );
 
@@ -596,7 +627,9 @@ mod tests {
         let ty = BindingType::ptr(BindingType::ptr(BindingType::Char));
         match &ty {
             BindingType::Pointer { pointee: inner, .. } => match inner.as_ref() {
-                BindingType::Pointer { pointee: inner2, .. } => {
+                BindingType::Pointer {
+                    pointee: inner2, ..
+                } => {
                     assert_eq!(*inner2.as_ref(), BindingType::Char)
                 }
                 _ => panic!("expected pointer"),
@@ -673,12 +706,10 @@ mod tests {
         let func = FunctionBinding {
             name: "printf".into(),
             calling_convention: CallingConvention::C,
-            parameters: vec![
-                ParameterBinding {
-                    name: Some("fmt".into()),
-                    ty: BindingType::ptr(BindingType::Char),
-                },
-            ],
+            parameters: vec![ParameterBinding {
+                name: Some("fmt".into()),
+                ty: BindingType::ptr(BindingType::Char),
+            }],
             return_type: BindingType::Int,
             variadic: true,
             source_offset: None,
@@ -905,9 +936,18 @@ mod tests {
         let e = EnumBinding {
             name: Some("color".into()),
             variants: vec![
-                EnumVariant { name: "RED".into(), value: Some(0) },
-                EnumVariant { name: "GREEN".into(), value: Some(1) },
-                EnumVariant { name: "BLUE".into(), value: Some(2) },
+                EnumVariant {
+                    name: "RED".into(),
+                    value: Some(0),
+                },
+                EnumVariant {
+                    name: "GREEN".into(),
+                    value: Some(1),
+                },
+                EnumVariant {
+                    name: "BLUE".into(),
+                    value: Some(2),
+                },
             ],
             representation: None,
             abi_confidence: None,
@@ -954,7 +994,11 @@ mod tests {
             variadic: false,
         };
         match &ty {
-            BindingType::FunctionPointer { parameters, variadic, .. } => {
+            BindingType::FunctionPointer {
+                parameters,
+                variadic,
+                ..
+            } => {
                 assert_eq!(parameters.len(), 2);
                 assert!(!variadic);
             }
@@ -1088,7 +1132,10 @@ mod tests {
         pkg.items.push(BindingItem::Function(FunctionBinding {
             name: "init".into(),
             calling_convention: CallingConvention::C,
-            parameters: vec![ParameterBinding { name: Some("flags".into()), ty: BindingType::UInt }],
+            parameters: vec![ParameterBinding {
+                name: Some("flags".into()),
+                ty: BindingType::UInt,
+            }],
             return_type: BindingType::Int,
             variadic: false,
             source_offset: None,

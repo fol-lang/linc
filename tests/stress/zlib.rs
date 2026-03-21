@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZlibVendoredEnvironment {
@@ -40,5 +40,5 @@ pub fn zlib_vendored_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_zlib_vendored() -> Result<RawHeaderResult, LincError> {
-    zlib_vendored_header_config()?.process()
+    super::common::process(&zlib_vendored_header_config()?)
 }

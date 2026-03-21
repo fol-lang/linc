@@ -5,8 +5,8 @@
 //! A reverse adapter converts intake types back to IR types for use by LINC
 //! core logic that still operates on the existing IR.
 
-use crate::ir;
 use crate::intake::source::*;
+use crate::ir;
 
 /// Convert a [`BindingPackage`] into a [`SourcePackage`].
 ///
@@ -59,13 +59,11 @@ pub fn from_binding_package(pkg: &ir::BindingPackage) -> SourcePackage {
                     .collect(),
                 source_offset: e.source_offset,
             })),
-            ir::BindingItem::TypeAlias(a) => {
-                Some(SourceDeclaration::TypeAlias(SourceTypeAlias {
-                    name: a.name.clone(),
-                    target: binding_type_to_source(&a.target),
-                    source_offset: a.source_offset,
-                }))
-            }
+            ir::BindingItem::TypeAlias(a) => Some(SourceDeclaration::TypeAlias(SourceTypeAlias {
+                name: a.name.clone(),
+                target: binding_type_to_source(&a.target),
+                source_offset: a.source_offset,
+            })),
             ir::BindingItem::Variable(v) => Some(SourceDeclaration::Variable(SourceVariable {
                 name: v.name.clone(),
                 ty: binding_type_to_source(&v.ty),
@@ -127,23 +125,21 @@ pub fn to_binding_package(src: &SourcePackage) -> ir::BindingPackage {
         .declarations
         .iter()
         .map(|decl| match decl {
-            SourceDeclaration::Function(f) => {
-                ir::BindingItem::Function(ir::FunctionBinding {
-                    name: f.name.clone(),
-                    calling_convention: ir::CallingConvention::C,
-                    parameters: f
-                        .parameters
-                        .iter()
-                        .map(|p| ir::ParameterBinding {
-                            name: p.name.clone(),
-                            ty: source_type_to_binding(&p.ty),
-                        })
-                        .collect(),
-                    return_type: source_type_to_binding(&f.return_type),
-                    variadic: f.variadic,
-                    source_offset: f.source_offset,
-                })
-            }
+            SourceDeclaration::Function(f) => ir::BindingItem::Function(ir::FunctionBinding {
+                name: f.name.clone(),
+                calling_convention: ir::CallingConvention::C,
+                parameters: f
+                    .parameters
+                    .iter()
+                    .map(|p| ir::ParameterBinding {
+                        name: p.name.clone(),
+                        ty: source_type_to_binding(&p.ty),
+                    })
+                    .collect(),
+                return_type: source_type_to_binding(&f.return_type),
+                variadic: f.variadic,
+                source_offset: f.source_offset,
+            }),
             SourceDeclaration::Record(r) => ir::BindingItem::Record(ir::RecordBinding {
                 kind: if r.is_union {
                     ir::RecordKind::Union
@@ -180,15 +176,13 @@ pub fn to_binding_package(src: &SourcePackage) -> ir::BindingPackage {
                 abi_confidence: None,
                 source_offset: e.source_offset,
             }),
-            SourceDeclaration::TypeAlias(a) => {
-                ir::BindingItem::TypeAlias(ir::TypeAliasBinding {
-                    name: a.name.clone(),
-                    target: source_type_to_binding(&a.target),
-                    canonical_resolution: None,
-                    abi_confidence: None,
-                    source_offset: a.source_offset,
-                })
-            }
+            SourceDeclaration::TypeAlias(a) => ir::BindingItem::TypeAlias(ir::TypeAliasBinding {
+                name: a.name.clone(),
+                target: source_type_to_binding(&a.target),
+                canonical_resolution: None,
+                abi_confidence: None,
+                source_offset: a.source_offset,
+            }),
             SourceDeclaration::Variable(v) => ir::BindingItem::Variable(ir::VariableBinding {
                 name: v.name.clone(),
                 ty: source_type_to_binding(&v.ty),
@@ -385,17 +379,18 @@ mod tests {
     fn roundtrip_binding_to_source_to_binding() {
         let mut pkg = ir::BindingPackage::new();
         pkg.source_path = Some("test.h".into());
-        pkg.items.push(ir::BindingItem::Function(ir::FunctionBinding {
-            name: "foo".into(),
-            calling_convention: ir::CallingConvention::C,
-            parameters: vec![ir::ParameterBinding {
-                name: Some("x".into()),
-                ty: ir::BindingType::Int,
-            }],
-            return_type: ir::BindingType::Void,
-            variadic: false,
-            source_offset: Some(10),
-        }));
+        pkg.items
+            .push(ir::BindingItem::Function(ir::FunctionBinding {
+                name: "foo".into(),
+                calling_convention: ir::CallingConvention::C,
+                parameters: vec![ir::ParameterBinding {
+                    name: Some("x".into()),
+                    ty: ir::BindingType::Int,
+                }],
+                return_type: ir::BindingType::Void,
+                variadic: false,
+                source_offset: Some(10),
+            }));
         pkg.items.push(ir::BindingItem::Record(ir::RecordBinding {
             kind: ir::RecordKind::Struct,
             name: Some("point".into()),
@@ -473,7 +468,10 @@ mod tests {
         assert_eq!(source.macros[0].name, "VERSION");
         assert_eq!(source.link_requirements.len(), 1);
         assert_eq!(source.link_requirements[0].name, "z");
-        assert_eq!(source.link_requirements[0].kind, SourceLinkKind::DynamicLibrary);
+        assert_eq!(
+            source.link_requirements[0].kind,
+            SourceLinkKind::DynamicLibrary
+        );
     }
 
     #[test]
@@ -485,14 +483,15 @@ mod tests {
                 reason: "bitfield".into(),
                 source_offset: None,
             }));
-        pkg.items.push(ir::BindingItem::Function(ir::FunctionBinding {
-            name: "foo".into(),
-            calling_convention: ir::CallingConvention::C,
-            parameters: vec![],
-            return_type: ir::BindingType::Void,
-            variadic: false,
-            source_offset: None,
-        }));
+        pkg.items
+            .push(ir::BindingItem::Function(ir::FunctionBinding {
+                name: "foo".into(),
+                calling_convention: ir::CallingConvention::C,
+                parameters: vec![],
+                return_type: ir::BindingType::Void,
+                variadic: false,
+                source_offset: None,
+            }));
 
         let source = from_binding_package(&pkg);
         assert_eq!(source.declarations.len(), 1);

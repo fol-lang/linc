@@ -1,16 +1,55 @@
+mod common;
 use linc::{
-    AbiConfidence, AbiProbeReport, AliasResolution, LincError, BindingItem, BindingPackage, BindingType,
-    CallingConvention, EvidenceKind, FunctionBinding, HeaderConfig, LinkResolutionMode,
-    MacroBinding, MacroCategory, MacroForm, MacroKind, MacroValue, MatchConfidence,
-    ParameterBinding, ProbeConfidence, ProbeSubjectKind, ProbeSubjectReport, ProbedFieldLayout,
-    RecordCompleteness, TypeAliasBinding, TypeLayout, TypeQualifiers, ValidationDeclaration, ValidationEntry,
-    ValidationEvidence, ValidationPhase, ValidationPhaseReport, ValidationSummary, RoutineAbiConfidence,
-    RoutineAbiEvidence, RoutineAbiEvidenceKind,
-    EnumRepresentation, FieldLayout,
-    RecordRepresentation, probe_type_layouts,
+    from_source_package,
+    probe_type_layouts,
+    AbiConfidence,
+    AbiProbeReport,
+    AliasResolution,
+    BindingItem,
+    BindingPackage,
+    BindingType,
+    CallingConvention,
+    EnumRepresentation,
+    EvidenceKind,
+    FieldLayout,
+    FunctionBinding,
+    HeaderConfig,
+    LincError,
+    LinkResolutionMode,
+    MacroBinding,
+    MacroCategory,
+    MacroForm,
+    MacroKind,
+    MacroValue,
+    MatchConfidence,
+    ParameterBinding,
+    ProbeConfidence,
+    ProbeSubjectKind,
+    ProbeSubjectReport,
+    ProbedFieldLayout,
+    RecordCompleteness,
+    RecordRepresentation,
+    RoutineAbiConfidence,
+    RoutineAbiEvidence,
+    RoutineAbiEvidenceKind,
+    SourceDeclaration,
+    SourceEnum,
+    SourceFunction,
     // Intake types (Phase 1)
-    SourcePackage, SourceDeclaration, SourceFunction, SourceType, SourceRecord,
-    SourceEnum, SourceTypeAlias, SourceVariable, from_source_package,
+    SourcePackage,
+    SourceRecord,
+    SourceType,
+    SourceTypeAlias,
+    SourceVariable,
+    TypeAliasBinding,
+    TypeLayout,
+    TypeQualifiers,
+    ValidationDeclaration,
+    ValidationEntry,
+    ValidationEvidence,
+    ValidationPhase,
+    ValidationPhaseReport,
+    ValidationSummary,
 };
 
 #[test]
@@ -50,9 +89,14 @@ fn binding_package_public_helpers_are_available_from_root() {
     assert_eq!(package.probe_unavailable_count(), 0);
     assert_eq!(package.probe_failure_count(), 0);
     assert!(!package.has_probe_unavailable_diagnostics());
-    assert_eq!(package.functions().next().map(|item| item.name.as_str()), Some("malloc"));
     assert_eq!(
-        package.find_type_alias("size_t").map(|item| item.name.as_str()),
+        package.functions().next().map(|item| item.name.as_str()),
+        Some("malloc")
+    );
+    assert_eq!(
+        package
+            .find_type_alias("size_t")
+            .map(|item| item.name.as_str()),
         Some("size_t")
     );
 }
@@ -66,7 +110,10 @@ fn header_config_validation_is_publicly_reachable() {
         .prefer_dynamic_linking();
 
     config.validate().unwrap();
-    assert_eq!(config.linking().preferred_link_mode, LinkResolutionMode::PreferDynamic);
+    assert_eq!(
+        config.linking().preferred_link_mode,
+        LinkResolutionMode::PreferDynamic
+    );
 
     let invalid = HeaderConfig::new().entry_header("");
     assert!(invalid.validate().is_err());
@@ -74,10 +121,9 @@ fn header_config_validation_is_publicly_reachable() {
 
 #[test]
 fn process_rejects_invalid_config_before_execution() {
-    let err = HeaderConfig::new()
+    let err = common::process(&HeaderConfig::new()
         .entry_header("demo.h")
-        .add_include_dir("")
-        .process()
+        .add_include_dir(""))
         .unwrap_err();
 
     assert!(matches!(err, LincError::InvalidConfig { .. }));
@@ -86,8 +132,8 @@ fn process_rejects_invalid_config_before_execution() {
 #[test]
 fn probe_rejects_invalid_config_before_execution() {
     let err = probe_type_layouts(
-        &HeaderConfig::new()
-            .entry_header("demo.h")
+        &linc::ProbeConfig::new()
+            .header("demo.h")
             .add_include_dir(""),
         &["size_t"],
     )
@@ -376,34 +422,38 @@ fn evidence_kind_root_type_roundtrip() {
 fn intake_types_reachable_from_root() {
     let mut src = SourcePackage::default();
     src.source_path = Some("api.h".to_string());
-    src.declarations.push(SourceDeclaration::Function(SourceFunction {
-        name: "init".into(),
-        parameters: vec![],
-        return_type: SourceType::Int,
-        variadic: false,
-        source_offset: None,
-    }));
-    src.declarations.push(SourceDeclaration::Record(SourceRecord {
-        name: Some("config".into()),
-        fields: Some(vec![]),
-        is_union: false,
-        source_offset: None,
-    }));
+    src.declarations
+        .push(SourceDeclaration::Function(SourceFunction {
+            name: "init".into(),
+            parameters: vec![],
+            return_type: SourceType::Int,
+            variadic: false,
+            source_offset: None,
+        }));
+    src.declarations
+        .push(SourceDeclaration::Record(SourceRecord {
+            name: Some("config".into()),
+            fields: Some(vec![]),
+            is_union: false,
+            source_offset: None,
+        }));
     src.declarations.push(SourceDeclaration::Enum(SourceEnum {
         name: Some("mode".into()),
         variants: vec![],
         source_offset: None,
     }));
-    src.declarations.push(SourceDeclaration::TypeAlias(SourceTypeAlias {
-        name: "size_t".into(),
-        target: SourceType::ULong,
-        source_offset: None,
-    }));
-    src.declarations.push(SourceDeclaration::Variable(SourceVariable {
-        name: "errno".into(),
-        ty: SourceType::Int,
-        source_offset: None,
-    }));
+    src.declarations
+        .push(SourceDeclaration::TypeAlias(SourceTypeAlias {
+            name: "size_t".into(),
+            target: SourceType::ULong,
+            source_offset: None,
+        }));
+    src.declarations
+        .push(SourceDeclaration::Variable(SourceVariable {
+            name: "errno".into(),
+            ty: SourceType::Int,
+            source_offset: None,
+        }));
 
     let pkg = from_source_package(&src);
 

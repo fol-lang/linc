@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::error::LincError;
-use object::read::Object;
 use object::read::archive::ArchiveFile;
+use object::read::Object;
 use object::{ObjectSymbol, SymbolKind};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -171,11 +171,10 @@ pub fn inspect_bytes(data: &[u8], artifact_path: String) -> Result<SymbolInvento
     }
 
     // Try as single object file
-    let obj = object::File::parse(data)
-        .map_err(|e| LincError::UnsupportedFormat {
-            path: artifact_path.clone().into(),
-            format: e.to_string(),
-        })?;
+    let obj = object::File::parse(data).map_err(|e| LincError::UnsupportedFormat {
+        path: artifact_path.clone().into(),
+        format: e.to_string(),
+    })?;
 
     let format = classify_format(&obj);
     let mut symbols = extract_symbols_from_object(&obj);
@@ -211,12 +210,10 @@ fn inspect_archive(
             reason: format!("failed to read archive member: {}", e),
         })?;
         let member_name = Some(String::from_utf8_lossy(member.name()).into_owned());
-        let member_data = member
-            .data(data)
-            .map_err(|e| LincError::SymbolRead {
-                path: artifact_path.clone().into(),
-                reason: format!("failed to read archive member data: {}", e),
-            })?;
+        let member_data = member.data(data).map_err(|e| LincError::SymbolRead {
+            path: artifact_path.clone().into(),
+            reason: format!("failed to read archive member data: {}", e),
+        })?;
 
         if let Ok(obj) = object::File::parse(member_data) {
             if !format_detected {
@@ -290,7 +287,10 @@ fn detect_dependency_edges(artifact_path: &str, obj: &object::File<'_>) -> Vec<S
     if obj.format() != object::BinaryFormat::Elf {
         return Vec::new();
     }
-    if !matches!(obj.kind(), object::ObjectKind::Dynamic | object::ObjectKind::Executable) {
+    if !matches!(
+        obj.kind(),
+        object::ObjectKind::Dynamic | object::ObjectKind::Executable
+    ) {
         return Vec::new();
     }
 
@@ -454,7 +454,11 @@ fn extract_symbols_from_object(obj: &object::File<'_>) -> Vec<SymbolEntry> {
 
         let size = {
             let s = sym.size();
-            if s > 0 { Some(s) } else { None }
+            if s > 0 {
+                Some(s)
+            } else {
+                None
+            }
         };
 
         let section = sym
@@ -493,8 +497,10 @@ fn should_capture_symbol(
     match direction {
         SymbolDirection::Exported => true,
         SymbolDirection::Imported => {
-            matches!(kind, object::ObjectKind::Dynamic | object::ObjectKind::Executable)
-                && sym.is_global()
+            matches!(
+                kind,
+                object::ObjectKind::Dynamic | object::ObjectKind::Executable
+            ) && sym.is_global()
         }
     }
 }
@@ -600,23 +606,23 @@ mod tests {
         d.extend_from_slice(&0x01000007u32.to_le_bytes()); // cputype: CPU_TYPE_X86_64
         d.extend_from_slice(&0x00000003u32.to_le_bytes()); // cpusubtype: CPU_SUBTYPE_ALL
         d.extend_from_slice(&0x00000001u32.to_le_bytes()); // filetype: MH_OBJECT
-        d.extend_from_slice(&2u32.to_le_bytes());           // ncmds
+        d.extend_from_slice(&2u32.to_le_bytes()); // ncmds
         d.extend_from_slice(&(cmds_size as u32).to_le_bytes());
-        d.extend_from_slice(&0u32.to_le_bytes());           // flags
-        d.extend_from_slice(&0u32.to_le_bytes());           // reserved
+        d.extend_from_slice(&0u32.to_le_bytes()); // flags
+        d.extend_from_slice(&0u32.to_le_bytes()); // reserved
 
         // --- LC_SEGMENT_64 (72 bytes base) ---
-        d.extend_from_slice(&0x19u32.to_le_bytes());        // cmd: LC_SEGMENT_64
+        d.extend_from_slice(&0x19u32.to_le_bytes()); // cmd: LC_SEGMENT_64
         d.extend_from_slice(&(seg_cmd_size as u32).to_le_bytes());
-        d.extend_from_slice(&[0u8; 16]);                    // segname (empty)
-        d.extend_from_slice(&0u64.to_le_bytes());           // vmaddr
+        d.extend_from_slice(&[0u8; 16]); // segname (empty)
+        d.extend_from_slice(&0u64.to_le_bytes()); // vmaddr
         d.extend_from_slice(&(text_size as u64).to_le_bytes()); // vmsize
         d.extend_from_slice(&(text_offset as u64).to_le_bytes()); // fileoff
         d.extend_from_slice(&(text_size as u64).to_le_bytes()); // filesize
-        d.extend_from_slice(&0x07u32.to_le_bytes());        // maxprot: rwx
-        d.extend_from_slice(&0x05u32.to_le_bytes());        // initprot: rx
-        d.extend_from_slice(&1u32.to_le_bytes());           // nsects
-        d.extend_from_slice(&0u32.to_le_bytes());           // flags
+        d.extend_from_slice(&0x07u32.to_le_bytes()); // maxprot: rwx
+        d.extend_from_slice(&0x05u32.to_le_bytes()); // initprot: rx
+        d.extend_from_slice(&1u32.to_le_bytes()); // nsects
+        d.extend_from_slice(&0u32.to_le_bytes()); // flags
 
         // --- section_64 (80 bytes) ---
         let mut sectname = [0u8; 16];
@@ -625,19 +631,19 @@ mod tests {
         let mut segname = [0u8; 16];
         segname[..6].copy_from_slice(b"__TEXT");
         d.extend_from_slice(&segname);
-        d.extend_from_slice(&0u64.to_le_bytes());           // addr
+        d.extend_from_slice(&0u64.to_le_bytes()); // addr
         d.extend_from_slice(&(text_size as u64).to_le_bytes()); // size
         d.extend_from_slice(&(text_offset as u32).to_le_bytes()); // offset
-        d.extend_from_slice(&0u32.to_le_bytes());           // align
-        d.extend_from_slice(&0u32.to_le_bytes());           // reloff
-        d.extend_from_slice(&0u32.to_le_bytes());           // nreloc
+        d.extend_from_slice(&0u32.to_le_bytes()); // align
+        d.extend_from_slice(&0u32.to_le_bytes()); // reloff
+        d.extend_from_slice(&0u32.to_le_bytes()); // nreloc
         d.extend_from_slice(&0x80000400u32.to_le_bytes()); // flags: S_REGULAR|PURE_INSTRUCTIONS|SOME_INSTRUCTIONS
-        d.extend_from_slice(&0u32.to_le_bytes());           // reserved1
-        d.extend_from_slice(&0u32.to_le_bytes());           // reserved2
-        d.extend_from_slice(&0u32.to_le_bytes());           // reserved3
+        d.extend_from_slice(&0u32.to_le_bytes()); // reserved1
+        d.extend_from_slice(&0u32.to_le_bytes()); // reserved2
+        d.extend_from_slice(&0u32.to_le_bytes()); // reserved3
 
         // --- LC_SYMTAB (24 bytes) ---
-        d.extend_from_slice(&0x02u32.to_le_bytes());        // cmd: LC_SYMTAB
+        d.extend_from_slice(&0x02u32.to_le_bytes()); // cmd: LC_SYMTAB
         d.extend_from_slice(&(symtab_cmd_size as u32).to_le_bytes());
         d.extend_from_slice(&(symtab_offset as u32).to_le_bytes());
         d.extend_from_slice(&nsyms.to_le_bytes());
@@ -650,11 +656,11 @@ mod tests {
 
         // --- nlist_64 symbol entry (16 bytes) ---
         assert_eq!(d.len(), symtab_offset);
-        d.extend_from_slice(&1u32.to_le_bytes());           // n_strx -> "_foo"
+        d.extend_from_slice(&1u32.to_le_bytes()); // n_strx -> "_foo"
         d.push(0x0F); // n_type: N_SECT (0x0E) | N_EXT (0x01)
         d.push(0x01); // n_sect: 1 (first section, 1-based)
-        d.extend_from_slice(&0u16.to_le_bytes());           // n_desc
-        d.extend_from_slice(&0u64.to_le_bytes());           // n_value
+        d.extend_from_slice(&0u16.to_le_bytes()); // n_desc
+        d.extend_from_slice(&0u64.to_le_bytes()); // n_value
 
         // --- string table ---
         assert_eq!(d.len(), strtab_offset);
@@ -792,7 +798,10 @@ mod tests {
             assert!(inv.capabilities.exports_symbols);
             assert_eq!(
                 inv.capabilities.imports_symbols,
-                matches!(inv.kind, ArtifactKind::SharedLibrary | ArtifactKind::Executable)
+                matches!(
+                    inv.kind,
+                    ArtifactKind::SharedLibrary | ArtifactKind::Executable
+                )
             );
             assert!(inv.dependency_edges.is_empty());
         }
@@ -881,7 +890,10 @@ mod tests {
             assert!(inventory.capabilities.exports_symbols);
             assert_eq!(
                 inventory.capabilities.imports_symbols,
-                matches!(inventory.kind, ArtifactKind::SharedLibrary | ArtifactKind::Executable)
+                matches!(
+                    inventory.kind,
+                    ArtifactKind::SharedLibrary | ArtifactKind::Executable
+                )
             );
         }
     }
@@ -1161,7 +1173,10 @@ mod tests {
             assert!(inv.capabilities.exports_symbols);
             assert_eq!(
                 inv.capabilities.imports_symbols,
-                matches!(inv.kind, ArtifactKind::SharedLibrary | ArtifactKind::Executable)
+                matches!(
+                    inv.kind,
+                    ArtifactKind::SharedLibrary | ArtifactKind::Executable
+                )
             );
             if inv.kind == ArtifactKind::SharedLibrary {
                 assert!(!inv.dependency_edges.is_empty());
@@ -1234,7 +1249,10 @@ mod tests {
             };
 
             assert_eq!(inv.platform, ArtifactPlatform::Windows);
-            assert_eq!(inv.capabilities.exports_symbols, inv.kind != ArtifactKind::ImportLibrary);
+            assert_eq!(
+                inv.capabilities.exports_symbols,
+                inv.kind != ArtifactKind::ImportLibrary
+            );
             assert_eq!(
                 inv.capabilities.imports_symbols,
                 inv.kind != ArtifactKind::Object
@@ -1258,7 +1276,10 @@ Dynamic section at offset 0x2de0 contains 3 entries:
  0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
 "#,
         );
-        assert_eq!(parsed, vec!["libm.so.6".to_string(), "libc.so.6".to_string()]);
+        assert_eq!(
+            parsed,
+            vec!["libm.so.6".to_string(), "libc.so.6".to_string()]
+        );
     }
 
     #[test]
@@ -1493,7 +1514,11 @@ Dynamic section at offset 0x2de0 contains 3 entries:
         let c_path = dir.join("lib.c");
         let so_path = dir.join("libdep.so");
 
-        std::fs::write(&c_path, "double call_cos(double x) { extern double cos(double); return cos(x); }\n").unwrap();
+        std::fs::write(
+            &c_path,
+            "double call_cos(double x) { extern double cos(double); return cos(x); }\n",
+        )
+        .unwrap();
 
         let cc = std::process::Command::new("cc")
             .args(["-shared", "-fPIC", "-o"])
@@ -1506,7 +1531,10 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 
         let inv = inspect_file(&so_path).unwrap();
         assert_eq!(inv.kind, ArtifactKind::SharedLibrary);
-        assert!(inv.dependency_edges.iter().any(|edge| edge.contains("libm")));
+        assert!(inv
+            .dependency_edges
+            .iter()
+            .any(|edge| edge.contains("libm")));
 
         std::fs::remove_file(&c_path).ok();
         std::fs::remove_file(&so_path).ok();

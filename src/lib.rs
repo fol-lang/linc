@@ -16,8 +16,8 @@
 //!
 //! # What LINC Does Not Own
 //!
-//! - source parsing and preprocessing (upstream: `parc`)
-//! - source-level declaration extraction (upstream: `parc`)
+//! - source parsing and preprocessing (upstream frontend)
+//! - source-level declaration extraction (upstream frontend)
 //! - Rust FFI code generation (downstream: `gec`)
 //!
 //! # Preferred API
@@ -25,7 +25,7 @@
 //! New consumers should start with:
 //!
 //! - [`from_source_package`] to ingest a frontend-neutral [`SourcePackage`]
-//! - [`HeaderConfig`] for raw-header scanning (transitional, uses `parc` internally)
+//! - [`HeaderConfig`] for raw-header scanning configuration
 //! - [`BindingPackage`] and IR types for serialized machine contracts
 //! - [`to_json`] and [`from_json`] for JSON transport
 //! - [`probe_type_layouts`] for compiler-assisted ABI layout probing
@@ -58,12 +58,8 @@
 //! The long-term goal is a fully typed public error surface built around [`LincError`].
 //! That work is not complete yet.
 //!
-//! Today, the remaining internal APIs that still return `Result<_, String>` are:
-//!
-//! - [`HeaderConfig::process`]
-//!
-//! Those APIs are still usable, but downstream users should treat their exact error
-//! strings as transitional rather than a stable matching contract.
+//! Today, the remaining transitional operational APIs that still return string-based
+//! errors are being migrated to the typed error surface.
 //!
 //! The preferred stability boundary today is:
 //!
@@ -119,14 +115,10 @@
 //!
 pub mod diagnostics;
 pub mod error;
-#[cfg(feature = "parc")]
-pub(crate) mod extract;
 pub mod intake;
 pub mod ir;
 pub mod line_markers;
 pub mod link_plan;
-#[cfg(feature = "parc")]
-pub(crate) mod preprocess;
 pub mod probe;
 pub mod raw_headers;
 
@@ -135,36 +127,31 @@ pub mod symbols;
 #[cfg(feature = "symbols")]
 pub mod validate;
 
-pub use error::LincError;
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
-// extract_from_source and extract_from_translation_unit are pub(crate) in extract.rs,
-// used internally by raw_headers and tests — not re-exported from the crate root.
-pub use ir::{
-    BindingDefine, BindingInputs, BindingItem, BindingItemKind, BindingLinkSurface, BindingPackage,
-    AbiConfidence, AliasResolution, BindingTarget, BindingType, CallingConvention, DeclarationProvenance, EnumBinding,
-    EnumRepresentation, EnumVariant, FieldBinding, FieldLayout, FunctionBinding, LinkArtifact, LinkArtifactKind, LinkFramework,
-    LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource, LinkResolutionMode,
-    MacroBinding, MacroCategory, MacroEnvironmentEntry, MacroForm, MacroKind, MacroProvenance,
-    MacroValue,
-    NativeSurfaceKind,
-    ParameterBinding, RecordBinding, RecordKind, RecordRepresentation, TypeAliasBinding, TypeLayout, TypeQualifiers, UnsupportedItem,
-    VariableBinding, SCHEMA_VERSION,
+pub use error::LincError;
+pub use intake::{
+    SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
+    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord, SourceType,
+    SourceTypeAlias, SourceVariable,
 };
-// line_markers types are used internally by ir and raw_headers — not re-exported.
+pub use ir::{
+    AbiConfidence, AliasResolution, BindingDefine, BindingInputs, BindingItem, BindingItemKind,
+    BindingLinkSurface, BindingPackage, BindingTarget, BindingType, CallingConvention,
+    DeclarationProvenance, EnumBinding, EnumRepresentation, EnumVariant, FieldBinding, FieldLayout,
+    FunctionBinding, LinkArtifact, LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary,
+    LinkLibraryKind, LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory,
+    MacroEnvironmentEntry, MacroForm, MacroKind, MacroProvenance, MacroValue, NativeSurfaceKind,
+    ParameterBinding, RecordBinding, RecordKind, RecordRepresentation, TypeAliasBinding,
+    TypeLayout, TypeQualifiers, UnsupportedItem, VariableBinding, SCHEMA_VERSION,
+};
 pub use link_plan::{
     resolve_link_plan, resolve_link_plan_for_target, resolve_link_plan_with_inventories,
     ProviderMatchKind, ProviderProvenance, RequirementResolution, ResolvedLinkPlan,
     ResolvedLinkRequirement, ResolvedProvider,
 };
-// PreprocessedInput is pub(crate) in preprocess.rs — not re-exported from the crate root.
 pub use probe::{
-    probe_type_layouts, AbiProbeReport, ProbeConfidence, ProbeSubjectKind, ProbeSubjectReport,
-    ProbedFieldLayout, RecordCompleteness,
-};
-pub use intake::{
-    SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
-    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord,
-    SourceType, SourceTypeAlias, SourceVariable,
+    probe_type_layouts, AbiProbeReport, ProbeConfig, ProbeConfidence, ProbeSubjectKind,
+    ProbeSubjectReport, ProbedFieldLayout, RecordCompleteness,
 };
 pub use raw_headers::{HeaderConfig, PreprocessingReport, RawHeaderResult};
 #[cfg(feature = "symbols")]
@@ -224,76 +211,29 @@ pub fn from_json(json: &str) -> Result<BindingPackage, LincError> {
 #[cfg(feature = "symbols")]
 mod integration_tests {
     use super::*;
-    use crate::extract::extract_from_source;
-    use crate::preprocess::PreprocessedInput;
-
-    #[test]
-    fn full_pipeline_preprocessed() {
-        let src = r#"
-            typedef unsigned long size_t;
-            struct FILE;
-            enum status { OK = 0, ERR = 1 };
-            void *malloc(size_t n);
-            void free(void *ptr);
-            extern int errno;
-        "#;
-
-        // Step 1: Parse and extract
-        let pkg = extract_from_source(src).unwrap();
-        assert!(pkg.diagnostics.is_empty());
-
-        // Step 2: Serialize to JSON and back
-        let json = to_json(&pkg).unwrap();
-        let pkg2 = from_json(&json).unwrap();
-        assert_eq!(pkg, pkg2);
-
-        // Step 3: Verify expected items
-        assert!(pkg.find_type_alias("size_t").is_some());
-        assert!(pkg.find_record("FILE").is_some());
-        assert!(pkg.find_function("malloc").is_some());
-        assert!(pkg.find_function("free").is_some());
-        assert!(pkg.find_variable("errno").is_some());
-    }
-
-    #[test]
-    fn full_pipeline_preprocessed_input() {
-        let pkg = PreprocessedInput::from_string("int foo(int x);")
-            .with_path("test.i")
-            .extract();
-
-        assert_eq!(pkg.source_path.as_deref(), Some("test.i"));
-        assert_eq!(pkg.items.len(), 1);
-
-        let json = to_json(&pkg).unwrap();
-        assert!(json.contains("foo"));
-    }
-
-    #[test]
-    fn json_roundtrip_preserves_all_item_types() {
-        let src = r#"
-            typedef int int32_t;
-            enum color { RED = 0, GREEN = 1 };
-            struct point { int x; int y; };
-            union data { int i; float f; };
-            void func(int a, ...);
-            extern int global_var;
-        "#;
-        let pkg = extract_from_source(src).unwrap();
-        let json = to_json(&pkg).unwrap();
-        let pkg2 = from_json(&json).unwrap();
-
-        // Verify each item type survived
-        assert!(pkg2.items.iter().any(|i| matches!(i, BindingItem::TypeAlias(_))));
-        assert!(pkg2.items.iter().any(|i| matches!(i, BindingItem::Enum(_))));
-        assert!(pkg2.items.iter().any(|i| matches!(i, BindingItem::Record(r) if r.kind == RecordKind::Struct)));
-        assert!(pkg2.items.iter().any(|i| matches!(i, BindingItem::Record(r) if r.kind == RecordKind::Union)));
-        assert!(pkg2.items.iter().any(|i| matches!(i, BindingItem::Function(_))));
-        assert!(pkg2.items.iter().any(|i| matches!(i, BindingItem::Variable(_))));
-    }
 
     #[test]
     fn validation_report_json_roundtrip() {
-        let pkg = extract_from_source("void foo(void); void bar(void);").unwrap();
+        let mut src_pkg = SourcePackage::default();
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "foo".into(),
+                parameters: vec![],
+                return_type: SourceType::Void,
+                variadic: false,
+                source_offset: None,
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "bar".into(),
+                parameters: vec![],
+                return_type: SourceType::Void,
+                variadic: false,
+                source_offset: None,
+            }));
+        let pkg = from_source_package(&src_pkg);
         let inv = SymbolInventory {
             artifact_path: "test.o".into(),
             format: symbols::ArtifactFormat::ElfObject,
@@ -328,96 +268,62 @@ mod integration_tests {
         assert_eq!(report2.missing().len(), 1);
     }
 
-    /// Demonstrates the downstream consumer pattern described in PLAN.md:
-    /// 1. Parse headers -> BindingPackage
-    /// 2. Serialize to JSON for machine consumption
-    /// 3. (Optional) Validate against symbols
     #[test]
     fn downstream_consumer_pattern() {
-        let headers = r#"
-            typedef unsigned int uint32_t;
-            struct config {
-                uint32_t flags;
-                uint32_t version;
-            };
-            int init(struct config *cfg);
-            void shutdown(void);
-        "#;
-
-        // A downstream tool (like fol) would call LINC like this:
-        let package = extract_from_source(headers).unwrap();
-
-        // Inspect the package programmatically
-        let functions: Vec<&FunctionBinding> = package.items.iter().filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f),
-            _ => None,
-        }).collect();
-        assert_eq!(functions.len(), 2);
-        assert!(functions.iter().any(|f| f.name == "init"));
-        assert!(functions.iter().any(|f| f.name == "shutdown"));
-
-        let records: Vec<&RecordBinding> = package.items.iter().filter_map(|i| match i {
-            BindingItem::Record(r) => Some(r),
-            _ => None,
-        }).collect();
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].name.as_deref(), Some("config"));
-
-        // Export as JSON for other tooling
+        let mut src_pkg = SourcePackage::default();
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "init".into(),
+                parameters: vec![SourceParameter {
+                    name: Some("cfg".into()),
+                    ty: SourceType::Pointer(Box::new(SourceType::Void)),
+                }],
+                return_type: SourceType::Int,
+                variadic: false,
+                source_offset: None,
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "shutdown".into(),
+                parameters: vec![],
+                return_type: SourceType::Void,
+                variadic: false,
+                source_offset: None,
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Record(SourceRecord {
+                name: Some("config".into()),
+                is_union: false,
+                fields: Some(vec![
+                    SourceField {
+                        name: Some("flags".into()),
+                        ty: SourceType::UInt,
+                        bit_width: None,
+                    },
+                    SourceField {
+                        name: Some("version".into()),
+                        ty: SourceType::UInt,
+                        bit_width: None,
+                    },
+                ]),
+                source_offset: None,
+            }));
+        let package = from_source_package(&src_pkg);
+        assert_eq!(package.function_count(), 2);
+        assert!(package.find_function("init").is_some());
+        assert!(package.find_function("shutdown").is_some());
+        assert_eq!(package.record_count(), 1);
         let json = to_json(&package).unwrap();
         assert!(json.contains("\"init\""));
         assert!(json.contains("\"config\""));
     }
 
     #[test]
-    #[ignore] // Requires gcc/clang and cc/ar
-    fn full_end_to_end_with_raw_headers_and_symbols() {
-        let dir = std::env::temp_dir().join("linc_e2e_test");
-        std::fs::create_dir_all(&dir).unwrap();
-
-        // Write a header and implementation
-        let h_path = dir.join("mylib.h");
-        let c_path = dir.join("mylib.c");
-        let o_path = dir.join("mylib.o");
-
-        std::fs::write(&h_path, "int add(int a, int b);\nint mul(int a, int b);\n").unwrap();
-        std::fs::write(&c_path, "#include \"mylib.h\"\nint add(int a, int b) { return a+b; }\nint mul(int a, int b) { return a*b; }\n").unwrap();
-
-        // Compile
-        let status = std::process::Command::new("cc")
-            .args(["-c", "-o"])
-            .arg(&o_path)
-            .arg(&c_path)
-            .status()
-            .unwrap();
-        assert!(status.success());
-
-        // Step 1: Parse raw headers
-        let result = HeaderConfig::new()
-            .header(&h_path)
-            .process()
-            .unwrap();
-        let package = result.package;
-
-        // Step 2: Inspect symbols
-        let inventory = inspect_symbols(&o_path).unwrap();
-
-        // Step 3: Validate
-        let report = validate(&package, &inventory);
-        assert!(report.all_matched());
-
-        // Step 4: JSON export
-        let json = to_json(&package).unwrap();
-        assert!(json.contains("add"));
-        assert!(json.contains("mul"));
-
-        // Cleanup
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
     fn schema_version_present_in_json() {
-        let pkg = extract_from_source("void foo(void);").unwrap();
+        let pkg = from_source_package(&SourcePackage::default());
         let json = to_json(&pkg).unwrap();
         assert!(json.contains("\"schema_version\": 1"));
         assert!(json.contains("\"linc_version\""));
@@ -425,7 +331,7 @@ mod integration_tests {
 
     #[test]
     fn schema_version_roundtrip() {
-        let pkg = extract_from_source("void foo(void);").unwrap();
+        let pkg = from_source_package(&SourcePackage::default());
         assert_eq!(pkg.schema_version, SCHEMA_VERSION);
         let json = to_json(&pkg).unwrap();
         let pkg2 = from_json(&json).unwrap();
@@ -437,12 +343,14 @@ mod integration_tests {
         let json = r#"{"schema_version": 99, "linc_version": "0.1.0", "source_path": null, "items": [], "diagnostics": []}"#;
         let result = from_json(json);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), LincError::SchemaVersion { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            LincError::SchemaVersion { .. }
+        ));
     }
 
     #[test]
     fn accept_missing_schema_version_defaults_to_current() {
-        // Old JSON without schema_version should deserialize with default
         let json = r#"{"source_path": null, "items": [], "diagnostics": []}"#;
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.schema_version, SCHEMA_VERSION);
@@ -525,18 +433,12 @@ mod integration_tests {
 
     #[test]
     fn typed_error_matrix_for_public_operations() {
-        let no_headers = HeaderConfig::new().process().unwrap_err();
-        assert!(matches!(no_headers, LincError::NoHeaders));
-
-        let probe_no_headers = probe_type_layouts(&HeaderConfig::new(), &["struct widget"])
-            .unwrap_err();
+        let probe_no_headers =
+            probe_type_layouts(&ProbeConfig::new(), &["struct widget"]).unwrap_err();
         assert!(matches!(probe_no_headers, LincError::NoHeaders));
 
-        let probe_no_types = probe_type_layouts(
-            &HeaderConfig::new().header("demo.h"),
-            &[] as &[&str],
-        )
-        .unwrap_err();
+        let probe_no_types =
+            probe_type_layouts(&ProbeConfig::new().header("demo.h"), &[] as &[&str]).unwrap_err();
         assert!(matches!(probe_no_types, LincError::NoProbeTypes));
 
         let symbol_read = inspect_symbols("/nonexistent/path.o").unwrap_err();
@@ -602,94 +504,6 @@ mod integration_tests {
         assert_eq!(pkg.link.libraries.len(), 1);
     }
 
-    // Phase 25: error path and edge case tests
-
-    #[test]
-    fn parse_invalid_c_returns_error() {
-        let result = extract_from_source("@#$% not valid C");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn parse_empty_input() {
-        let pkg = extract_from_source("").unwrap();
-        assert!(pkg.items.is_empty());
-    }
-
-    #[test]
-    fn deep_pointer_chain() {
-        let pkg = extract_from_source("void foo(int *****p);").unwrap();
-        match &pkg.items[0] {
-            BindingItem::Function(f) => {
-                let mut ty = &f.parameters[0].ty;
-                let mut depth = 0;
-                while let BindingType::Pointer { pointee, .. } = ty {
-                    depth += 1;
-                    ty = pointee;
-                }
-                assert_eq!(depth, 5);
-                assert_eq!(*ty, BindingType::Int);
-            }
-            other => panic!("expected Function, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn empty_struct() {
-        // GCC extension: empty struct
-        let pkg = extract_from_source("struct empty {};").unwrap();
-        let records: Vec<_> = pkg.items.iter().filter_map(|i| match i {
-            BindingItem::Record(r) => Some(r),
-            _ => None,
-        }).collect();
-        assert_eq!(records.len(), 1);
-        assert!(!records[0].is_opaque());
-        assert!(records[0].fields.as_ref().unwrap().is_empty());
-    }
-
-    #[test]
-    fn zero_length_array() {
-        let pkg = extract_from_source("struct buf { int len; int data[0]; };").unwrap();
-        let records: Vec<_> = pkg.items.iter().filter_map(|i| match i {
-            BindingItem::Record(r) => Some(r),
-            _ => None,
-        }).collect();
-        let fields = records[0].fields.as_ref().unwrap();
-        assert_eq!(fields.len(), 2);
-        match &fields[1].ty {
-            BindingType::Array(_, Some(0)) => {}
-            other => panic!("expected Array(_, Some(0)), got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn determinism_10_runs() {
-        let src = "typedef int int32_t; void foo(int32_t x); struct s { int a; float b; };";
-        let first = to_json(&extract_from_source(src).unwrap()).unwrap();
-        for _ in 0..9 {
-            let json = to_json(&extract_from_source(src).unwrap()).unwrap();
-            assert_eq!(first, json, "non-deterministic output detected");
-        }
-    }
-
-    #[test]
-    fn roundtrip_all_type_variants() {
-        let src = r#"
-            typedef int myint;
-            typedef void (*cb)(int);
-            enum e { A = 0 };
-            struct s { int x; };
-            union u { int i; float f; };
-            void func(const char *s, int arr[10], ...);
-            extern int var;
-        "#;
-        let pkg = extract_from_source(src).unwrap();
-        let json = to_json(&pkg).unwrap();
-        let pkg2 = from_json(&json).unwrap();
-        let json2 = to_json(&pkg2).unwrap();
-        assert_eq!(json, json2, "roundtrip produced different JSON");
-    }
-
     #[test]
     fn from_json_invalid_json() {
         let result = from_json("not json at all");
@@ -700,35 +514,43 @@ mod integration_tests {
     fn intake_source_package_to_binding_package() {
         let mut src_pkg = SourcePackage::default();
         src_pkg.source_path = Some("demo.h".into());
-        src_pkg.declarations.push(SourceDeclaration::Function(SourceFunction {
-            name: "init".into(),
-            parameters: vec![SourceParameter {
-                name: Some("flags".into()),
-                ty: SourceType::UInt,
-            }],
-            return_type: SourceType::Int,
-            variadic: false,
-            source_offset: None,
-        }));
-        src_pkg.declarations.push(SourceDeclaration::Record(SourceRecord {
-            name: Some("config".into()),
-            is_union: false,
-            fields: Some(vec![SourceField {
-                name: Some("version".into()),
-                ty: SourceType::UInt,
-                bit_width: None,
-            }]),
-            source_offset: None,
-        }));
-        src_pkg.declarations.push(SourceDeclaration::Variable(SourceVariable {
-            name: "errno".into(),
-            ty: SourceType::Int,
-            source_offset: None,
-        }));
-        src_pkg.link_requirements.push(intake::SourceLinkRequirement {
-            name: "mylib".into(),
-            kind: intake::source::SourceLinkKind::DynamicLibrary,
-        });
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "init".into(),
+                parameters: vec![SourceParameter {
+                    name: Some("flags".into()),
+                    ty: SourceType::UInt,
+                }],
+                return_type: SourceType::Int,
+                variadic: false,
+                source_offset: None,
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Record(SourceRecord {
+                name: Some("config".into()),
+                is_union: false,
+                fields: Some(vec![SourceField {
+                    name: Some("version".into()),
+                    ty: SourceType::UInt,
+                    bit_width: None,
+                }]),
+                source_offset: None,
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Variable(SourceVariable {
+                name: "errno".into(),
+                ty: SourceType::Int,
+                source_offset: None,
+            }));
+        src_pkg
+            .link_requirements
+            .push(intake::SourceLinkRequirement {
+                name: "mylib".into(),
+                kind: intake::source::SourceLinkKind::DynamicLibrary,
+            });
 
         let pkg = from_source_package(&src_pkg);
         assert_eq!(pkg.source_path.as_deref(), Some("demo.h"));
@@ -739,7 +561,6 @@ mod integration_tests {
         assert_eq!(pkg.link.libraries.len(), 1);
         assert_eq!(pkg.link.libraries[0].name, "mylib");
 
-        // JSON roundtrip
         let json = to_json(&pkg).unwrap();
         let pkg2 = from_json(&json).unwrap();
         assert_eq!(pkg, pkg2);
@@ -748,37 +569,47 @@ mod integration_tests {
     #[test]
     fn intake_roundtrip_preserves_all_declaration_types() {
         let mut src_pkg = SourcePackage::default();
-        src_pkg.declarations.push(SourceDeclaration::Function(SourceFunction {
-            name: "foo".into(),
-            parameters: vec![],
-            return_type: SourceType::Void,
-            variadic: false,
-            source_offset: Some(10),
-        }));
-        src_pkg.declarations.push(SourceDeclaration::Record(SourceRecord {
-            name: Some("s".into()),
-            is_union: false,
-            fields: Some(vec![]),
-            source_offset: Some(20),
-        }));
-        src_pkg.declarations.push(SourceDeclaration::Enum(SourceEnum {
-            name: Some("e".into()),
-            variants: vec![intake::SourceEnumVariant {
-                name: "A".into(),
-                value: Some(0),
-            }],
-            source_offset: Some(30),
-        }));
-        src_pkg.declarations.push(SourceDeclaration::TypeAlias(SourceTypeAlias {
-            name: "myint".into(),
-            target: SourceType::Int,
-            source_offset: Some(40),
-        }));
-        src_pkg.declarations.push(SourceDeclaration::Variable(SourceVariable {
-            name: "var".into(),
-            ty: SourceType::Int,
-            source_offset: Some(50),
-        }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "foo".into(),
+                parameters: vec![],
+                return_type: SourceType::Void,
+                variadic: false,
+                source_offset: Some(10),
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Record(SourceRecord {
+                name: Some("s".into()),
+                is_union: false,
+                fields: Some(vec![]),
+                source_offset: Some(20),
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Enum(SourceEnum {
+                name: Some("e".into()),
+                variants: vec![intake::SourceEnumVariant {
+                    name: "A".into(),
+                    value: Some(0),
+                }],
+                source_offset: Some(30),
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::TypeAlias(SourceTypeAlias {
+                name: "myint".into(),
+                target: SourceType::Int,
+                source_offset: Some(40),
+            }));
+        src_pkg
+            .declarations
+            .push(SourceDeclaration::Variable(SourceVariable {
+                name: "var".into(),
+                ty: SourceType::Int,
+                source_offset: Some(50),
+            }));
 
         let pkg = from_source_package(&src_pkg);
         assert_eq!(pkg.function_count(), 1);
@@ -793,7 +624,6 @@ mod integration_tests {
         use crate::intake::SourcePackage;
         use crate::symbols::*;
 
-        // Build package through intake
         let src = SourcePackage {
             source_path: Some("api.h".into()),
             declarations: vec![
@@ -821,74 +651,89 @@ mod integration_tests {
         };
 
         let mut pkg = from_source_package(&src);
-        pkg.link.ordered_inputs.push(ir::LinkInput::Library(ir::LinkLibrary {
-            name: "api".into(),
-            kind: ir::LinkLibraryKind::Default,
-            source: ir::LinkRequirementSource::Declared,
-        }));
+        pkg.link
+            .ordered_inputs
+            .push(ir::LinkInput::Library(ir::LinkLibrary {
+                name: "api".into(),
+                kind: ir::LinkLibraryKind::Default,
+                source: ir::LinkRequirementSource::Declared,
+            }));
 
-        // Build a fake inventory
         let inv = SymbolInventory {
             artifact_path: "/usr/lib/libapi.so".into(),
             format: ArtifactFormat::ElfSharedLibrary,
             platform: ArtifactPlatform::Elf,
             kind: ArtifactKind::SharedLibrary,
-            capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
             dependency_edges: vec!["libc.so.6".into()],
             symbols: vec![
                 SymbolEntry {
                     name: "api_init".into(),
-                    raw_name: None, version: None,
+                    raw_name: None,
+                    version: None,
                     direction: SymbolDirection::Exported,
-                    reexported_via: Vec::new(), alias_of: None,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
-                    size: None, section: None, archive_member: None, function_abi: None,
+                    size: None,
+                    section: None,
+                    archive_member: None,
+                    function_abi: None,
                 },
                 SymbolEntry {
                     name: "api_shutdown".into(),
-                    raw_name: None, version: None,
+                    raw_name: None,
+                    version: None,
                     direction: SymbolDirection::Exported,
-                    reexported_via: Vec::new(), alias_of: None,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
                     visibility: SymbolVisibility::Default,
                     is_function: true,
                     binding: SymbolBinding::Global,
-                    size: None, section: None, archive_member: None, function_abi: None,
+                    size: None,
+                    section: None,
+                    archive_member: None,
+                    function_abi: None,
                 },
                 SymbolEntry {
                     name: "api_version".into(),
-                    raw_name: None, version: None,
+                    raw_name: None,
+                    version: None,
                     direction: SymbolDirection::Exported,
-                    reexported_via: Vec::new(), alias_of: None,
+                    reexported_via: Vec::new(),
+                    alias_of: None,
                     visibility: SymbolVisibility::Default,
                     is_function: false,
                     binding: SymbolBinding::Global,
-                    size: Some(4), section: None, archive_member: None, function_abi: None,
+                    size: Some(4),
+                    section: None,
+                    archive_member: None,
+                    function_abi: None,
                 },
             ],
         };
 
-        // Validate
         let report = validate::validate(&pkg, &inv);
         assert_eq!(report.summary.total, 3);
         assert_eq!(report.summary.matched, 3);
         assert_eq!(report.summary.missing, 0);
         assert!(report.all_matched());
 
-        // Resolve link plan
-        let plan = link_plan::resolve_link_plan_with_inventories(
-            &pkg,
-            std::slice::from_ref(&inv),
-        );
+        let plan = link_plan::resolve_link_plan_with_inventories(&pkg, std::slice::from_ref(&inv));
         assert_eq!(plan.requirements.len(), 1);
-        assert_eq!(plan.requirements[0].resolution, link_plan::RequirementResolution::Resolved);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            link_plan::RequirementResolution::Resolved
+        );
         assert_eq!(plan.transitive_dependencies, vec!["libc.so.6"]);
 
-        // JSON roundtrip of the full package
         let json = to_json(&pkg).unwrap();
         let pkg2 = from_json(&json).unwrap();
         assert_eq!(pkg.item_count(), pkg2.item_count());
     }
-
 }

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::{io, os::raw::c_int};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
 const SOCKETCAN_HEADERS: &[&str] = &["/usr/include/linux/can.h", "/usr/include/linux/can/raw.h"];
 const OPTIONAL_HEADERS: &[&str] = &[
@@ -10,8 +10,11 @@ const OPTIONAL_HEADERS: &[&str] = &[
     "/usr/include/sys/socket.h",
 ];
 const INCLUDE_DIR_CANDIDATES: &[&str] = &["/usr/include", "/usr/include/x86_64-linux-gnu"];
-const SOCKETCAN_PROBE_TYPES: &[&str] =
-    &["struct can_frame", "struct canfd_frame", "struct sockaddr_can"];
+const SOCKETCAN_PROBE_TYPES: &[&str] = &[
+    "struct can_frame",
+    "struct canfd_frame",
+    "struct sockaddr_can",
+];
 const AF_CAN: c_int = 29;
 const SOCK_RAW: c_int = 3;
 const CAN_RAW: c_int = 1;
@@ -29,7 +32,9 @@ unsafe extern "C" {
 }
 
 pub fn socketcan_headers_available() -> bool {
-    SOCKETCAN_HEADERS.iter().all(|path| Path::new(path).exists())
+    SOCKETCAN_HEADERS
+        .iter()
+        .all(|path| Path::new(path).exists())
 }
 
 pub fn socketcan_environment() -> Result<SocketcanEnvironment, LincError> {
@@ -83,7 +88,7 @@ pub fn socketcan_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_socketcan() -> Result<RawHeaderResult, LincError> {
-    socketcan_header_config()?.process()
+    super::common::process(&socketcan_header_config()?)
 }
 
 pub fn socketcan_runtime_smoke_check() -> io::Result<()> {

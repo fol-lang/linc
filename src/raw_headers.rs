@@ -1,27 +1,17 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::error::LincError;
 use crate::ir::{
-    BindingPackage, BindingTarget, LinkArtifact, LinkArtifactKind, LinkFramework, LinkInput,
-    LinkLibrary, LinkLibraryKind, LinkRequirementSource, LinkResolutionMode,
+    AbiConfidence, BindingDefine, BindingInputs, BindingItem, BindingItemKind, BindingLinkSurface,
+    BindingPackage, BindingTarget, DeclarationProvenance, LinkArtifact, LinkArtifactKind,
+    LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource,
+    LinkResolutionMode, MacroBinding, MacroCategory, MacroEnvironmentEntry, MacroForm, MacroKind,
+    MacroProvenance, MacroValue, NativeSurfaceKind,
 };
-use crate::line_markers::OriginFilter;
-
-#[cfg(feature = "parc")]
-use std::path::Path;
-#[cfg(feature = "parc")]
-use crate::diagnostics::{Diagnostic, DiagnosticKind};
-#[cfg(feature = "parc")]
-use crate::ir::{
-    AbiConfidence, BindingDefine, BindingInputs, BindingItem, BindingItemKind,
-    BindingLinkSurface, DeclarationProvenance, MacroBinding, MacroCategory,
-    MacroEnvironmentEntry, MacroForm, MacroKind, MacroProvenance, MacroValue, NativeSurfaceKind,
-};
-#[cfg(feature = "parc")]
-use crate::line_markers::FileOriginMap;
-#[cfg(feature = "parc")]
+use crate::line_markers::{FileOriginMap, OriginFilter};
 use crate::probe::ProbeSubjectReport;
 
 /// High-level scan configuration for turning headers into a `BindingPackage`.
@@ -70,7 +60,6 @@ pub enum Flavor {
     ClangC11,
     StdC11,
 }
-
 
 /// Effective preprocessing invocation details for one scan.
 ///
@@ -244,7 +233,8 @@ impl HeaderConfig {
         I: IntoIterator<Item = P>,
         P: Into<PathBuf>,
     {
-        self.framework_dirs.extend(paths.into_iter().map(Into::into));
+        self.framework_dirs
+            .extend(paths.into_iter().map(Into::into));
         self
     }
 
@@ -284,8 +274,11 @@ impl HeaderConfig {
         I: IntoIterator<Item = (N, Option<String>)>,
         N: Into<String>,
     {
-        self.defines
-            .extend(defines.into_iter().map(|(name, value)| (name.into(), value)));
+        self.defines.extend(
+            defines
+                .into_iter()
+                .map(|(name, value)| (name.into(), value)),
+        );
         self
     }
 
@@ -553,7 +546,7 @@ impl HeaderConfig {
         Ok(())
     }
 
-    pub(crate) fn binding_target(&self) -> BindingTarget {
+    pub fn binding_target(&self) -> BindingTarget {
         let compiler_command = self.compiler_command();
         BindingTarget {
             target_triple: detect_target_triple(&compiler_command),
@@ -563,8 +556,7 @@ impl HeaderConfig {
         }
     }
 
-    #[cfg(feature = "parc")]
-    fn binding_inputs(&self) -> BindingInputs {
+    pub fn binding_inputs(&self) -> BindingInputs {
         BindingInputs {
             entry_headers: self
                 .entry_headers
@@ -587,8 +579,7 @@ impl HeaderConfig {
         }
     }
 
-    #[cfg(feature = "parc")]
-    fn binding_link_surface(&self) -> BindingLinkSurface {
+    pub fn binding_link_surface(&self) -> BindingLinkSurface {
         BindingLinkSurface {
             preferred_mode: self.preferred_link_mode,
             native_surface_kind: self.native_surface_kind(),
@@ -615,9 +606,11 @@ impl HeaderConfig {
         }
     }
 
-    #[cfg(feature = "parc")]
-    fn native_surface_kind(&self) -> NativeSurfaceKind {
-        match (self.link_libraries.is_empty() && self.link_frameworks.is_empty(), self.link_artifacts.is_empty()) {
+    pub fn native_surface_kind(&self) -> NativeSurfaceKind {
+        match (
+            self.link_libraries.is_empty() && self.link_frameworks.is_empty(),
+            self.link_artifacts.is_empty(),
+        ) {
             (true, true) => NativeSurfaceKind::HeaderOnly,
             (false, true) => NativeSurfaceKind::LibraryNames,
             (true, false) => NativeSurfaceKind::ConcreteArtifacts,
@@ -625,248 +618,23 @@ impl HeaderConfig {
         }
     }
 
-    pub(crate) fn compiler_command(&self) -> String {
+    pub fn compiler_command(&self) -> String {
         let flavor = self.flavor.unwrap_or(Flavor::GnuC11);
-        self.compiler
-            .clone()
-            .unwrap_or_else(|| match flavor {
-                Flavor::ClangC11 => "clang".into(),
-                _ => "gcc".into(),
-            })
+        self.compiler.clone().unwrap_or_else(|| match flavor {
+            Flavor::ClangC11 => "clang".into(),
+            _ => "gcc".into(),
+        })
     }
 
-    fn flavor_label(&self) -> String {
+    pub fn flavor_label(&self) -> String {
         match self.flavor.unwrap_or(Flavor::GnuC11) {
             Flavor::GnuC11 => "gnu-c11".into(),
             Flavor::ClangC11 => "clang-c11".into(),
             Flavor::StdC11 => "std-c11".into(),
         }
     }
-}
 
-// ─── Parser-dependent implementation (test only) ──────────────────────
-//
-// The methods below require `pac` for preprocessing and parsing.  They are
-// compiled only during tests so that LINC has zero runtime coupling to any
-// particular parser frontend.
-#[cfg(feature = "parc")]
-impl Flavor {
-    fn to_pac(self) -> parc::driver::Flavor {
-        match self {
-            Flavor::GnuC11 => parc::driver::Flavor::GnuC11,
-            Flavor::ClangC11 => parc::driver::Flavor::ClangC11,
-            Flavor::StdC11 => parc::driver::Flavor::StdC11,
-        }
-    }
-}
-
-#[cfg(feature = "parc")]
-impl HeaderConfig {
-    pub fn process(&self) -> Result<RawHeaderResult, LincError> {
-        use crate::extract::Extractor;
-
-        self.validate()?;
-
-        // Build a combined header source that includes all entry headers
-        let combined = self.build_combined_source();
-        let unique_id = std::process::id();
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let tmp_dir = std::env::temp_dir().join(format!("linc_raw_{unique_id}_{ts}"));
-        std::fs::create_dir_all(&tmp_dir)?;
-        let tmp_file = tmp_dir.join("_linc_combined.c");
-        std::fs::write(&tmp_file, &combined)?;
-
-        let pac_config = self.build_pac_config();
-        let (command, args) = self.describe_invocation(&pac_config, &tmp_file);
-
-        let parse_result = parc::driver::parse(&pac_config, &tmp_file);
-        let (macros, macro_provenance) = self.capture_macros(&tmp_file);
-
-        // Clean up
-        std::fs::remove_file(&tmp_file).ok();
-        std::fs::remove_dir(&tmp_dir).ok();
-
-        match parse_result {
-            Ok(parsed) => {
-                let report = PreprocessingReport {
-                    command,
-                    args,
-                    preprocessed_source: parsed.source.clone(),
-                };
-
-                let extractor = Extractor::new();
-                let (items, diagnostics) = extractor.extract(&parsed.unit);
-
-                let source_desc = self
-                    .entry_headers
-                    .iter()
-                    .map(|p| p.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let effective_macro_environment =
-                    build_effective_macro_environment(&macros, &macro_provenance);
-
-                let mut package = BindingPackage {
-                    source_path: Some(source_desc),
-                    target: self.binding_target(),
-                    inputs: self.binding_inputs(),
-                    macros,
-                    macro_provenance,
-                    effective_macro_environment,
-                    link: self.binding_link_surface(),
-                    items,
-                    diagnostics,
-                    ..BindingPackage::new()
-                };
-
-                let origin_map = FileOriginMap::parse(&parsed.source, &self.entry_headers);
-                package.provenance = build_item_provenance(&package.items, &origin_map);
-                attach_canonical_alias_resolution(&mut package.items);
-
-                self.attach_requested_probes(&mut package)?;
-
-                // Apply origin filtering if configured
-                if let Some(ref filter) = self.origin_filter {
-                    package.filter_by_origin(&origin_map, filter);
-                }
-
-                Ok(RawHeaderResult { package, report })
-            }
-            Err(parc::driver::Error::PreprocessorError(e)) => {
-                let mut pkg = BindingPackage::new();
-                pkg.diagnostics.push(
-                    Diagnostic::error(
-                        DiagnosticKind::PreprocessingFailed,
-                        format!("preprocessor failed: {}", e),
-                    ),
-                );
-                Ok(RawHeaderResult {
-                    package: pkg,
-                    report: PreprocessingReport {
-                        command,
-                        args,
-                        preprocessed_source: String::new(),
-                    },
-                })
-            }
-            Err(parc::driver::Error::SyntaxError(e)) => {
-                if let Some(recovered) =
-                    self.try_recover_items_from_preprocessed_source(&e.source)
-                {
-                    let report = PreprocessingReport {
-                        command,
-                        args,
-                        preprocessed_source: e.source,
-                    };
-                    return Ok(self.package_from_recovered_parse(recovered, macros, macro_provenance, report)?);
-                }
-
-                let source_desc = self
-                    .entry_headers
-                    .iter()
-                    .map(|p| p.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let effective_macro_environment =
-                    build_effective_macro_environment(&macros, &macro_provenance);
-                let mut pkg = BindingPackage {
-                    source_path: Some(source_desc),
-                    target: self.binding_target(),
-                    inputs: self.binding_inputs(),
-                    macros,
-                    macro_provenance,
-                    effective_macro_environment,
-                    link: self.binding_link_surface(),
-                    ..BindingPackage::new()
-                };
-                pkg.diagnostics.push(
-                    Diagnostic::error(
-                        DiagnosticKind::ParseFailed,
-                        format!("parse error: {}", e),
-                    ),
-                );
-
-                self.attach_requested_probes(&mut pkg)?;
-
-                Ok(RawHeaderResult {
-                    package: pkg,
-                    report: PreprocessingReport {
-                        command,
-                        args,
-                        preprocessed_source: e.source,
-                    },
-                })
-            }
-        }
-    }
-
-    fn try_recover_items_from_preprocessed_source(
-        &self,
-        source: &str,
-    ) -> Option<RecoveredParse> {
-        use crate::extract::Extractor;
-        let sanitized_source = sanitize_attribute_bearing_record_typedefs(source)?;
-        let flavor = self.flavor.unwrap_or(Flavor::GnuC11).to_pac();
-        let unit = parc::parse::translation_unit(&sanitized_source, flavor).ok()?;
-        let extractor = Extractor::new();
-        let (items, mut diagnostics) = extractor.extract(&unit);
-        diagnostics.push(Diagnostic::warning(
-            DiagnosticKind::DeclarationPartial,
-            "recovered declaration extraction after sanitizing packed record typedef attributes",
-        ));
-        Some(RecoveredParse {
-            source: sanitized_source,
-            items,
-            diagnostics,
-        })
-    }
-
-    fn package_from_recovered_parse(
-        &self,
-        recovered: RecoveredParse,
-        macros: Vec<MacroBinding>,
-        macro_provenance: Vec<MacroProvenance>,
-        report: PreprocessingReport,
-    ) -> Result<RawHeaderResult, LincError> {
-        let source_desc = self
-            .entry_headers
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        let effective_macro_environment =
-            build_effective_macro_environment(&macros, &macro_provenance);
-
-        let mut package = BindingPackage {
-            source_path: Some(source_desc),
-            target: self.binding_target(),
-            inputs: self.binding_inputs(),
-            macros,
-            macro_provenance,
-            effective_macro_environment,
-            link: self.binding_link_surface(),
-            items: recovered.items,
-            diagnostics: recovered.diagnostics,
-            ..BindingPackage::new()
-        };
-
-        let origin_map = FileOriginMap::parse(&recovered.source, &self.entry_headers);
-        package.provenance = build_item_provenance(&package.items, &origin_map);
-        attach_canonical_alias_resolution(&mut package.items);
-
-        self.attach_requested_probes(&mut package)?;
-
-        if let Some(ref filter) = self.origin_filter {
-            package.filter_by_origin(&origin_map, filter);
-        }
-
-        Ok(RawHeaderResult { package, report })
-    }
-
-    fn build_combined_source(&self) -> String {
+    pub fn build_combined_source(&self) -> String {
         let mut source = String::new();
         for header in &self.entry_headers {
             source.push_str(&format!("#include \"{}\"\n", header.display()));
@@ -874,37 +642,7 @@ impl HeaderConfig {
         source
     }
 
-    fn build_pac_config(&self) -> parc::driver::Config {
-        let flavor = self.flavor.unwrap_or(Flavor::GnuC11);
-        let compiler = self
-            .compiler
-            .clone()
-            .unwrap_or_else(|| match flavor {
-                Flavor::ClangC11 => "clang".into(),
-                _ => "gcc".into(),
-            });
-
-        let mut cpp_options = vec!["-E".to_string()];
-
-        for dir in &self.include_dirs {
-            cpp_options.push(format!("-I{}", dir.display()));
-        }
-
-        for (name, value) in &self.defines {
-            match value {
-                Some(v) => cpp_options.push(format!("-D{}={}", name, v)),
-                None => cpp_options.push(format!("-D{}", name)),
-            }
-        }
-
-        parc::driver::Config {
-            cpp_command: compiler,
-            cpp_options,
-            flavor: flavor.to_pac(),
-        }
-    }
-
-    fn attach_requested_probes(&self, package: &mut BindingPackage) -> Result<(), LincError> {
+    pub fn attach_requested_probes(&self, package: &mut BindingPackage) -> Result<(), LincError> {
         use crate::probe::{probe_type_layouts_with_fields, ProbedFieldSpec};
         if self.probe_types.is_empty() {
             return Ok(());
@@ -918,7 +656,9 @@ impl HeaderConfig {
                     crate::ir::RecordKind::Struct => "struct",
                     crate::ir::RecordKind::Union => "union",
                 };
-                let Some(fields) = &record.fields else { continue };
+                let Some(fields) = &record.fields else {
+                    continue;
+                };
                 let specs: Vec<ProbedFieldSpec> = fields
                     .iter()
                     .filter_map(|f| {
@@ -934,7 +674,8 @@ impl HeaderConfig {
             }
         }
 
-        match probe_type_layouts_with_fields(self, &self.probe_types, &field_specs) {
+        let probe_config = crate::probe::ProbeConfig::from(self);
+        match probe_type_layouts_with_fields(&probe_config, &self.probe_types, &field_specs) {
             Ok(probe_report) => {
                 package.layouts = probe_report.layouts;
                 attach_probe_evidence(&mut package.items, &probe_report.subjects);
@@ -952,7 +693,7 @@ impl HeaderConfig {
         }
     }
 
-    fn capture_macros(&self, input: &Path) -> (Vec<MacroBinding>, Vec<MacroProvenance>) {
+    pub fn capture_macros(&self, input: &Path) -> (Vec<MacroBinding>, Vec<MacroProvenance>) {
         let compiler = self.compiler_command();
         let mut cmd = std::process::Command::new(&compiler);
         cmd.arg("-dD").arg("-E");
@@ -982,17 +723,9 @@ impl HeaderConfig {
         };
         parse_macro_definitions_with_provenance(&stdout, &self.entry_headers)
     }
-
-    fn describe_invocation(&self, config: &parc::driver::Config, input: &Path) -> (String, Vec<String>) {
-        let command = config.cpp_command.clone();
-        let mut args = config.cpp_options.clone();
-        args.push(input.display().to_string());
-        (command, args)
-    }
 }
 
-#[cfg(feature = "parc")]
-fn classify_probe_diagnostic_kind(error: &LincError) -> DiagnosticKind {
+pub fn classify_probe_diagnostic_kind(error: &LincError) -> DiagnosticKind {
     match error {
         LincError::ProbeCompile { stderr, .. }
             if stderr.contains("incomplete type")
@@ -1009,24 +742,40 @@ fn classify_probe_diagnostic_kind(error: &LincError) -> DiagnosticKind {
     }
 }
 
-#[cfg(feature = "parc")]
-struct RecoveredParse {
-    source: String,
-    items: Vec<BindingItem>,
-    diagnostics: Vec<Diagnostic>,
+pub struct RecoveredParse {
+    pub source: String,
+    pub items: Vec<BindingItem>,
+    pub diagnostics: Vec<Diagnostic>,
 }
 
-#[cfg(feature = "parc")]
-fn sanitize_attribute_bearing_record_typedefs(source: &str) -> Option<String> {
+pub fn sanitize_attribute_bearing_record_typedefs(source: &str) -> Option<String> {
     let patterns = [
         ("typedef struct __attribute__((packed)) ", "typedef struct "),
-        ("typedef struct __attribute__((__packed__)) ", "typedef struct "),
-        ("typedef struct __attribute__((aligned(16))) ", "typedef struct "),
-        ("typedef struct __attribute__((__aligned__(16))) ", "typedef struct "),
+        (
+            "typedef struct __attribute__((__packed__)) ",
+            "typedef struct ",
+        ),
+        (
+            "typedef struct __attribute__((aligned(16))) ",
+            "typedef struct ",
+        ),
+        (
+            "typedef struct __attribute__((__aligned__(16))) ",
+            "typedef struct ",
+        ),
         ("typedef union __attribute__((packed)) ", "typedef union "),
-        ("typedef union __attribute__((__packed__)) ", "typedef union "),
-        ("typedef union __attribute__((aligned(16))) ", "typedef union "),
-        ("typedef union __attribute__((__aligned__(16))) ", "typedef union "),
+        (
+            "typedef union __attribute__((__packed__)) ",
+            "typedef union ",
+        ),
+        (
+            "typedef union __attribute__((aligned(16))) ",
+            "typedef union ",
+        ),
+        (
+            "typedef union __attribute__((__aligned__(16))) ",
+            "typedef union ",
+        ),
     ];
 
     let mut sanitized = source.to_string();
@@ -1041,8 +790,7 @@ fn sanitize_attribute_bearing_record_typedefs(source: &str) -> Option<String> {
     changed.then_some(sanitized)
 }
 
-#[cfg(feature = "parc")]
-fn attach_canonical_alias_resolution(items: &mut [BindingItem]) {
+pub fn attach_canonical_alias_resolution(items: &mut [BindingItem]) {
     let alias_map = items
         .iter()
         .filter_map(|item| match item {
@@ -1059,14 +807,17 @@ fn attach_canonical_alias_resolution(items: &mut [BindingItem]) {
     }
 }
 
-#[cfg(feature = "parc")]
-fn resolve_alias_resolution(
+pub fn resolve_alias_resolution(
     ty: &crate::ir::BindingType,
     alias_map: &std::collections::HashMap<String, crate::ir::BindingType>,
 ) -> Option<crate::ir::AliasResolution> {
     let mut alias_chain = Vec::new();
-    let terminal_target =
-        canonicalize_binding_type(ty, alias_map, &mut alias_chain, &mut std::collections::HashSet::new())?;
+    let terminal_target = canonicalize_binding_type(
+        ty,
+        alias_map,
+        &mut alias_chain,
+        &mut std::collections::HashSet::new(),
+    )?;
     if alias_chain.is_empty() {
         None
     } else {
@@ -1077,8 +828,7 @@ fn resolve_alias_resolution(
     }
 }
 
-#[cfg(feature = "parc")]
-fn canonicalize_binding_type(
+pub fn canonicalize_binding_type(
     ty: &crate::ir::BindingType,
     alias_map: &std::collections::HashMap<String, crate::ir::BindingType>,
     alias_chain: &mut Vec<String>,
@@ -1105,23 +855,18 @@ fn canonicalize_binding_type(
                 qualifiers: *qualifiers,
             },
         ),
-        crate::ir::BindingType::Qualified { ty, qualifiers } => canonicalize_binding_type(
-            ty,
-            alias_map,
-            alias_chain,
-            seen_aliases,
-        )
-        .map(|resolved| crate::ir::BindingType::Qualified {
-            ty: Box::new(resolved),
-            qualifiers: *qualifiers,
-        }),
-        crate::ir::BindingType::Array(inner, len) => canonicalize_binding_type(
-            inner,
-            alias_map,
-            alias_chain,
-            seen_aliases,
-        )
-        .map(|resolved| crate::ir::BindingType::Array(Box::new(resolved), *len)),
+        crate::ir::BindingType::Qualified { ty, qualifiers } => {
+            canonicalize_binding_type(ty, alias_map, alias_chain, seen_aliases).map(|resolved| {
+                crate::ir::BindingType::Qualified {
+                    ty: Box::new(resolved),
+                    qualifiers: *qualifiers,
+                }
+            })
+        }
+        crate::ir::BindingType::Array(inner, len) => {
+            canonicalize_binding_type(inner, alias_map, alias_chain, seen_aliases)
+                .map(|resolved| crate::ir::BindingType::Array(Box::new(resolved), *len))
+        }
         crate::ir::BindingType::FunctionPointer {
             return_type,
             parameters,
@@ -1147,12 +892,12 @@ fn canonicalize_binding_type(
     }
 }
 
-#[cfg(feature = "parc")]
-fn build_item_provenance(
+pub fn build_item_provenance(
     items: &[BindingItem],
     origin_map: &FileOriginMap,
 ) -> Vec<DeclarationProvenance> {
-    items.iter()
+    items
+        .iter()
         .map(|item| {
             let (item_name, item_kind, source_offset) = match item {
                 BindingItem::Function(f) => (
@@ -1160,16 +905,10 @@ fn build_item_provenance(
                     BindingItemKind::Function,
                     f.source_offset,
                 ),
-                BindingItem::Record(r) => (
-                    r.name.clone(),
-                    BindingItemKind::Record,
-                    r.source_offset,
-                ),
-                BindingItem::Enum(e) => (
-                    e.name.clone(),
-                    BindingItemKind::Enum,
-                    e.source_offset,
-                ),
+                BindingItem::Record(r) => {
+                    (r.name.clone(), BindingItemKind::Record, r.source_offset)
+                }
+                BindingItem::Enum(e) => (e.name.clone(), BindingItemKind::Enum, e.source_offset),
                 BindingItem::TypeAlias(t) => (
                     Some(t.name.clone()),
                     BindingItemKind::TypeAlias,
@@ -1198,8 +937,7 @@ fn build_item_provenance(
         .collect()
 }
 
-#[cfg(feature = "parc")]
-fn build_effective_macro_environment(
+pub fn build_effective_macro_environment(
     macros: &[MacroBinding],
     provenance: &[MacroProvenance],
 ) -> Vec<MacroEnvironmentEntry> {
@@ -1225,8 +963,7 @@ fn build_effective_macro_environment(
         .collect()
 }
 
-#[cfg(feature = "parc")]
-fn attach_probe_evidence(items: &mut [BindingItem], subjects: &[ProbeSubjectReport]) {
+pub fn attach_probe_evidence(items: &mut [BindingItem], subjects: &[ProbeSubjectReport]) {
     let subject_map = subjects
         .iter()
         .map(|subject| (subject.name.as_str(), subject))
@@ -1297,14 +1034,12 @@ fn attach_probe_evidence(items: &mut [BindingItem], subjects: &[ProbeSubjectRepo
     }
 }
 
-#[cfg(feature = "parc")]
-fn alias_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
+pub fn alias_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     let _ = subject;
     AbiConfidence::LayoutProbed
 }
 
-#[cfg(feature = "parc")]
-fn enum_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
+pub fn enum_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     if subject.enum_underlying_size.is_some() || subject.enum_is_signed.is_some() {
         AbiConfidence::RepresentationProbed
     } else {
@@ -1312,15 +1047,18 @@ fn enum_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     }
 }
 
-#[cfg(feature = "parc")]
-fn record_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
+pub fn record_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     if subject
         .fields
         .iter()
         .any(|field| field.bit_width.is_some() && field.offset_bytes.is_none())
     {
         AbiConfidence::PartialBitfieldLayout
-    } else if subject.fields.iter().any(|field| field.offset_bytes.is_some()) {
+    } else if subject
+        .fields
+        .iter()
+        .any(|field| field.offset_bytes.is_some())
+    {
         AbiConfidence::FieldOffsetsProbed
     } else if subject.record_completeness.is_some() {
         AbiConfidence::RepresentationProbed
@@ -1329,7 +1067,7 @@ fn record_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     }
 }
 
-fn detect_target_triple(compiler_command: &str) -> Option<String> {
+pub(crate) fn detect_target_triple(compiler_command: &str) -> Option<String> {
     let output = std::process::Command::new(compiler_command)
         .arg("-dumpmachine")
         .output()
@@ -1346,7 +1084,7 @@ fn detect_target_triple(compiler_command: &str) -> Option<String> {
     }
 }
 
-fn detect_compiler_version(compiler_command: &str) -> Option<String> {
+pub(crate) fn detect_compiler_version(compiler_command: &str) -> Option<String> {
     let output = std::process::Command::new(compiler_command)
         .arg("--version")
         .output()
@@ -1355,7 +1093,11 @@ fn detect_compiler_version(compiler_command: &str) -> Option<String> {
         return None;
     }
     let stdout = String::from_utf8(output.stdout).ok()?;
-    stdout.lines().next().map(str::to_string).filter(|line| !line.is_empty())
+    stdout
+        .lines()
+        .next()
+        .map(str::to_string)
+        .filter(|line| !line.is_empty())
 }
 
 #[cfg(test)]
@@ -1366,8 +1108,7 @@ fn parse_macro_definitions(source: &str) -> Vec<MacroBinding> {
         .collect()
 }
 
-#[cfg(feature = "parc")]
-fn parse_macro_definitions_with_provenance(
+pub fn parse_macro_definitions_with_provenance(
     source: &str,
     entry_headers: &[impl AsRef<Path>],
 ) -> (Vec<MacroBinding>, Vec<MacroProvenance>) {
@@ -1392,8 +1133,7 @@ fn parse_macro_definitions_with_provenance(
     (macros, provenance)
 }
 
-#[cfg(feature = "parc")]
-fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
+pub fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
     let line = line.trim();
     let rest = line.strip_prefix("#define ")?;
     let mut parts = rest.splitn(2, char::is_whitespace);
@@ -1426,8 +1166,7 @@ fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
     })
 }
 
-#[cfg(feature = "parc")]
-fn parse_macro_value(body: &str, function_like: bool) -> Option<MacroValue> {
+pub fn parse_macro_value(body: &str, function_like: bool) -> Option<MacroValue> {
     if function_like {
         return None;
     }
@@ -1439,8 +1178,7 @@ fn parse_macro_value(body: &str, function_like: bool) -> Option<MacroValue> {
     }
 }
 
-#[cfg(feature = "parc")]
-fn parse_integer_macro_value(body: &str) -> Option<i128> {
+pub fn parse_integer_macro_value(body: &str) -> Option<i128> {
     let trimmed = body.trim();
     if trimmed.is_empty() {
         return None;
@@ -1475,8 +1213,7 @@ fn parse_integer_macro_value(body: &str) -> Option<i128> {
     }
 }
 
-#[cfg(feature = "parc")]
-fn parse_string_macro_value(body: &str) -> Option<String> {
+pub fn parse_string_macro_value(body: &str) -> Option<String> {
     let trimmed = body.trim();
     let inner = trimmed.strip_prefix('"')?.strip_suffix('"')?;
     Some(
@@ -1488,8 +1225,7 @@ fn parse_string_macro_value(body: &str) -> Option<String> {
     )
 }
 
-#[cfg(feature = "parc")]
-fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
+pub fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
     if function_like {
         return MacroKind::Other;
     }
@@ -1500,9 +1236,9 @@ fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
 
     let trimmed = body.trim();
     if !trimmed.is_empty()
-        && trimmed
-            .chars()
-            .all(|ch| ch.is_ascii_hexdigit() || matches!(ch, 'x' | 'X' | 'u' | 'U' | 'l' | 'L' | '+' | '-'))
+        && trimmed.chars().all(|ch| {
+            ch.is_ascii_hexdigit() || matches!(ch, 'x' | 'X' | 'u' | 'U' | 'l' | 'L' | '+' | '-')
+        })
     {
         return MacroKind::Integer;
     }
@@ -1514,8 +1250,7 @@ fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
     MacroKind::Other
 }
 
-#[cfg(feature = "parc")]
-fn classify_macro_category(name: &str, body: &str, function_like: bool) -> MacroCategory {
+pub fn classify_macro_category(name: &str, body: &str, function_like: bool) -> MacroCategory {
     if function_like {
         if name.contains("CALL") || name.contains("EXPORT") || name.contains("IMPORT") {
             return MacroCategory::AbiAffecting;
@@ -1570,19 +1305,6 @@ mod tests {
     use super::*;
     use crate::ir::*;
 
-    fn setup_test_dir(name: &str) -> PathBuf {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("linc_raw_{}_{}", name, id));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn cleanup(dir: &Path) {
-        std::fs::remove_dir_all(dir).ok();
-    }
-
     #[test]
     fn config_builder() {
         let cfg = HeaderConfig::new()
@@ -1624,7 +1346,7 @@ mod tests {
     #[test]
     fn no_headers_error() {
         let cfg = HeaderConfig::new();
-        let result = cfg.process();
+        let result = cfg.validate();
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), LincError::NoHeaders));
     }
@@ -1666,10 +1388,7 @@ mod tests {
             .include_dirs(["/usr/include", "/usr/local/include"])
             .framework_dirs(["/System/Library/Frameworks", "/Library/Frameworks"])
             .library_dirs(["/usr/lib", "/usr/local/lib"])
-            .defines([
-                ("DEBUG", None),
-                ("VERSION", Some("2".to_string())),
-            ])
+            .defines([("DEBUG", None), ("VERSION", Some("2".to_string()))])
             .target_constraints(["linux", "x86_64"])
             .probe_type_layouts(["size_t", "struct stat"]);
 
@@ -1679,7 +1398,10 @@ mod tests {
         );
         assert_eq!(
             cfg.include_dirs,
-            vec![PathBuf::from("/usr/include"), PathBuf::from("/usr/local/include")]
+            vec![
+                PathBuf::from("/usr/include"),
+                PathBuf::from("/usr/local/include")
+            ]
         );
         assert_eq!(
             cfg.framework_dirs,
@@ -1727,12 +1449,6 @@ mod tests {
             .compiler("clang")
             .flavor(Flavor::ClangC11);
 
-        let pac_a = cfg.build_pac_config();
-        let pac_b = cfg.build_pac_config();
-        assert_eq!(pac_a.cpp_command, pac_b.cpp_command);
-        assert_eq!(pac_a.cpp_options, pac_b.cpp_options);
-        assert_eq!(pac_a.flavor, pac_b.flavor);
-
         let target_a = cfg.binding_target();
         let target_b = cfg.binding_target();
         assert_eq!(target_a, target_b);
@@ -1775,7 +1491,10 @@ mod tests {
         assert_eq!(binding.entry_headers, &[PathBuf::from("api.h")]);
 
         let linking = cfg.linking();
-        assert_eq!(linking.framework_dirs, &[PathBuf::from("/System/Library/Frameworks")]);
+        assert_eq!(
+            linking.framework_dirs,
+            &[PathBuf::from("/System/Library/Frameworks")]
+        );
         assert_eq!(linking.library_dirs, &[PathBuf::from("/usr/lib")]);
         assert_eq!(linking.link_libraries.len(), 1);
         assert_eq!(linking.link_frameworks.len(), 1);
@@ -1807,26 +1526,10 @@ mod tests {
 
     #[test]
     fn combined_source_generation() {
-        let cfg = HeaderConfig::new()
-            .header("a.h")
-            .header("b.h");
+        let cfg = HeaderConfig::new().header("a.h").header("b.h");
         let combined = cfg.build_combined_source();
         assert!(combined.contains("#include \"a.h\""));
         assert!(combined.contains("#include \"b.h\""));
-    }
-
-    #[test]
-    fn pac_config_includes_and_defines() {
-        let cfg = HeaderConfig::new()
-            .header("test.h")
-            .include_dir("/inc")
-            .define("DEBUG", None)
-            .define("VER", Some("3".into()));
-
-        let pac_cfg = cfg.build_pac_config();
-        assert!(pac_cfg.cpp_options.contains(&"-I/inc".to_string()));
-        assert!(pac_cfg.cpp_options.contains(&"-DDEBUG".to_string()));
-        assert!(pac_cfg.cpp_options.contains(&"-DVER=3".to_string()));
     }
 
     #[test]
@@ -1876,15 +1579,24 @@ mod tests {
         assert_eq!(link.ordered_inputs.len(), 3);
         match &link.ordered_inputs[0] {
             LinkInput::Framework(framework) => assert_eq!(framework.name, "CoreFoundation"),
-            other => panic!("expected first ordered input to be framework, got {:?}", other),
+            other => panic!(
+                "expected first ordered input to be framework, got {:?}",
+                other
+            ),
         }
         match &link.ordered_inputs[1] {
             LinkInput::Library(lib) => assert_eq!(lib.name, "crypto"),
-            other => panic!("expected second ordered input to be library, got {:?}", other),
+            other => panic!(
+                "expected second ordered input to be library, got {:?}",
+                other
+            ),
         }
         match &link.ordered_inputs[2] {
             LinkInput::Artifact(artifact) => assert_eq!(artifact.path, "lib/libcrypto.a"),
-            other => panic!("expected third ordered input to be artifact, got {:?}", other),
+            other => panic!(
+                "expected third ordered input to be artifact, got {:?}",
+                other
+            ),
         }
         assert_eq!(cfg.probe_types, vec!["struct widget".to_string()]);
     }
@@ -1901,9 +1613,18 @@ mod tests {
             .link_lib("m")
             .link_static_artifact("lib/libdemo.a");
 
-        assert_eq!(header_only.native_surface_kind(), NativeSurfaceKind::HeaderOnly);
-        assert_eq!(library_names.native_surface_kind(), NativeSurfaceKind::LibraryNames);
-        assert_eq!(concrete.native_surface_kind(), NativeSurfaceKind::ConcreteArtifacts);
+        assert_eq!(
+            header_only.native_surface_kind(),
+            NativeSurfaceKind::HeaderOnly
+        );
+        assert_eq!(
+            library_names.native_surface_kind(),
+            NativeSurfaceKind::LibraryNames
+        );
+        assert_eq!(
+            concrete.native_surface_kind(),
+            NativeSurfaceKind::ConcreteArtifacts
+        );
         assert_eq!(mixed.native_surface_kind(), NativeSurfaceKind::Mixed);
     }
 
@@ -2010,616 +1731,17 @@ mod tests {
         assert_eq!(macros.len(), 2);
         assert_eq!(provenance.len(), 2);
         assert_eq!(provenance[0].macro_name, "API_LEVEL");
-        assert_eq!(provenance[0].source_origin, Some(crate::line_markers::SourceOrigin::Entry));
         assert_eq!(
-            provenance[0].source_location.as_ref().and_then(|loc| loc.line),
+            provenance[0].source_origin,
+            Some(crate::line_markers::SourceOrigin::Entry)
+        );
+        assert_eq!(
+            provenance[0]
+                .source_location
+                .as_ref()
+                .and_then(|loc| loc.line),
             Some(3)
         );
     }
 
-    #[test]
-    fn flavor_to_pac_conversion() {
-        assert_eq!(Flavor::GnuC11.to_pac(), parc::driver::Flavor::GnuC11);
-        assert_eq!(Flavor::ClangC11.to_pac(), parc::driver::Flavor::ClangC11);
-        assert_eq!(Flavor::StdC11.to_pac(), parc::driver::Flavor::StdC11);
-    }
-
-    #[test]
-    #[ignore] // Requires gcc/clang
-    fn process_single_header() {
-        let dir = setup_test_dir("t");
-        let header = dir.join("simple.h");
-        std::fs::write(&header, "int add(int a, int b);\n").unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .process()
-            .unwrap();
-
-        assert!(!result.report.command.is_empty());
-        assert!(!result.report.preprocessed_source.is_empty());
-        assert_eq!(result.package.inputs.entry_headers.len(), 1);
-        assert_eq!(result.package.target.compiler_command.as_deref(), Some("gcc"));
-
-        let funcs: Vec<_> = result.package.items.iter().filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f),
-            _ => None,
-        }).collect();
-        assert!(funcs.iter().any(|f| f.name == "add"));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    #[ignore] // Requires gcc/clang
-    fn process_with_include_dir() {
-        let dir = setup_test_dir("t");
-        let inc = dir.join("inc");
-        std::fs::create_dir_all(&inc).unwrap();
-
-        std::fs::write(inc.join("types.h"), "typedef unsigned long mysize_t;\n").unwrap();
-        let header = dir.join("api.h");
-        std::fs::write(&header, "#include \"types.h\"\nmysize_t get_size(void);\n").unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .include_dir(&inc)
-            .process()
-            .unwrap();
-
-        assert!(result.package.diagnostics.is_empty()
-            || result.package.diagnostics.iter().all(|d| d.severity == crate::diagnostics::Severity::Warning));
-
-        let funcs: Vec<_> = result.package.items.iter().filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f),
-            _ => None,
-        }).collect();
-        assert!(funcs.iter().any(|f| f.name == "get_size"));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    #[ignore] // Requires gcc/clang
-    fn process_with_defines() {
-        let dir = setup_test_dir("t");
-        let header = dir.join("cond.h");
-        std::fs::write(
-            &header,
-            r#"
-#ifdef USE_FLOAT
-float compute(float x);
-#else
-int compute(int x);
-#endif
-"#,
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .define("USE_FLOAT", None)
-            .process()
-            .unwrap();
-
-        let funcs: Vec<_> = result.package.items.iter().filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f),
-            _ => None,
-        }).collect();
-
-        let compute = funcs.iter().find(|f| f.name == "compute").unwrap();
-        assert_eq!(compute.return_type, BindingType::Float);
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    #[ignore] // Requires gcc/clang
-    fn process_multiple_headers() {
-        let dir = setup_test_dir("t");
-        let h1 = dir.join("a.h");
-        let h2 = dir.join("b.h");
-        std::fs::write(&h1, "void func_a(void);\n").unwrap();
-        std::fs::write(&h2, "void func_b(void);\n").unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&h1)
-            .header(&h2)
-            .process()
-            .unwrap();
-
-        let names: Vec<_> = result.package.items.iter().filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f.name.as_str()),
-            _ => None,
-        }).collect();
-        assert!(names.contains(&"func_a"));
-        assert!(names.contains(&"func_b"));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    #[ignore] // Requires gcc/clang
-    fn process_nonexistent_header() {
-        let result = HeaderConfig::new()
-            .header("/nonexistent/path.h")
-            .process()
-            .unwrap();
-
-        assert!(!result.package.diagnostics.is_empty());
-    }
-
-    #[test]
-    #[ignore] // Requires gcc/clang
-    fn report_captures_metadata() {
-        let dir = setup_test_dir("t");
-        let header = dir.join("meta.h");
-        std::fs::write(&header, "void noop(void);\n").unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .include_dir("/some/path")
-            .define("FOO", Some("1".into()))
-            .process()
-            .unwrap();
-
-        assert!(result.report.args.iter().any(|a| a.contains("-I/some/path")));
-        assert!(result.report.args.iter().any(|a| a.contains("-DFOO=1")));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_captures_header_macros() {
-        let dir = setup_test_dir("t");
-        let header = dir.join("macros.h");
-        std::fs::write(
-            &header,
-            "#define API_LEVEL 7\n#define API_NAME \"demo\"\n#define HAVE_ZLIB 1\nint noop(void);\n",
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new().header(&header).process().unwrap();
-
-        assert!(result
-            .package
-            .macros
-            .iter()
-            .any(|m| m.name == "API_LEVEL"
-                && m.kind == MacroKind::Integer
-                && m.category == MacroCategory::BindableConstant));
-        assert!(result
-            .package
-            .macros
-            .iter()
-            .any(|m| m.name == "API_NAME"
-                && m.kind == MacroKind::String
-                && m.category == MacroCategory::BindableConstant));
-        assert!(result
-            .package
-            .macros
-            .iter()
-            .any(|m| m.name == "HAVE_ZLIB"
-                && m.category == MacroCategory::ConfigurationFlag));
-        assert_eq!(result.package.macro_provenance.len(), result.package.macros.len());
-        assert!(result
-            .package
-            .macro_provenance
-            .iter()
-            .any(|prov| prov.macro_name == "API_LEVEL"
-                && prov.source_origin == Some(crate::line_markers::SourceOrigin::Entry)
-                && prov.source_location.is_some()));
-        assert!(result
-            .package
-            .effective_macro_environment
-            .iter()
-            .any(|entry| entry.macro_name == "HAVE_ZLIB"
-                && entry.category == MacroCategory::ConfigurationFlag));
-        assert!(!result
-            .package
-            .effective_macro_environment
-            .iter()
-            .any(|entry| entry.macro_name == "API_NAME"));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_attaches_requested_type_layouts() {
-        let dir = setup_test_dir("t");
-        let header = dir.join("layout.h");
-        std::fs::write(
-            &header,
-            "typedef unsigned int value_t;\nstruct widget { int a; double b; };\n",
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .probe_type_layout("value_t")
-            .probe_type_layout("struct widget")
-            .process()
-            .unwrap();
-
-        assert!(result
-            .package
-            .layouts
-            .iter()
-            .any(|layout| layout.name == "value_t"));
-        assert!(result
-            .package
-            .layouts
-            .iter()
-            .any(|layout| layout.name == "struct widget"));
-        let value_alias = result.package.find_type_alias("value_t").unwrap();
-        assert_eq!(value_alias.abi_confidence, Some(AbiConfidence::LayoutProbed));
-        assert_eq!(result.package.provenance.len(), result.package.items.len());
-        let provenance = result.package.item_provenance(0).unwrap();
-        assert_eq!(provenance.item_kind, Some(BindingItemKind::TypeAlias));
-        assert_eq!(provenance.item_name.as_deref(), Some("value_t"));
-        assert_eq!(provenance.source_origin, Some(crate::line_markers::SourceOrigin::Entry));
-        assert!(provenance.source_location.is_some());
-        let record = result
-            .package
-            .records()
-            .find(|record| record.name.as_deref() == Some("widget"))
-            .unwrap();
-        assert_eq!(record.abi_confidence, Some(AbiConfidence::FieldOffsetsProbed));
-        assert_eq!(
-            record
-                .representation
-                .as_ref()
-                .and_then(|representation| representation.size),
-            Some(16)
-        );
-        assert_eq!(
-            record
-                .representation
-                .as_ref()
-                .and_then(|representation| representation.align),
-            Some(8)
-        );
-        let fields = record.fields.as_ref().unwrap();
-        assert_eq!(fields[0].name.as_deref(), Some("a"));
-        assert_eq!(
-            fields[0].layout.as_ref().and_then(|layout| layout.offset_bytes),
-            Some(0)
-        );
-        assert_eq!(fields[1].name.as_deref(), Some("b"));
-        assert!(fields[1]
-            .layout
-            .as_ref()
-            .and_then(|layout| layout.offset_bytes)
-            .is_some());
-        let enum_header = dir.join("enum_layout.h");
-        std::fs::write(&enum_header, "enum mode { MODE_A = 0, MODE_B = 7 };\n").unwrap();
-        let enum_result = HeaderConfig::new()
-            .header(&enum_header)
-            .probe_type_layout("enum mode")
-            .process()
-            .unwrap();
-        let enum_binding = enum_result
-            .package
-            .enums()
-            .find(|enum_binding| enum_binding.name.as_deref() == Some("mode"))
-            .unwrap();
-        assert_eq!(
-            enum_binding
-                .representation
-                .as_ref()
-                .and_then(|representation| representation.underlying_size),
-            Some(4)
-        );
-        assert!(enum_binding
-            .representation
-            .as_ref()
-            .and_then(|representation| representation.is_signed)
-            .is_some());
-        assert_eq!(
-            enum_binding.abi_confidence,
-            Some(AbiConfidence::RepresentationProbed)
-        );
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_preserves_macros_and_probe_layouts_on_partial_recovery() {
-        let dir = setup_test_dir("t");
-        let header = dir.join("broken_layouts.h");
-        std::fs::write(
-            &header,
-            "#include <stdint.h>\n\
-             #define API_LEVEL 7\n\
-             #define PACKED __attribute__((packed))\n\
-             typedef struct widget { int value; } widget;\n\
-             typedef struct PACKED packed_widget {\n\
-                 uint8_t tag;\n\
-                 uint16_t value;\n\
-             } packed_widget;\n",
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .probe_type_layout("struct widget")
-            .probe_type_layout("struct packed_widget")
-            .process()
-            .unwrap();
-
-        assert!(result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::DeclarationPartial));
-        assert!(!result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::ParseFailed));
-        assert!(result
-            .package
-            .macros
-            .iter()
-            .any(|macro_binding| macro_binding.name == "API_LEVEL"));
-        assert!(result.package.find_record("packed_widget").is_some());
-        assert!(result
-            .package
-            .layouts
-            .iter()
-            .any(|layout| layout.name == "struct widget" && layout.size > 0));
-        assert!(result
-            .package
-            .layouts
-            .iter()
-            .any(|layout| layout.name == "struct packed_widget" && layout.size > 0));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_recovers_packed_typedef_attribute_extraction() {
-        let dir = setup_test_dir("packed_typedef_recovery");
-        let header = dir.join("packed_typedefs.h");
-        std::fs::write(
-            &header,
-            "#include <stdint.h>\n\
-             #define PACKED __attribute__((packed))\n\
-             typedef struct PACKED packed_widget {\n\
-                 uint8_t tag;\n\
-                 uint16_t value;\n\
-             } packed_widget;\n\
-             extern int packed_send(const packed_widget *widget);\n",
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .probe_type_layout("struct packed_widget")
-            .process()
-            .unwrap();
-
-        assert!(result.package.find_record("packed_widget").is_some());
-        assert!(result.package.find_function("packed_send").is_some());
-        assert!(result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::DeclarationPartial));
-        assert!(!result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::ParseFailed));
-        assert!(result
-            .package
-            .layouts
-            .iter()
-            .any(|layout| layout.name == "struct packed_widget" && layout.size > 0));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_recovers_aligned_typedef_attribute_extraction() {
-        let dir = setup_test_dir("aligned_typedef_recovery");
-        let header = dir.join("aligned_typedefs.h");
-        std::fs::write(
-            &header,
-            "#include <stdint.h>\n\
-             #define ALIGN16 __attribute__((aligned(16)))\n\
-             typedef struct ALIGN16 aligned_widget {\n\
-                 uint32_t code;\n\
-                 uint64_t payload_len;\n\
-             } aligned_widget;\n\
-             extern unsigned long aligned_widget_size(const aligned_widget *widget);\n",
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .probe_type_layout("struct aligned_widget")
-            .process()
-            .unwrap();
-
-        assert!(result.package.find_record("aligned_widget").is_some());
-        assert!(result.package.find_function("aligned_widget_size").is_some());
-        assert!(result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::DeclarationPartial));
-        assert!(!result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::ParseFailed));
-        assert!(result
-            .package
-            .layouts
-            .iter()
-            .any(|layout| layout.name == "struct aligned_widget" && layout.size > 0));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_records_probe_failure_for_incomplete_type_without_aborting_scan() {
-        let dir = setup_test_dir("incomplete_probe");
-        let header = dir.join("opaque_probe.h");
-        std::fs::write(
-            &header,
-            "typedef struct opaque_widget opaque_widget;\n\
-             extern int opaque_use(opaque_widget *widget);\n",
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .probe_type_layout("struct opaque_widget")
-            .process()
-            .unwrap();
-
-        assert!(result.package.find_function("opaque_use").is_some());
-        assert!(result.package.find_type_alias("opaque_widget").is_some());
-        assert!(result.package.layouts.is_empty());
-        assert!(result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeUnavailable));
-        assert_eq!(
-            result
-                .package
-                .diagnostics
-                .iter()
-                .filter(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeUnavailable)
-                .count(),
-            1
-        );
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_records_generic_probe_failures_separately_from_unavailable_layouts() {
-        let dir = setup_test_dir("function_probe");
-        let header = dir.join("function_probe.h");
-        std::fs::write(&header, "extern int function_probe(int value);\n").unwrap();
-
-        let result = HeaderConfig::new()
-            .header(&header)
-            .probe_type_layout("struct invalid[")
-            .process()
-            .unwrap();
-
-        assert!(result.package.find_function("function_probe").is_some());
-        assert!(result.package.layouts.is_empty());
-        assert_eq!(
-            result
-                .package
-                .diagnostics
-                .iter()
-                .filter(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeUnavailable)
-                .count(),
-            0
-        );
-        assert_eq!(
-            result
-                .package
-                .diagnostics
-                .iter()
-                .filter(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeFailed)
-                .count(),
-            1
-        );
-        assert!(result
-            .package
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeFailed));
-
-        cleanup(&dir);
-    }
-
-    #[test]
-    fn process_attaches_canonical_alias_resolution() {
-        let dir = setup_test_dir("alias_resolution");
-        let header = dir.join("aliases.h");
-        std::fs::write(
-            &header,
-            "typedef unsigned long size_t;\ntypedef size_t my_size_t;\ntypedef const my_size_t *my_size_ptr;\n",
-        )
-        .unwrap();
-
-        let result = HeaderConfig::new().header(&header).process().unwrap();
-
-        let alias = result.package.find_type_alias("my_size_t").unwrap();
-        let resolution = alias.canonical_resolution.as_ref().unwrap();
-        assert_eq!(resolution.alias_chain, vec!["size_t"]);
-        assert_eq!(resolution.terminal_target, crate::ir::BindingType::ULong);
-
-        let ptr_alias = result.package.find_type_alias("my_size_ptr").unwrap();
-        let ptr_resolution = ptr_alias.canonical_resolution.as_ref().unwrap();
-        assert_eq!(ptr_resolution.alias_chain, vec!["my_size_t", "size_t"]);
-        assert_eq!(
-            ptr_resolution.terminal_target,
-            crate::ir::BindingType::Pointer {
-                pointee: Box::new(crate::ir::BindingType::ULong),
-                const_pointee: true,
-                qualifiers: crate::ir::TypeQualifiers::default(),
-            }
-        );
-
-        cleanup(&dir);
-    }
-
-    /// Test that origin filtering removes system header declarations.
-    #[test]
-    #[ignore] // Requires gcc/clang
-    fn origin_filter_removes_system_headers() {
-        let dir = setup_test_dir("t");
-        let header = dir.join("mylib.h");
-        // Include stdio.h (system header) and define our own function
-        std::fs::write(
-            &header,
-            "#include <stdio.h>\nint my_func(int x);\n",
-        )
-        .unwrap();
-
-        // With default filter (exclude system)
-        let filtered = HeaderConfig::new()
-            .header(&header)
-            .process()
-            .unwrap();
-
-        let filtered_names: Vec<_> = filtered.package.items.iter().filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f.name.as_str()),
-            _ => None,
-        }).collect();
-
-        // my_func should be present, printf should be filtered out
-        assert!(filtered_names.contains(&"my_func"));
-        assert!(!filtered_names.contains(&"printf"), "system functions should be filtered");
-
-        // Without filter — should include system declarations
-        let unfiltered = HeaderConfig::new()
-            .header(&header)
-            .no_origin_filter()
-            .process()
-            .unwrap();
-
-        let unfiltered_names: Vec<_> = unfiltered.package.items.iter().filter_map(|i| match i {
-            BindingItem::Function(f) => Some(f.name.as_str()),
-            _ => None,
-        }).collect();
-
-        // Both should be present without filtering
-        assert!(unfiltered_names.contains(&"my_func"));
-        // System header functions should now appear
-        assert!(unfiltered_names.len() > filtered_names.len(),
-            "unfiltered should have more items than filtered");
-
-        cleanup(&dir);
-    }
 }

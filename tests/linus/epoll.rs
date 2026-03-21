@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
 const EPOLL_HEADER_CANDIDATES: &[&str] = &[
     "/usr/include/sys/epoll.h",
@@ -65,5 +65,5 @@ pub fn epoll_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_epoll() -> Result<RawHeaderResult, LincError> {
-    epoll_header_config()?.process()
+    super::common::process(&epoll_header_config()?)
 }

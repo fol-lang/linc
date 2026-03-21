@@ -1,9 +1,10 @@
 //! Real-world corpus tests for LINC.
 //!
-//! Uses vendored headers from testdata/full_apps/external/ (copied from parc).
+//! Uses vendored headers from testdata/full_apps/external/.
 //! System-header tests (string.h, symbol validation) are #[ignore] and
 //! require gcc/clang or dev libraries.
 
+mod common;
 use std::path::{Path, PathBuf};
 
 use linc::*;
@@ -22,10 +23,7 @@ fn find_system_header(name: &str) -> Option<PathBuf> {
         format!("/usr/local/include/{}", name),
         format!("/usr/include/x86_64-linux-gnu/{}", name),
     ];
-    paths
-        .iter()
-        .map(PathBuf::from)
-        .find(|p| p.exists())
+    paths.iter().map(PathBuf::from).find(|p| p.exists())
 }
 
 fn find_system_lib(name: &str) -> Option<PathBuf> {
@@ -35,10 +33,7 @@ fn find_system_lib(name: &str) -> Option<PathBuf> {
         format!("/usr/local/lib/{}", name),
         format!("/lib/x86_64-linux-gnu/{}", name),
     ];
-    paths
-        .iter()
-        .map(PathBuf::from)
-        .find(|p| p.exists())
+    paths.iter().map(PathBuf::from).find(|p| p.exists())
 }
 
 // ============================================================================
@@ -50,11 +45,10 @@ fn zlib_vendored_parse() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let main_c = corpus_dir().join("zlib/header/main.c");
 
-    let result = linc::raw_headers::HeaderConfig::new()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&main_c)
         .include_dir(&zlib_inc)
-        .no_origin_filter() // include all declarations
-        .process()
+        .no_origin_filter()) // include all declarations
         .unwrap();
 
     let funcs: Vec<&str> = result
@@ -84,10 +78,10 @@ fn zlib_vendored_origin_filter() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = linc::raw_headers::HeaderConfig::new()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
-        .include_dir(&zlib_inc)
-        .process() // default filter: exclude system
+        .include_dir(&zlib_inc))
+        // default filter: exclude system
         .unwrap();
 
     let funcs: Vec<&str> = result
@@ -112,11 +106,10 @@ fn zlib_vendored_types() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = linc::raw_headers::HeaderConfig::new()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
-        .no_origin_filter()
-        .process()
+        .no_origin_filter())
         .unwrap();
 
     let type_names: Vec<&str> = result
@@ -130,7 +123,9 @@ fn zlib_vendored_types() {
         .collect();
 
     assert!(
-        type_names.contains(&"Bytef") || type_names.contains(&"uLong") || type_names.contains(&"z_stream"),
+        type_names.contains(&"Bytef")
+            || type_names.contains(&"uLong")
+            || type_names.contains(&"z_stream"),
         "expected zlib typedefs, got: {:?}",
         type_names
     );
@@ -141,15 +136,20 @@ fn zlib_vendored_package_and_json_roundtrip() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = linc::raw_headers::HeaderConfig::new()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
-        .no_origin_filter()
-        .process()
+        .no_origin_filter())
         .unwrap();
 
-    assert!(result.package.find_function("deflate").is_some(), "expected deflate function");
-    assert!(result.package.find_function("inflate").is_some(), "expected inflate function");
+    assert!(
+        result.package.find_function("deflate").is_some(),
+        "expected deflate function"
+    );
+    assert!(
+        result.package.find_function("inflate").is_some(),
+        "expected inflate function"
+    );
 
     // JSON roundtrip
     let json = linc::to_json(&result.package).unwrap();
@@ -162,17 +162,15 @@ fn zlib_vendored_determinism() {
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let r1 = linc::raw_headers::HeaderConfig::new()
+    let r1 = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
-        .no_origin_filter()
-        .process()
+        .no_origin_filter())
         .unwrap();
-    let r2 = linc::raw_headers::HeaderConfig::new()
+    let r2 = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&zlib_h)
         .include_dir(&zlib_inc)
-        .no_origin_filter()
-        .process()
+        .no_origin_filter())
         .unwrap();
 
     let json1 = linc::to_json(&r1.package).unwrap();
@@ -189,11 +187,10 @@ fn libpng_vendored_parse() {
     let png_inc = corpus_dir().join("libpng/header/include");
     let main_c = corpus_dir().join("libpng/header/main.c");
 
-    let result = linc::raw_headers::HeaderConfig::new()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&main_c)
         .include_dir(&png_inc)
-        .no_origin_filter()
-        .process()
+        .no_origin_filter())
         .unwrap();
 
     let funcs: Vec<&str> = result
@@ -218,15 +215,17 @@ fn libpng_vendored_package_inspection() {
     let png_inc = corpus_dir().join("libpng/header/include");
     let png_h = png_inc.join("png.h");
 
-    let result = linc::raw_headers::HeaderConfig::new()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&png_h)
         .include_dir(&png_inc)
-        .no_origin_filter()
-        .process()
+        .no_origin_filter())
         .unwrap();
 
     // Should have at least some png_ functions in the extracted package
-    let has_png_func = result.package.functions().any(|f| f.name.starts_with("png_"));
+    let has_png_func = result
+        .package
+        .functions()
+        .any(|f| f.name.starts_with("png_"));
     assert!(has_png_func, "expected png_ functions in extracted package");
 }
 
@@ -239,11 +238,10 @@ fn musl_stdint_vendored_parse() {
     let musl_inc = corpus_dir().join("musl/stdint/include");
     let main_c = corpus_dir().join("musl/stdint/main.c");
 
-    let result = linc::raw_headers::HeaderConfig::new()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
         .header(&main_c)
         .include_dir(&musl_inc)
-        .no_origin_filter()
-        .process()
+        .no_origin_filter())
         .unwrap();
 
     let type_names: Vec<&str> = result
@@ -257,7 +255,9 @@ fn musl_stdint_vendored_parse() {
         .collect();
 
     // Key stdint types
-    let expected = ["int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t"];
+    let expected = [
+        "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+    ];
     for name in &expected {
         assert!(
             type_names.contains(name),
@@ -280,9 +280,8 @@ fn string_h_parse() {
         None => return,
     };
 
-    let result = linc::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
+        .header(&header))
         .unwrap();
 
     let funcs: Vec<&str> = result
@@ -309,19 +308,14 @@ fn string_h_const_correctness() {
         None => return,
     };
 
-    let result = linc::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
+        .header(&header))
         .unwrap();
 
-    let strlen = result
-        .package
-        .items
-        .iter()
-        .find_map(|i| match i {
-            BindingItem::Function(f) if f.name == "strlen" => Some(f),
-            _ => None,
-        });
+    let strlen = result.package.items.iter().find_map(|i| match i {
+        BindingItem::Function(f) if f.name == "strlen" => Some(f),
+        _ => None,
+    });
 
     if let Some(f) = strlen {
         assert_eq!(f.parameters.len(), 1);
@@ -332,14 +326,10 @@ fn string_h_const_correctness() {
         );
     }
 
-    let memcpy = result
-        .package
-        .items
-        .iter()
-        .find_map(|i| match i {
-            BindingItem::Function(f) if f.name == "memcpy" => Some(f),
-            _ => None,
-        });
+    let memcpy = result.package.items.iter().find_map(|i| match i {
+        BindingItem::Function(f) if f.name == "memcpy" => Some(f),
+        _ => None,
+    });
 
     if let Some(f) = memcpy {
         assert!(f.parameters.len() >= 3);
@@ -386,9 +376,8 @@ fn zlib_system_parse_filtered() {
         None => return,
     };
 
-    let result = linc::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
+        .header(&header))
         .unwrap();
 
     let funcs: Vec<&str> = result
@@ -406,13 +395,22 @@ fn zlib_system_parse_filtered() {
     assert!(funcs.contains(&"inflate"), "missing inflate");
     assert!(funcs.contains(&"compress"), "missing compress");
     assert!(funcs.contains(&"uncompress"), "missing uncompress");
-    assert!(!funcs.contains(&"printf"), "system function leaked through filter");
+    assert!(
+        !funcs.contains(&"printf"),
+        "system function leaked through filter"
+    );
 
     eprintln!("zlib system: {} functions extracted", funcs.len());
 
     // Verify key functions extracted
-    assert!(result.package.find_function("deflate").is_some(), "expected deflate");
-    assert!(result.package.find_function("inflate").is_some(), "expected inflate");
+    assert!(
+        result.package.find_function("deflate").is_some(),
+        "expected deflate"
+    );
+    assert!(
+        result.package.find_function("inflate").is_some(),
+        "expected inflate"
+    );
 
     // JSON roundtrip
     let json = linc::to_json(&result.package).unwrap();
@@ -428,9 +426,8 @@ fn libpng_system_parse() {
         None => return,
     };
 
-    let result = linc::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
+        .header(&header))
         .unwrap();
 
     let funcs: Vec<&str> = result
@@ -447,7 +444,10 @@ fn libpng_system_parse() {
         funcs.iter().any(|f| f.starts_with("png_")),
         "expected png_ functions"
     );
-    assert!(!funcs.contains(&"printf"), "system function leaked through filter");
+    assert!(
+        !funcs.contains(&"printf"),
+        "system function leaked through filter"
+    );
 
     eprintln!("libpng system: {} functions extracted", funcs.len());
 }
@@ -459,16 +459,13 @@ fn libpng_system_validate_symbols() {
         Some(p) => p,
         None => return,
     };
-    let lib = match find_system_lib("libpng16.so")
-        .or_else(|| find_system_lib("libpng.so"))
-    {
+    let lib = match find_system_lib("libpng16.so").or_else(|| find_system_lib("libpng.so")) {
         Some(p) => p,
         None => return,
     };
 
-    let result = linc::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
+        .header(&header))
         .unwrap();
 
     let inventory = inspect_symbols(&lib).unwrap();
@@ -476,11 +473,17 @@ fn libpng_system_validate_symbols() {
 
     let matched = report.matched().len();
     let total = report.matches.len();
-    assert!(matched > 0, "expected some matched symbols, got 0 of {}", total);
+    assert!(
+        matched > 0,
+        "expected some matched symbols, got 0 of {}",
+        total
+    );
 
     eprintln!(
         "libpng validation: {}/{} matched, {} missing",
-        matched, total, report.missing().len()
+        matched,
+        total,
+        report.missing().len()
     );
 }
 
@@ -496,9 +499,8 @@ fn zlib_system_validate_symbols() {
         None => return,
     };
 
-    let result = linc::raw_headers::HeaderConfig::new()
-        .header(&header)
-        .process()
+    let result = common::process(&linc::raw_headers::HeaderConfig::new()
+        .header(&header))
         .unwrap();
 
     let inventory = inspect_symbols(&lib).unwrap();
@@ -506,10 +508,16 @@ fn zlib_system_validate_symbols() {
 
     let matched = report.matched().len();
     let total = report.matches.len();
-    assert!(matched > 0, "expected some matched symbols, got 0 of {}", total);
+    assert!(
+        matched > 0,
+        "expected some matched symbols, got 0 of {}",
+        total
+    );
 
     eprintln!(
         "zlib validation: {}/{} matched, {} missing",
-        matched, total, report.missing().len()
+        matched,
+        total,
+        report.missing().len()
     );
 }

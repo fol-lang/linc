@@ -1,3 +1,4 @@
+mod common;
 #[cfg(target_os = "linux")]
 #[path = "linus/epoll.rs"]
 mod epoll;
@@ -20,11 +21,26 @@ fn linux_event_loop_example_combines_multiple_system_headers() {
     let config = linux_event_loop::linux_event_loop_header_config().unwrap();
     let result = linux_event_loop::analyze_linux_event_loop().unwrap();
 
-    assert_eq!(config.binding_surface().entry_headers.len(), environment.headers.len());
-    assert!(environment.headers.iter().any(|path| path.ends_with("sys/epoll.h")));
-    assert!(environment.headers.iter().any(|path| path.ends_with("sys/timerfd.h")));
-    assert!(environment.headers.iter().any(|path| path.ends_with("sys/signalfd.h")));
-    assert!(result.report.preprocessed_source.contains("signalfd_siginfo"));
+    assert_eq!(
+        config.binding_surface().entry_headers.len(),
+        environment.headers.len()
+    );
+    assert!(environment
+        .headers
+        .iter()
+        .any(|path| path.ends_with("sys/epoll.h")));
+    assert!(environment
+        .headers
+        .iter()
+        .any(|path| path.ends_with("sys/timerfd.h")));
+    assert!(environment
+        .headers
+        .iter()
+        .any(|path| path.ends_with("sys/signalfd.h")));
+    assert!(result
+        .report
+        .preprocessed_source
+        .contains("signalfd_siginfo"));
     assert!(result.report.preprocessed_source.contains("epoll_event"));
     assert!(result
         .package
@@ -48,7 +64,10 @@ fn epoll_example_is_code_driven_and_consumable() {
     let config = epoll::epoll_header_config().unwrap();
     let result = epoll::analyze_epoll().unwrap();
 
-    assert!(environment.header.ends_with("sys/epoll.h") || environment.header.ends_with("epoll_fixture.h"));
+    assert!(
+        environment.header.ends_with("sys/epoll.h")
+            || environment.header.ends_with("epoll_fixture.h")
+    );
     assert!(config
         .linking()
         .link_libraries
@@ -60,7 +79,10 @@ fn epoll_example_is_code_driven_and_consumable() {
         .iter()
         .any(|probe_type| probe_type == "struct epoll_event"));
     if environment.is_fixture {
-        assert!(result.report.preprocessed_source.contains("BIC_EPOLL_FIXTURE_H"));
+        assert!(result
+            .report
+            .preprocessed_source
+            .contains("BIC_EPOLL_FIXTURE_H"));
     }
     assert!(result
         .package
@@ -89,7 +111,10 @@ fn socketcan_example_environment_is_explicit() {
         .iter()
         .any(|path| path.ends_with("linux/can/raw.h")));
     assert!(!environment.include_dirs.is_empty());
-    assert_eq!(config.binding_surface().entry_headers.len(), environment.required_headers.len() + environment.optional_headers.len());
+    assert_eq!(
+        config.binding_surface().entry_headers.len(),
+        environment.required_headers.len() + environment.optional_headers.len()
+    );
     assert!(config
         .linking()
         .link_libraries
@@ -116,9 +141,21 @@ fn socketcan_example_is_code_driven_and_consumable() {
     let result = socketcan::analyze_socketcan().unwrap();
     let package = &result.package;
 
-    assert!(package.layouts.iter().any(|layout| layout.name == "struct can_frame" && layout.size > 0));
-    assert!(package.layouts.iter().any(|layout| layout.name == "struct sockaddr_can" && layout.size > 0));
-    assert!(package.macros.iter().any(|macro_binding| macro_binding.name == "CAN_EFF_FLAG"));
-    assert!(result.report.preprocessed_source.contains("struct can_frame"));
+    assert!(package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct can_frame" && layout.size > 0));
+    assert!(package
+        .layouts
+        .iter()
+        .any(|layout| layout.name == "struct sockaddr_can" && layout.size > 0));
+    assert!(package
+        .macros
+        .iter()
+        .any(|macro_binding| macro_binding.name == "CAN_EFF_FLAG"));
+    assert!(result
+        .report
+        .preprocessed_source
+        .contains("struct can_frame"));
     socketcan::socketcan_runtime_smoke_check().unwrap();
 }

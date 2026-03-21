@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// A normalized source package produced by a frontend.
 ///
-/// This is the primary intake contract for LINC. A frontend (such as `parc`)
+/// This is the primary intake contract for LINC. A frontend
 /// populates this after scanning and extracting source-level information.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct SourcePackage {

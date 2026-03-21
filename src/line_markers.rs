@@ -269,11 +269,7 @@ mod tests {
 
     #[test]
     fn file_origin_map_reports_source_locations() {
-        let source = concat!(
-            "# 7 \"mylib.h\"\n",
-            "int foo(void);\n",
-            "int bar(void);\n",
-        );
+        let source = concat!("# 7 \"mylib.h\"\n", "int foo(void);\n", "int bar(void);\n",);
         let map = FileOriginMap::parse(source, &["mylib.h"]);
 
         let offset_foo = source.find("foo").unwrap();

@@ -2,7 +2,7 @@
 //!
 //! This module defines the source contract that LINC consumes. It is
 //! intentionally independent of any specific parser or frontend AST so that
-//! another frontend can replace `parc` without touching LINC core logic.
+//! another frontend can be substituted without touching LINC core logic.
 //!
 //! The primary entry type is [`SourcePackage`], a normalized collection of
 //! declarations, macros, link requirements, and provenance that a frontend
@@ -13,8 +13,8 @@ pub mod source;
 
 pub use source::{
     SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
-    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord,
-    SourceType, SourceTypeAlias, SourceVariable,
+    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord, SourceType,
+    SourceTypeAlias, SourceVariable,
 };
 
 #[cfg(test)]
@@ -33,33 +33,35 @@ mod tests {
     #[test]
     fn source_package_with_declarations() {
         let mut pkg = SourcePackage::default();
-        pkg.declarations.push(SourceDeclaration::Function(SourceFunction {
-            name: "malloc".into(),
-            parameters: vec![SourceParameter {
-                name: Some("size".into()),
-                ty: SourceType::ULong,
-            }],
-            return_type: SourceType::Pointer(Box::new(SourceType::Void)),
-            variadic: false,
-            source_offset: None,
-        }));
-        pkg.declarations.push(SourceDeclaration::Record(SourceRecord {
-            name: Some("point".into()),
-            is_union: false,
-            fields: Some(vec![
-                SourceField {
-                    name: Some("x".into()),
-                    ty: SourceType::Int,
-                    bit_width: None,
-                },
-                SourceField {
-                    name: Some("y".into()),
-                    ty: SourceType::Int,
-                    bit_width: None,
-                },
-            ]),
-            source_offset: None,
-        }));
+        pkg.declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "malloc".into(),
+                parameters: vec![SourceParameter {
+                    name: Some("size".into()),
+                    ty: SourceType::ULong,
+                }],
+                return_type: SourceType::Pointer(Box::new(SourceType::Void)),
+                variadic: false,
+                source_offset: None,
+            }));
+        pkg.declarations
+            .push(SourceDeclaration::Record(SourceRecord {
+                name: Some("point".into()),
+                is_union: false,
+                fields: Some(vec![
+                    SourceField {
+                        name: Some("x".into()),
+                        ty: SourceType::Int,
+                        bit_width: None,
+                    },
+                    SourceField {
+                        name: Some("y".into()),
+                        ty: SourceType::Int,
+                        bit_width: None,
+                    },
+                ]),
+                source_offset: None,
+            }));
         assert_eq!(pkg.declarations.len(), 2);
     }
 
@@ -79,13 +81,14 @@ mod tests {
     fn source_package_json_roundtrip() {
         let mut pkg = SourcePackage::default();
         pkg.source_path = Some("demo.h".into());
-        pkg.declarations.push(SourceDeclaration::Function(SourceFunction {
-            name: "foo".into(),
-            parameters: vec![],
-            return_type: SourceType::Void,
-            variadic: false,
-            source_offset: Some(10),
-        }));
+        pkg.declarations
+            .push(SourceDeclaration::Function(SourceFunction {
+                name: "foo".into(),
+                parameters: vec![],
+                return_type: SourceType::Void,
+                variadic: false,
+                source_offset: Some(10),
+            }));
         pkg.macros.push(SourceMacro {
             name: "VERSION".into(),
             body: "3".into(),

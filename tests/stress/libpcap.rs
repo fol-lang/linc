@@ -1,13 +1,17 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
 const HEADER_CANDIDATES: &[&str] = &["/usr/include/pcap/pcap.h", "/usr/include/pcap.h"];
 const SUPPORT_HEADER_CANDIDATES: &[&str] = &[
     "/usr/include/sys/types.h",
     "/usr/include/x86_64-linux-gnu/sys/types.h",
 ];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &["/usr/include", "/usr/include/pcap", "/usr/include/x86_64-linux-gnu"];
+const INCLUDE_DIR_CANDIDATES: &[&str] = &[
+    "/usr/include",
+    "/usr/include/pcap",
+    "/usr/include/x86_64-linux-gnu",
+];
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LibpcapEnvironment {
     pub header: PathBuf,
@@ -59,5 +63,5 @@ pub fn libpcap_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_libpcap() -> Result<RawHeaderResult, LincError> {
-    libpcap_header_config()?.process()
+    super::common::process(&libpcap_header_config()?)
 }

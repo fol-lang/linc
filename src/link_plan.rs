@@ -140,7 +140,11 @@ fn filtered_constraints(constraints: &[String], target: Option<&str>) -> Vec<Str
 fn target_matches_constraints(constraints: &[String], target: Option<&str>) -> bool {
     constraints.is_empty()
         || target.is_none()
-        || target.is_some_and(|target| constraints.iter().any(|constraint| target.contains(constraint)))
+        || target.is_some_and(|target| {
+            constraints
+                .iter()
+                .any(|constraint| target.contains(constraint))
+        })
 }
 
 fn matching_providers(input: &LinkInput, inventories: &[SymbolInventory]) -> Vec<ResolvedProvider> {
@@ -155,7 +159,9 @@ fn matching_providers(input: &LinkInput, inventories: &[SymbolInventory]) -> Vec
                     dependency_edges: inventory.dependency_edges.clone(),
                 })
             }
-            LinkInput::Library(library) if inventory_matches_library_name(&inventory.artifact_path, &library.name) => {
+            LinkInput::Library(library)
+                if inventory_matches_library_name(&inventory.artifact_path, &library.name) =>
+            {
                 Some(ResolvedProvider {
                     artifact_path: inventory.artifact_path.clone(),
                     match_kind: ProviderMatchKind::LibraryName,
@@ -248,16 +254,14 @@ mod tests {
         assert_eq!(plan.requirements.len(), 2);
         assert!(plan.requirements.iter().all(|req| req.providers.is_empty()));
         assert!(plan.transitive_dependencies.is_empty());
-        assert!(
-            plan.requirements
-                .iter()
-                .all(|req| req.source == LinkRequirementSource::Declared)
-        );
-        assert!(
-            plan.requirements
-                .iter()
-                .all(|req| req.resolution == RequirementResolution::Unresolved)
-        );
+        assert!(plan
+            .requirements
+            .iter()
+            .all(|req| req.source == LinkRequirementSource::Declared));
+        assert!(plan
+            .requirements
+            .iter()
+            .all(|req| req.resolution == RequirementResolution::Unresolved));
     }
 
     #[test]
@@ -309,8 +313,14 @@ mod tests {
         assert_eq!(plan.requirements.len(), 2);
         assert_eq!(plan.requirements[0].providers.len(), 1);
         assert_eq!(plan.requirements[0].source, LinkRequirementSource::Declared);
-        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
-        assert_eq!(plan.requirements[0].providers[0].match_kind, ProviderMatchKind::LibraryName);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            RequirementResolution::Resolved
+        );
+        assert_eq!(
+            plan.requirements[0].providers[0].match_kind,
+            ProviderMatchKind::LibraryName
+        );
         assert_eq!(
             plan.requirements[0].providers[0].provenance,
             ProviderProvenance::DiscoveredInventory
@@ -320,7 +330,10 @@ mod tests {
             vec!["libc.so.6".to_string()]
         );
         assert_eq!(plan.requirements[1].providers.len(), 1);
-        assert_eq!(plan.requirements[1].resolution, RequirementResolution::Resolved);
+        assert_eq!(
+            plan.requirements[1].resolution,
+            RequirementResolution::Resolved
+        );
         assert_eq!(
             plan.requirements[1].providers[0].provenance,
             ProviderProvenance::DeclaredArtifact
@@ -371,7 +384,10 @@ mod tests {
         ];
 
         let plan = resolve_link_plan_with_inventories(&package, &inventories);
-        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Ambiguous);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            RequirementResolution::Ambiguous
+        );
         assert_eq!(plan.requirements[0].providers.len(), 2);
     }
 
@@ -388,13 +404,13 @@ mod tests {
             ..BindingLinkSurface::default()
         };
 
-        let matching = resolve_link_plan_for_target(&package, &[], Some("x86_64-unknown-linux-gnu"));
+        let matching =
+            resolve_link_plan_for_target(&package, &[], Some("x86_64-unknown-linux-gnu"));
         assert_eq!(matching.inputs.len(), 1);
         assert_eq!(matching.requirements.len(), 1);
         assert_eq!(matching.platform_constraints, vec!["linux".to_string()]);
 
-        let non_matching =
-            resolve_link_plan_for_target(&package, &[], Some("x86_64-apple-darwin"));
+        let non_matching = resolve_link_plan_for_target(&package, &[], Some("x86_64-apple-darwin"));
         assert!(non_matching.inputs.is_empty());
         assert!(non_matching.requirements.is_empty());
         assert!(non_matching.platform_constraints.is_empty());
@@ -426,13 +442,19 @@ mod tests {
 
         let plan = resolve_link_plan_with_inventories(&package, &inventories);
         assert_eq!(plan.requirements.len(), 1);
-        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            RequirementResolution::Resolved
+        );
         assert_eq!(plan.requirements[0].providers.len(), 1);
         assert_eq!(
             plan.requirements[0].providers[0].artifact_path,
             "/usr/lib/x86_64-linux-gnu/libssl.so.3"
         );
-        assert_eq!(plan.transitive_dependencies, vec!["libcrypto.so.3".to_string()]);
+        assert_eq!(
+            plan.transitive_dependencies,
+            vec!["libcrypto.so.3".to_string()]
+        );
     }
 
     #[test]
@@ -472,11 +494,14 @@ mod tests {
     #[test]
     fn resolve_link_plan_matches_macos_text_stub_library_names() {
         let mut package = BindingPackage::new();
-        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-            name: "System".into(),
-            kind: LinkLibraryKind::Default,
-            source: LinkRequirementSource::Declared,
-        }));
+        package
+            .link
+            .ordered_inputs
+            .push(LinkInput::Library(LinkLibrary {
+                name: "System".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
+            }));
 
         let inventories = vec![SymbolInventory {
             artifact_path: "/usr/lib/libSystem.tbd".into(),
@@ -493,38 +518,53 @@ mod tests {
 
         let plan = resolve_link_plan_with_inventories(&package, &inventories);
         assert_eq!(plan.requirements.len(), 1);
-        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            RequirementResolution::Resolved
+        );
         assert_eq!(plan.requirements[0].providers.len(), 1);
         assert_eq!(
             plan.requirements[0].providers[0].artifact_path,
             "/usr/lib/libSystem.tbd"
         );
-        assert_eq!(plan.transitive_dependencies, vec!["/usr/lib/libc++.1.dylib".to_string()]);
+        assert_eq!(
+            plan.transitive_dependencies,
+            vec!["/usr/lib/libc++.1.dylib".to_string()]
+        );
     }
 
     #[test]
     fn resolve_link_plan_reports_unresolved_when_no_inventory_matches() {
         let mut package = BindingPackage::new();
-        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-            name: "missing".into(),
-            kind: LinkLibraryKind::Default,
-            source: LinkRequirementSource::Declared,
-        }));
+        package
+            .link
+            .ordered_inputs
+            .push(LinkInput::Library(LinkLibrary {
+                name: "missing".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
+            }));
 
         let plan = resolve_link_plan_with_inventories(&package, &[]);
         assert_eq!(plan.requirements.len(), 1);
-        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Unresolved);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            RequirementResolution::Unresolved
+        );
         assert!(plan.requirements[0].providers.is_empty());
     }
 
     #[test]
     fn resolve_link_plan_reports_ambiguous_when_multiple_inventories_match() {
         let mut package = BindingPackage::new();
-        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-            name: "z".into(),
-            kind: LinkLibraryKind::Default,
-            source: LinkRequirementSource::Declared,
-        }));
+        package
+            .link
+            .ordered_inputs
+            .push(LinkInput::Library(LinkLibrary {
+                name: "z".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
+            }));
 
         let inventories = vec![
             SymbolInventory {
@@ -532,7 +572,10 @@ mod tests {
                 format: ArtifactFormat::ElfSharedLibrary,
                 platform: ArtifactPlatform::Elf,
                 kind: ArtifactKind::SharedLibrary,
-                capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+                capabilities: ArtifactCapabilities {
+                    exports_symbols: true,
+                    imports_symbols: false,
+                },
                 dependency_edges: Vec::new(),
                 symbols: Vec::new(),
             },
@@ -541,7 +584,10 @@ mod tests {
                 format: ArtifactFormat::ElfStaticLibrary,
                 platform: ArtifactPlatform::Elf,
                 kind: ArtifactKind::StaticLibrary,
-                capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+                capabilities: ArtifactCapabilities {
+                    exports_symbols: true,
+                    imports_symbols: false,
+                },
                 dependency_edges: Vec::new(),
                 symbols: Vec::new(),
             },
@@ -549,32 +595,47 @@ mod tests {
 
         let plan = resolve_link_plan_with_inventories(&package, &inventories);
         assert_eq!(plan.requirements.len(), 1);
-        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Ambiguous);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            RequirementResolution::Ambiguous
+        );
         assert_eq!(plan.requirements[0].providers.len(), 2);
     }
 
     #[test]
     fn resolve_link_plan_concrete_artifact_matches_declared_path() {
         let mut package = BindingPackage::new();
-        package.link.ordered_inputs.push(LinkInput::Artifact(LinkArtifact {
-            path: "/build/libvendor.a".into(),
-            kind: LinkArtifactKind::StaticLibrary,
-            source: LinkRequirementSource::Declared,
-        }));
+        package
+            .link
+            .ordered_inputs
+            .push(LinkInput::Artifact(LinkArtifact {
+                path: "/build/libvendor.a".into(),
+                kind: LinkArtifactKind::StaticLibrary,
+                source: LinkRequirementSource::Declared,
+            }));
 
         let inventories = vec![SymbolInventory {
             artifact_path: "/build/libvendor.a".into(),
             format: ArtifactFormat::ElfStaticLibrary,
             platform: ArtifactPlatform::Elf,
             kind: ArtifactKind::StaticLibrary,
-            capabilities: ArtifactCapabilities { exports_symbols: true, imports_symbols: false },
+            capabilities: ArtifactCapabilities {
+                exports_symbols: true,
+                imports_symbols: false,
+            },
             dependency_edges: Vec::new(),
             symbols: Vec::new(),
         }];
 
         let plan = resolve_link_plan_with_inventories(&package, &inventories);
         assert_eq!(plan.requirements.len(), 1);
-        assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
-        assert_eq!(plan.requirements[0].providers[0].match_kind, ProviderMatchKind::ExactArtifact);
+        assert_eq!(
+            plan.requirements[0].resolution,
+            RequirementResolution::Resolved
+        );
+        assert_eq!(
+            plan.requirements[0].providers[0].match_kind,
+            ProviderMatchKind::ExactArtifact
+        );
     }
 }

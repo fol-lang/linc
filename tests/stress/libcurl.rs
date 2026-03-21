@@ -1,9 +1,16 @@
 use std::path::{Path, PathBuf};
 
-use linc::{LincError, HeaderConfig, RawHeaderResult};
+use linc::{HeaderConfig, LincError, RawHeaderResult};
 
-const HEADER_CANDIDATES: &[&str] = &["/usr/include/curl/curl.h", "/usr/include/x86_64-linux-gnu/curl/curl.h"];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &["/usr/include", "/usr/include/curl", "/usr/include/x86_64-linux-gnu"];
+const HEADER_CANDIDATES: &[&str] = &[
+    "/usr/include/curl/curl.h",
+    "/usr/include/x86_64-linux-gnu/curl/curl.h",
+];
+const INCLUDE_DIR_CANDIDATES: &[&str] = &[
+    "/usr/include",
+    "/usr/include/curl",
+    "/usr/include/x86_64-linux-gnu",
+];
 const PROBE_TYPES: &[&str] = &["struct curl_blob"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,7 +34,10 @@ pub fn libcurl_environment() -> Result<LibcurlEnvironment, LincError> {
         .map(PathBuf::from)
         .collect();
 
-    Ok(LibcurlEnvironment { header, include_dirs })
+    Ok(LibcurlEnvironment {
+        header,
+        include_dirs,
+    })
 }
 
 pub fn libcurl_header_config() -> Result<HeaderConfig, LincError> {
@@ -48,5 +58,5 @@ pub fn libcurl_header_config() -> Result<HeaderConfig, LincError> {
 }
 
 pub fn analyze_libcurl() -> Result<RawHeaderResult, LincError> {
-    libcurl_header_config()?.process()
+    super::common::process(&libcurl_header_config()?)
 }
