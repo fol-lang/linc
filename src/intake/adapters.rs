@@ -225,12 +225,50 @@ pub fn to_binding_package(src: &SourcePackage) -> ir::BindingPackage {
         })
         .collect();
 
+    let frameworks: Vec<ir::LinkFramework> = src
+        .link_requirements
+        .iter()
+        .filter(|r| matches!(r.kind, SourceLinkKind::Framework))
+        .map(|r| ir::LinkFramework {
+            name: r.name.clone(),
+            source: ir::LinkRequirementSource::Declared,
+        })
+        .collect();
+
+    let ordered_inputs: Vec<ir::LinkInput> = src
+        .link_requirements
+        .iter()
+        .map(|r| match r.kind {
+            SourceLinkKind::Library => ir::LinkInput::Library(ir::LinkLibrary {
+                name: r.name.clone(),
+                kind: ir::LinkLibraryKind::Default,
+                source: ir::LinkRequirementSource::Declared,
+            }),
+            SourceLinkKind::StaticLibrary => ir::LinkInput::Library(ir::LinkLibrary {
+                name: r.name.clone(),
+                kind: ir::LinkLibraryKind::Static,
+                source: ir::LinkRequirementSource::Declared,
+            }),
+            SourceLinkKind::DynamicLibrary => ir::LinkInput::Library(ir::LinkLibrary {
+                name: r.name.clone(),
+                kind: ir::LinkLibraryKind::Dynamic,
+                source: ir::LinkRequirementSource::Declared,
+            }),
+            SourceLinkKind::Framework => ir::LinkInput::Framework(ir::LinkFramework {
+                name: r.name.clone(),
+                source: ir::LinkRequirementSource::Declared,
+            }),
+        })
+        .collect();
+
     ir::BindingPackage {
         source_path: src.source_path.clone(),
         items,
         macros,
         link: ir::BindingLinkSurface {
             libraries,
+            frameworks,
+            ordered_inputs,
             ..ir::BindingLinkSurface::default()
         },
         inputs: ir::BindingInputs {
@@ -443,6 +481,31 @@ mod tests {
         assert_eq!(back.enum_count(), 1);
         assert_eq!(back.type_alias_count(), 1);
         assert_eq!(back.variable_count(), 1);
+    }
+
+    #[test]
+    fn source_link_requirements_fill_normalized_ordered_inputs() {
+        let mut src = SourcePackage::default();
+        src.link_requirements.push(SourceLinkRequirement {
+            name: "z".into(),
+            kind: SourceLinkKind::Library,
+        });
+        src.link_requirements.push(SourceLinkRequirement {
+            name: "CoreFoundation".into(),
+            kind: SourceLinkKind::Framework,
+        });
+
+        let binding = to_binding_package(&src);
+
+        assert_eq!(binding.link.ordered_inputs.len(), 2);
+        assert!(matches!(
+            &binding.link.ordered_inputs[0],
+            ir::LinkInput::Library(lib) if lib.name == "z"
+        ));
+        assert!(matches!(
+            &binding.link.ordered_inputs[1],
+            ir::LinkInput::Framework(fw) if fw.name == "CoreFoundation"
+        ));
     }
 
     #[test]
