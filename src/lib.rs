@@ -118,6 +118,7 @@ pub mod error;
 pub mod intake;
 pub mod ir;
 pub mod line_markers;
+pub mod analysis;
 pub mod link_plan;
 pub mod probe;
 pub mod raw_headers;
@@ -129,6 +130,7 @@ pub mod validate;
 
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 pub use error::LincError;
+pub use analysis::LinkAnalysisPackage;
 pub use intake::{
     SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
     SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord, SourceType,
@@ -173,6 +175,14 @@ pub use validate::{
 /// [`SourcePackage`] and pass it here instead of using parser-specific APIs.
 pub fn from_source_package(source: &SourcePackage) -> BindingPackage {
     intake::adapters::to_binding_package(source)
+}
+
+/// Construct a [`LinkAnalysisPackage`] from a legacy [`BindingPackage`].
+///
+/// This is the bridge from the old all-in-one contract to the explicit
+/// link-analysis contract that downstream generators should consume.
+pub fn link_analysis_from_binding_package(package: &BindingPackage) -> LinkAnalysisPackage {
+    LinkAnalysisPackage::from_binding_package(package)
 }
 
 /// Serialize a BindingPackage to a deterministic JSON string.
