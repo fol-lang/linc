@@ -10,7 +10,7 @@ use crate::ir::BindingPackage;
 pub struct PreprocessedInput {
     pub source: String,
     pub source_path: Option<String>,
-    pub flavor: pac::driver::Flavor,
+    pub flavor: parc::driver::Flavor,
 }
 
 #[allow(dead_code)]
@@ -19,7 +19,7 @@ impl PreprocessedInput {
         Self {
             source: source.into(),
             source_path: None,
-            flavor: pac::driver::Flavor::GnuC11,
+            flavor: parc::driver::Flavor::GnuC11,
         }
     }
 
@@ -29,7 +29,7 @@ impl PreprocessedInput {
         Ok(Self {
             source,
             source_path: Some(path.display().to_string()),
-            flavor: pac::driver::Flavor::GnuC11,
+            flavor: parc::driver::Flavor::GnuC11,
         })
     }
 
@@ -38,13 +38,13 @@ impl PreprocessedInput {
         self
     }
 
-    pub fn with_flavor(mut self, flavor: pac::driver::Flavor) -> Self {
+    pub fn with_flavor(mut self, flavor: parc::driver::Flavor) -> Self {
         self.flavor = flavor;
         self
     }
 
     pub fn extract(&self) -> BindingPackage {
-        let unit = match pac::parse::translation_unit(&self.source, self.flavor) {
+        let unit = match parc::parse::translation_unit(&self.source, self.flavor) {
             Ok(unit) => unit,
             Err(e) => {
                 return BindingPackage {
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn preprocessed_with_flavor() {
         let input = PreprocessedInput::from_string("typedef int x;")
-            .with_flavor(pac::driver::Flavor::StdC11);
+            .with_flavor(parc::driver::Flavor::StdC11);
         let pkg = input.extract();
         assert_eq!(pkg.items.len(), 1);
     }

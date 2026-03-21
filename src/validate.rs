@@ -1016,7 +1016,7 @@ mod tests {
     fn decorated_symbol_fixture_matches_normalized_name() {
         let pkg = make_package(&["demo_init"]);
         let inv: SymbolInventory = serde_json::from_str(include_str!(
-            "../test/contracts/decorated_symbol_inventory_fixture.json"
+            "../tests/contracts/decorated_symbol_inventory_fixture.json"
         ))
         .unwrap();
 
@@ -1338,7 +1338,7 @@ mod tests {
     #[test]
     fn duplicate_provider_contract_fixture_is_consumable() {
         let report: ValidationReport = serde_json::from_str(include_str!(
-            "../test/contracts/validation_duplicate_provider_report.json"
+            "../tests/contracts/validation_duplicate_provider_report.json"
         ))
         .unwrap();
         assert_eq!(report.summary.duplicate_providers, 1);

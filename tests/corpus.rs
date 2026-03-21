@@ -1,6 +1,6 @@
 //! Real-world corpus tests for LINC.
 //!
-//! Uses vendored headers from test/full_apps/external/ (copied from pac).
+//! Uses vendored headers from testdata/full_apps/external/ (copied from parc).
 //! System-header tests (string.h, symbol validation) are #[ignore] and
 //! require gcc/clang or dev libraries.
 
@@ -11,7 +11,7 @@ use linc::*;
 /// Path to the vendored test corpus.
 fn corpus_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("test")
+        .join("tests")
         .join("full_apps")
         .join("external")
 }

@@ -10,7 +10,7 @@ pub struct ZlibVendoredEnvironment {
 
 pub fn zlib_vendored_environment() -> Result<ZlibVendoredEnvironment, LincError> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("test")
+        .join("tests")
         .join("full_apps")
         .join("external")
         .join("zlib")

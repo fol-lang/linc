@@ -9,13 +9,13 @@ pub struct PluginAbiEnvironment {
 
 pub fn plugin_abi_environment() -> Result<PluginAbiEnvironment, LincError> {
     let header = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("test")
+        .join("tests")
         .join("stress")
         .join("plugin_abi.h");
 
     if !header.exists() {
         return Err(LincError::InvalidConfig {
-            reason: "plugin ABI example requires test/stress/plugin_abi.h".into(),
+            reason: "plugin ABI example requires tests/stress/plugin_abi.h".into(),
         });
     }
 

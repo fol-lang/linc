@@ -22,7 +22,7 @@ pub fn epoll_environment() -> Result<EpollEnvironment, LincError> {
         .find(|path| Path::new(path).exists())
         .map(PathBuf::from);
     let fixture_header =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/linus/epoll_fixture.h");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/linus/epoll_fixture.h");
     let (header, is_fixture) = if let Some(header) = system_header {
         (header, false)
     } else if fixture_header.exists() {

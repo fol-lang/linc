@@ -1,5 +1,5 @@
-use pac::ast::*;
-use pac::span::Node;
+use parc::ast::*;
+use parc::span::Node;
 
 use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::ir::*;
@@ -938,7 +938,7 @@ impl Extractor {
 
     fn emit_extension_diagnostics(
         &mut self,
-        extensions: &[Node<pac::ast::Extension>],
+        extensions: &[Node<parc::ast::Extension>],
         item_name: &str,
         offset: usize,
     ) {
@@ -948,15 +948,15 @@ impl Extractor {
         let attr_names: Vec<String> = extensions
             .iter()
             .filter_map(|e| match &e.node {
-                pac::ast::Extension::Attribute(a) => {
+                parc::ast::Extension::Attribute(a) => {
                     if calling_convention_from_attr_name(&a.name.node).is_some() {
                         None
                     } else {
                         Some(a.name.node.clone())
                     }
                 }
-                pac::ast::Extension::AsmLabel(_) => Some("asm_label".into()),
-                pac::ast::Extension::AvailabilityAttribute(_) => {
+                parc::ast::Extension::AsmLabel(_) => Some("asm_label".into()),
+                parc::ast::Extension::AvailabilityAttribute(_) => {
                     Some("availability".into())
                 }
             })
@@ -983,10 +983,10 @@ fn type_has_pointer_layer(ty: &BindingType) -> bool {
 }
 
 fn detect_calling_convention(
-    extensions: &[Node<pac::ast::Extension>],
+    extensions: &[Node<parc::ast::Extension>],
 ) -> Option<CallingConvention> {
     extensions.iter().find_map(|extension| match &extension.node {
-        pac::ast::Extension::Attribute(attribute) => {
+        parc::ast::Extension::Attribute(attribute) => {
             calling_convention_from_attr_name(&attribute.name.node)
         }
         _ => None,
@@ -1080,7 +1080,7 @@ fn eval_const_expr(expr: &Expression) -> Option<i128> {
 /// Used internally by tests and transitional header-scanning paths.
 #[allow(dead_code)]
 pub fn extract_from_source(source: &str) -> Result<BindingPackage, String> {
-    let unit = pac::parse::translation_unit(source, pac::driver::Flavor::GnuC11)
+    let unit = parc::parse::translation_unit(source, parc::driver::Flavor::GnuC11)
         .map_err(|e| format!("parse error at line {}:{}: {:?}", e.line, e.column, e.expected))?;
 
     let extractor = Extractor::new();

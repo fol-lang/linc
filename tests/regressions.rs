@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 #[test]
 fn regression_old_json_with_empty_nested_objects_stays_consumable() {
-    let pkg = from_json(include_str!("../test/contracts/v1_empty_nested_objects.json")).unwrap();
+    let pkg = from_json(include_str!("../tests/contracts/v1_empty_nested_objects.json")).unwrap();
     assert_eq!(pkg.schema_version, linc::SCHEMA_VERSION);
     assert!(pkg.inputs.entry_headers.is_empty());
     assert!(pkg.link.ordered_inputs.is_empty());
@@ -60,7 +60,7 @@ fn regression_decorated_fixture_validates_against_normalized_name() {
         ..BindingPackage::new()
     };
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/decorated_symbol_inventory_fixture.json"
+        "../tests/contracts/decorated_symbol_inventory_fixture.json"
     ))
     .unwrap();
 
@@ -71,14 +71,14 @@ fn regression_decorated_fixture_validates_against_normalized_name() {
 
 #[test]
 fn regression_extended_contract_fixture_keeps_macro_value() {
-    let pkg = from_json(include_str!("../test/contracts/fol_extended_contract.json")).unwrap();
+    let pkg = from_json(include_str!("../tests/contracts/fol_extended_contract.json")).unwrap();
     assert_eq!(pkg.macros[0].value, Some(MacroValue::Integer(3)));
 }
 
 #[test]
 fn regression_probe_record_fixture_keeps_record_and_enum_metadata() {
     let report: AbiProbeReport = serde_json::from_str(include_str!(
-        "../test/contracts/probe_record_contract_snapshot.json"
+        "../tests/contracts/probe_record_contract_snapshot.json"
     ))
     .unwrap();
     assert_eq!(report.subjects.len(), 2);
@@ -139,7 +139,7 @@ fn regression_probe_diagnostics_distinguish_unavailable_and_operational_failures
 #[test]
 fn regression_duplicate_provider_report_fixture_stays_consumable() {
     let report: ValidationReport = serde_json::from_str(include_str!(
-        "../test/contracts/validation_duplicate_provider_report.json"
+        "../tests/contracts/validation_duplicate_provider_report.json"
     ))
     .unwrap();
     assert_eq!(report.summary.duplicate_providers, 1);
@@ -150,7 +150,7 @@ fn regression_duplicate_provider_report_fixture_stays_consumable() {
 #[test]
 fn regression_function_abi_questionable_fixture_stays_consumable() {
     let report: ValidationReport = serde_json::from_str(include_str!(
-        "../test/contracts/function_abi_questionable_report.json"
+        "../tests/contracts/function_abi_questionable_report.json"
     ))
     .unwrap();
     assert_eq!(report.summary.abi_shape_mismatches, 1);
@@ -164,7 +164,7 @@ fn regression_function_abi_questionable_fixture_stays_consumable() {
 
 #[test]
 fn regression_tricky_layout_fixture_stays_consumable() {
-    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/tricky_layouts.h");
+    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_layouts.h");
     let result = linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("struct packed_flags")
@@ -192,7 +192,7 @@ fn regression_tricky_layout_fixture_stays_consumable() {
 #[test]
 fn regression_typedef_layout_fixture_validates_record_and_enum_aliases() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test/fixtures/typedef_layout_bridge.h");
+        .join("tests/fixtures/typedef_layout_bridge.h");
     let result = linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("widget_t")
@@ -253,7 +253,7 @@ fn regression_typedef_layout_fixture_validates_record_and_enum_aliases() {
 #[test]
 fn regression_packed_bitfield_fixture_preserves_partial_layout_signal() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test/fixtures/packed_bitfield_extreme.h");
+        .join("tests/fixtures/packed_bitfield_extreme.h");
     let result = linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("struct packed_registers")
@@ -411,7 +411,7 @@ fn regression_macos_text_stub_provider_resolves_after_name_refinement() {
 
 #[test]
 fn regression_tricky_macro_fixture_stays_consumable() {
-    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/tricky_macros.h");
+    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_macros.h");
     let result = linc::HeaderConfig::new().entry_header(&header).process().unwrap();
 
     let api_level = result
@@ -450,7 +450,7 @@ fn regression_tricky_macro_fixture_stays_consumable() {
 #[test]
 fn regression_macro_public_api_fixture_preserves_configuration_and_abi_macros() {
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test/fixtures/macro_public_api.h");
+        .join("tests/fixtures/macro_public_api.h");
     let result = linc::HeaderConfig::new().entry_header(&header).process().unwrap();
 
     let api_level = result
@@ -490,7 +490,7 @@ fn regression_macro_public_api_fixture_preserves_configuration_and_abi_macros() 
 #[test]
 fn regression_linux_artifact_fixture_stays_consumable() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/linux_elf_inventory_fixture.json"
+        "../tests/contracts/linux_elf_inventory_fixture.json"
     ))
     .unwrap();
     assert_eq!(inventory.platform, ArtifactPlatform::Elf);
@@ -502,7 +502,7 @@ fn regression_linux_artifact_fixture_stays_consumable() {
 #[test]
 fn regression_linux_elf_mixed_fixture_preserves_versions_and_imports() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/linux_elf_mixed_inventory_fixture.json"
+        "../tests/contracts/linux_elf_mixed_inventory_fixture.json"
     ))
     .unwrap();
     assert_eq!(inventory.platform, ArtifactPlatform::Elf);
@@ -518,7 +518,7 @@ fn regression_linux_elf_mixed_fixture_preserves_versions_and_imports() {
 #[test]
 fn regression_elf_alias_fixture_preserves_aliases_without_duplicate_provider_confusion() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/elf_alias_inventory_fixture.json"
+        "../tests/contracts/elf_alias_inventory_fixture.json"
     ))
     .unwrap();
     assert_eq!(inventory.symbols.len(), 2);
@@ -554,7 +554,7 @@ fn regression_elf_alias_fixture_preserves_aliases_without_duplicate_provider_con
 #[test]
 fn regression_macos_artifact_fixture_stays_consumable() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/macos_macho_inventory_fixture.json"
+        "../tests/contracts/macos_macho_inventory_fixture.json"
     ))
     .unwrap();
     assert_eq!(inventory.platform, ArtifactPlatform::MachO);
@@ -565,7 +565,7 @@ fn regression_macos_artifact_fixture_stays_consumable() {
 #[test]
 fn regression_macos_dylib_mixed_fixture_preserves_imported_and_exported_symbols() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/macos_macho_dylib_mixed_fixture.json"
+        "../tests/contracts/macos_macho_dylib_mixed_fixture.json"
     ))
     .unwrap();
     assert_eq!(inventory.platform, ArtifactPlatform::MachO);
@@ -582,7 +582,7 @@ fn regression_macos_dylib_mixed_fixture_preserves_imported_and_exported_symbols(
 #[test]
 fn regression_windows_artifact_fixture_stays_consumable() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/windows_coff_inventory_fixture.json"
+        "../tests/contracts/windows_coff_inventory_fixture.json"
     ))
     .unwrap();
     assert_eq!(inventory.platform, ArtifactPlatform::Windows);
@@ -594,7 +594,7 @@ fn regression_windows_artifact_fixture_stays_consumable() {
 #[test]
 fn regression_windows_import_library_fixture_stays_consumable() {
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/windows_import_library_fixture.json"
+        "../tests/contracts/windows_import_library_fixture.json"
     ))
     .unwrap();
     assert_eq!(inventory.platform, ArtifactPlatform::Windows);

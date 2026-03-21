@@ -1,13 +1,13 @@
 #[cfg(target_os = "linux")]
-#[path = "../test/linus/epoll.rs"]
+#[path = "linus/epoll.rs"]
 mod epoll;
 
 #[cfg(target_os = "linux")]
-#[path = "../test/linus/linux_event_loop.rs"]
+#[path = "linus/linux_event_loop.rs"]
 mod linux_event_loop;
 
 #[cfg(target_os = "linux")]
-#[path = "../test/linus/socketcan.rs"]
+#[path = "linus/socketcan.rs"]
 mod socketcan;
 
 #[cfg(target_os = "linux")]

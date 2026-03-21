@@ -119,11 +119,13 @@
 //!
 pub mod diagnostics;
 pub mod error;
+#[cfg(feature = "parc")]
 pub(crate) mod extract;
 pub mod intake;
 pub mod ir;
 pub mod line_markers;
 pub mod link_plan;
+#[cfg(feature = "parc")]
 pub(crate) mod preprocess;
 pub mod probe;
 pub mod raw_headers;
@@ -448,7 +450,7 @@ mod integration_tests {
 
     #[test]
     fn contract_fixture_v0_minimal_binding_package_deserializes() {
-        let json = include_str!("../test/contracts/v0_minimal_binding_package.json");
+        let json = include_str!("../tests/contracts/v0_minimal_binding_package.json");
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.schema_version, SCHEMA_VERSION);
         assert!(pkg.items.is_empty());
@@ -457,7 +459,7 @@ mod integration_tests {
 
     #[test]
     fn contract_fixture_v1_empty_nested_objects_deserializes() {
-        let json = include_str!("../test/contracts/v1_empty_nested_objects.json");
+        let json = include_str!("../tests/contracts/v1_empty_nested_objects.json");
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.schema_version, 1);
         assert!(pkg.target.target_triple.is_none());
@@ -481,12 +483,12 @@ mod integration_tests {
             ),
             (
                 "v0 fixture",
-                include_str!("../test/contracts/v0_minimal_binding_package.json"),
+                include_str!("../tests/contracts/v0_minimal_binding_package.json"),
                 Expectation::OkCurrent,
             ),
             (
                 "v1 empty nested objects fixture",
-                include_str!("../test/contracts/v1_empty_nested_objects.json"),
+                include_str!("../tests/contracts/v1_empty_nested_objects.json"),
                 Expectation::OkSchema(1),
             ),
             (
@@ -549,7 +551,7 @@ mod integration_tests {
 
     #[test]
     fn contract_snapshot_simple_api_package_is_consumable() {
-        let json = include_str!("../test/contracts/simple_api_package.json");
+        let json = include_str!("../tests/contracts/simple_api_package.json");
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.source_path.as_deref(), Some("demo.h"));
         assert_eq!(pkg.macros.len(), 1);
@@ -560,7 +562,7 @@ mod integration_tests {
 
     #[test]
     fn contract_snapshot_symbol_validation_fixture_is_consumable() {
-        let json = include_str!("../test/contracts/symbol_validation_fixture.json");
+        let json = include_str!("../tests/contracts/symbol_validation_fixture.json");
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.items.len(), 2);
         assert_eq!(pkg.link.libraries.len(), 1);
@@ -569,7 +571,7 @@ mod integration_tests {
 
     #[test]
     fn contract_snapshot_binding_package_contract_is_consumable() {
-        let json = include_str!("../test/contracts/binding_package_contract_snapshot.json");
+        let json = include_str!("../tests/contracts/binding_package_contract_snapshot.json");
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.source_path.as_deref(), Some("demo.h"));
         assert_eq!(pkg.macros.len(), 2);
@@ -582,7 +584,7 @@ mod integration_tests {
 
     #[test]
     fn contract_snapshot_fol_minimal_contract_is_consumable() {
-        let json = include_str!("../test/contracts/fol_minimal_contract.json");
+        let json = include_str!("../tests/contracts/fol_minimal_contract.json");
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.items.len(), 1);
         assert!(pkg.macros.is_empty());
@@ -591,7 +593,7 @@ mod integration_tests {
 
     #[test]
     fn contract_snapshot_fol_extended_contract_is_consumable() {
-        let json = include_str!("../test/contracts/fol_extended_contract.json");
+        let json = include_str!("../tests/contracts/fol_extended_contract.json");
         let pkg = from_json(json).unwrap();
         assert_eq!(pkg.items.len(), 1);
         assert_eq!(pkg.macros.len(), 1);

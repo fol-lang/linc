@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use linc::SymbolInventory;
 use linc::{validate, MatchStatus};
 
-#[path = "../test/stress/daemon/max_pain.rs"]
+#[path = "stress/daemon/max_pain.rs"]
 mod max_pain;
 
 #[test]
 fn combined_daemon_fixture_files_exist() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/stress/daemon");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/stress/daemon");
     let header = root.join("max_pain.h");
     let source = root.join("max_pain.c");
 
@@ -26,7 +26,7 @@ fn combined_daemon_fixture_is_code_driven_and_consumable() {
     let config = max_pain::max_pain_header_config().unwrap();
     let result = max_pain::analyze_max_pain().unwrap();
 
-    assert!(environment.header.ends_with("test/stress/daemon/max_pain.h"));
+    assert!(environment.header.ends_with("tests/stress/daemon/max_pain.h"));
     assert!(config
         .linking()
         .link_libraries
@@ -47,7 +47,7 @@ fn combined_daemon_fixture_is_code_driven_and_consumable() {
 fn combined_daemon_inventory_fixture_is_consumable() {
     let inventory: SymbolInventory = max_pain::daemon_core_inventory_fixture();
 
-    assert_eq!(inventory.artifact_path, "test/stress/daemon/max_pain.o");
+    assert_eq!(inventory.artifact_path, "tests/stress/daemon/max_pain.o");
     assert_eq!(inventory.symbols.len(), 6);
     assert!(inventory
         .symbols

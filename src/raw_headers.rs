@@ -1,20 +1,27 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostics::{Diagnostic, DiagnosticKind};
 use crate::error::LincError;
-use crate::extract::Extractor;
+use crate::ir::{
+    BindingPackage, BindingTarget, LinkArtifact, LinkArtifactKind, LinkFramework, LinkInput,
+    LinkLibrary, LinkLibraryKind, LinkRequirementSource, LinkResolutionMode,
+};
+use crate::line_markers::OriginFilter;
+
+#[cfg(feature = "parc")]
+use std::path::Path;
+#[cfg(feature = "parc")]
+use crate::diagnostics::{Diagnostic, DiagnosticKind};
+#[cfg(feature = "parc")]
 use crate::ir::{
     AbiConfidence, BindingDefine, BindingInputs, BindingItem, BindingItemKind,
-    BindingLinkSurface, BindingPackage, BindingTarget, DeclarationProvenance, LinkArtifact,
-    LinkArtifactKind, LinkFramework, LinkInput, LinkLibrary, LinkLibraryKind,
-    LinkRequirementSource, LinkResolutionMode, MacroBinding, MacroCategory,
-    MacroEnvironmentEntry, MacroForm, MacroKind, MacroProvenance, MacroValue,
-    NativeSurfaceKind,
+    BindingLinkSurface, DeclarationProvenance, MacroBinding, MacroCategory,
+    MacroEnvironmentEntry, MacroForm, MacroKind, MacroProvenance, MacroValue, NativeSurfaceKind,
 };
-use crate::line_markers::{FileOriginMap, OriginFilter};
-use crate::probe::probe_type_layouts;
+#[cfg(feature = "parc")]
+use crate::line_markers::FileOriginMap;
+#[cfg(feature = "parc")]
 use crate::probe::ProbeSubjectReport;
 
 /// High-level scan configuration for turning headers into a `BindingPackage`.
@@ -64,15 +71,6 @@ pub enum Flavor {
     StdC11,
 }
 
-impl Flavor {
-    fn to_pac(self) -> pac::driver::Flavor {
-        match self {
-            Flavor::GnuC11 => pac::driver::Flavor::GnuC11,
-            Flavor::ClangC11 => pac::driver::Flavor::ClangC11,
-            Flavor::StdC11 => pac::driver::Flavor::StdC11,
-        }
-    }
-}
 
 /// Effective preprocessing invocation details for one scan.
 ///
@@ -555,7 +553,118 @@ impl HeaderConfig {
         Ok(())
     }
 
+    pub(crate) fn binding_target(&self) -> BindingTarget {
+        let compiler_command = self.compiler_command();
+        BindingTarget {
+            target_triple: detect_target_triple(&compiler_command),
+            compiler_command: Some(compiler_command.clone()),
+            compiler_version: detect_compiler_version(&compiler_command),
+            flavor: Some(self.flavor_label()),
+        }
+    }
+
+    #[cfg(feature = "parc")]
+    fn binding_inputs(&self) -> BindingInputs {
+        BindingInputs {
+            entry_headers: self
+                .entry_headers
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            include_dirs: self
+                .include_dirs
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            defines: self
+                .defines
+                .iter()
+                .map(|(name, value)| BindingDefine {
+                    name: name.clone(),
+                    value: value.clone(),
+                })
+                .collect(),
+        }
+    }
+
+    #[cfg(feature = "parc")]
+    fn binding_link_surface(&self) -> BindingLinkSurface {
+        BindingLinkSurface {
+            preferred_mode: self.preferred_link_mode,
+            native_surface_kind: self.native_surface_kind(),
+            platform_constraints: self.platform_constraints.clone(),
+            include_paths: self
+                .include_dirs
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            framework_paths: self
+                .framework_dirs
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            library_paths: self
+                .library_dirs
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            libraries: self.link_libraries.clone(),
+            frameworks: self.link_frameworks.clone(),
+            artifacts: self.link_artifacts.clone(),
+            ordered_inputs: self.ordered_link_inputs.clone(),
+        }
+    }
+
+    #[cfg(feature = "parc")]
+    fn native_surface_kind(&self) -> NativeSurfaceKind {
+        match (self.link_libraries.is_empty() && self.link_frameworks.is_empty(), self.link_artifacts.is_empty()) {
+            (true, true) => NativeSurfaceKind::HeaderOnly,
+            (false, true) => NativeSurfaceKind::LibraryNames,
+            (true, false) => NativeSurfaceKind::ConcreteArtifacts,
+            (false, false) => NativeSurfaceKind::Mixed,
+        }
+    }
+
+    pub(crate) fn compiler_command(&self) -> String {
+        let flavor = self.flavor.unwrap_or(Flavor::GnuC11);
+        self.compiler
+            .clone()
+            .unwrap_or_else(|| match flavor {
+                Flavor::ClangC11 => "clang".into(),
+                _ => "gcc".into(),
+            })
+    }
+
+    fn flavor_label(&self) -> String {
+        match self.flavor.unwrap_or(Flavor::GnuC11) {
+            Flavor::GnuC11 => "gnu-c11".into(),
+            Flavor::ClangC11 => "clang-c11".into(),
+            Flavor::StdC11 => "std-c11".into(),
+        }
+    }
+}
+
+// ─── Parser-dependent implementation (test only) ──────────────────────
+//
+// The methods below require `pac` for preprocessing and parsing.  They are
+// compiled only during tests so that LINC has zero runtime coupling to any
+// particular parser frontend.
+#[cfg(feature = "parc")]
+impl Flavor {
+    fn to_pac(self) -> parc::driver::Flavor {
+        match self {
+            Flavor::GnuC11 => parc::driver::Flavor::GnuC11,
+            Flavor::ClangC11 => parc::driver::Flavor::ClangC11,
+            Flavor::StdC11 => parc::driver::Flavor::StdC11,
+        }
+    }
+}
+
+#[cfg(feature = "parc")]
+impl HeaderConfig {
     pub fn process(&self) -> Result<RawHeaderResult, LincError> {
+        use crate::extract::Extractor;
+
         self.validate()?;
 
         // Build a combined header source that includes all entry headers
@@ -573,7 +682,7 @@ impl HeaderConfig {
         let pac_config = self.build_pac_config();
         let (command, args) = self.describe_invocation(&pac_config, &tmp_file);
 
-        let parse_result = pac::driver::parse(&pac_config, &tmp_file);
+        let parse_result = parc::driver::parse(&pac_config, &tmp_file);
         let (macros, macro_provenance) = self.capture_macros(&tmp_file);
 
         // Clean up
@@ -626,7 +735,7 @@ impl HeaderConfig {
 
                 Ok(RawHeaderResult { package, report })
             }
-            Err(pac::driver::Error::PreprocessorError(e)) => {
+            Err(parc::driver::Error::PreprocessorError(e)) => {
                 let mut pkg = BindingPackage::new();
                 pkg.diagnostics.push(
                     Diagnostic::error(
@@ -643,7 +752,7 @@ impl HeaderConfig {
                     },
                 })
             }
-            Err(pac::driver::Error::SyntaxError(e)) => {
+            Err(parc::driver::Error::SyntaxError(e)) => {
                 if let Some(recovered) =
                     self.try_recover_items_from_preprocessed_source(&e.source)
                 {
@@ -698,9 +807,10 @@ impl HeaderConfig {
         &self,
         source: &str,
     ) -> Option<RecoveredParse> {
+        use crate::extract::Extractor;
         let sanitized_source = sanitize_attribute_bearing_record_typedefs(source)?;
         let flavor = self.flavor.unwrap_or(Flavor::GnuC11).to_pac();
-        let unit = pac::parse::translation_unit(&sanitized_source, flavor).ok()?;
+        let unit = parc::parse::translation_unit(&sanitized_source, flavor).ok()?;
         let extractor = Extractor::new();
         let (items, mut diagnostics) = extractor.extract(&unit);
         diagnostics.push(Diagnostic::warning(
@@ -764,7 +874,7 @@ impl HeaderConfig {
         source
     }
 
-    fn build_pac_config(&self) -> pac::driver::Config {
+    fn build_pac_config(&self) -> parc::driver::Config {
         let flavor = self.flavor.unwrap_or(Flavor::GnuC11);
         let compiler = self
             .compiler
@@ -787,52 +897,44 @@ impl HeaderConfig {
             }
         }
 
-        pac::driver::Config {
+        parc::driver::Config {
             cpp_command: compiler,
             cpp_options,
             flavor: flavor.to_pac(),
         }
     }
 
-    pub(crate) fn binding_target(&self) -> BindingTarget {
-        let compiler_command = self.compiler_command();
-        BindingTarget {
-            target_triple: detect_target_triple(&compiler_command),
-            compiler_command: Some(compiler_command.clone()),
-            compiler_version: detect_compiler_version(&compiler_command),
-            flavor: Some(self.flavor_label()),
-        }
-    }
-
-    fn binding_inputs(&self) -> BindingInputs {
-        BindingInputs {
-            entry_headers: self
-                .entry_headers
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect(),
-            include_dirs: self
-                .include_dirs
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect(),
-            defines: self
-                .defines
-                .iter()
-                .map(|(name, value)| BindingDefine {
-                    name: name.clone(),
-                    value: value.clone(),
-                })
-                .collect(),
-        }
-    }
-
     fn attach_requested_probes(&self, package: &mut BindingPackage) -> Result<(), LincError> {
+        use crate::probe::{probe_type_layouts_with_fields, ProbedFieldSpec};
         if self.probe_types.is_empty() {
             return Ok(());
         }
 
-        match probe_type_layouts(self, &self.probe_types) {
+        let mut field_specs = std::collections::BTreeMap::new();
+        for item in &package.items {
+            if let BindingItem::Record(record) = item {
+                let Some(name) = &record.name else { continue };
+                let prefix = match record.kind {
+                    crate::ir::RecordKind::Struct => "struct",
+                    crate::ir::RecordKind::Union => "union",
+                };
+                let Some(fields) = &record.fields else { continue };
+                let specs: Vec<ProbedFieldSpec> = fields
+                    .iter()
+                    .filter_map(|f| {
+                        Some(ProbedFieldSpec {
+                            name: f.name.as_ref()?.clone(),
+                            bit_width: f.bit_width,
+                        })
+                    })
+                    .collect();
+                if !specs.is_empty() {
+                    field_specs.insert(format!("{} {}", prefix, name), specs);
+                }
+            }
+        }
+
+        match probe_type_layouts_with_fields(self, &self.probe_types, &field_specs) {
             Ok(probe_report) => {
                 package.layouts = probe_report.layouts;
                 attach_probe_evidence(&mut package.items, &probe_report.subjects);
@@ -847,42 +949,6 @@ impl HeaderConfig {
                 ));
                 Ok(())
             }
-        }
-    }
-
-    fn binding_link_surface(&self) -> BindingLinkSurface {
-        BindingLinkSurface {
-            preferred_mode: self.preferred_link_mode,
-            native_surface_kind: self.native_surface_kind(),
-            platform_constraints: self.platform_constraints.clone(),
-            include_paths: self
-                .include_dirs
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect(),
-            framework_paths: self
-                .framework_dirs
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect(),
-            library_paths: self
-                .library_dirs
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect(),
-            libraries: self.link_libraries.clone(),
-            frameworks: self.link_frameworks.clone(),
-            artifacts: self.link_artifacts.clone(),
-            ordered_inputs: self.ordered_link_inputs.clone(),
-        }
-    }
-
-    fn native_surface_kind(&self) -> NativeSurfaceKind {
-        match (self.link_libraries.is_empty() && self.link_frameworks.is_empty(), self.link_artifacts.is_empty()) {
-            (true, true) => NativeSurfaceKind::HeaderOnly,
-            (false, true) => NativeSurfaceKind::LibraryNames,
-            (true, false) => NativeSurfaceKind::ConcreteArtifacts,
-            (false, false) => NativeSurfaceKind::Mixed,
         }
     }
 
@@ -917,42 +983,25 @@ impl HeaderConfig {
         parse_macro_definitions_with_provenance(&stdout, &self.entry_headers)
     }
 
-    fn describe_invocation(&self, config: &pac::driver::Config, input: &Path) -> (String, Vec<String>) {
+    fn describe_invocation(&self, config: &parc::driver::Config, input: &Path) -> (String, Vec<String>) {
         let command = config.cpp_command.clone();
         let mut args = config.cpp_options.clone();
         args.push(input.display().to_string());
         (command, args)
     }
-
-    pub(crate) fn compiler_command(&self) -> String {
-        let flavor = self.flavor.unwrap_or(Flavor::GnuC11);
-        self.compiler
-            .clone()
-            .unwrap_or_else(|| match flavor {
-                Flavor::ClangC11 => "clang".into(),
-                _ => "gcc".into(),
-            })
-    }
-
-    fn flavor_label(&self) -> String {
-        match self.flavor.unwrap_or(Flavor::GnuC11) {
-            Flavor::GnuC11 => "gnu-c11".into(),
-            Flavor::ClangC11 => "clang-c11".into(),
-            Flavor::StdC11 => "std-c11".into(),
-        }
-    }
 }
 
+#[cfg(feature = "parc")]
 fn classify_probe_diagnostic_kind(error: &LincError) -> DiagnosticKind {
     match error {
         LincError::ProbeCompile { stderr, .. }
             if stderr.contains("incomplete type")
                 || stderr.contains("incomplete typedef")
-                || stderr.contains("invalid application of 'sizeof'")
-                || stderr.contains("invalid application of 'alignof'")
+                || stderr.contains("invalid application of ‘sizeof’")
+                || stderr.contains("invalid application of ‘alignof’")
                 || stderr.contains("invalid application of ‘sizeof’")
                 || stderr.contains("invalid application of ‘_Alignof’")
-                || stderr.contains("invalid application of '__alignof__'") =>
+                || stderr.contains("invalid application of ‘__alignof__’") =>
         {
             DiagnosticKind::ProbeUnavailable
         }
@@ -960,12 +1009,14 @@ fn classify_probe_diagnostic_kind(error: &LincError) -> DiagnosticKind {
     }
 }
 
+#[cfg(feature = "parc")]
 struct RecoveredParse {
     source: String,
     items: Vec<BindingItem>,
     diagnostics: Vec<Diagnostic>,
 }
 
+#[cfg(feature = "parc")]
 fn sanitize_attribute_bearing_record_typedefs(source: &str) -> Option<String> {
     let patterns = [
         ("typedef struct __attribute__((packed)) ", "typedef struct "),
@@ -990,6 +1041,7 @@ fn sanitize_attribute_bearing_record_typedefs(source: &str) -> Option<String> {
     changed.then_some(sanitized)
 }
 
+#[cfg(feature = "parc")]
 fn attach_canonical_alias_resolution(items: &mut [BindingItem]) {
     let alias_map = items
         .iter()
@@ -1007,6 +1059,7 @@ fn attach_canonical_alias_resolution(items: &mut [BindingItem]) {
     }
 }
 
+#[cfg(feature = "parc")]
 fn resolve_alias_resolution(
     ty: &crate::ir::BindingType,
     alias_map: &std::collections::HashMap<String, crate::ir::BindingType>,
@@ -1024,6 +1077,7 @@ fn resolve_alias_resolution(
     }
 }
 
+#[cfg(feature = "parc")]
 fn canonicalize_binding_type(
     ty: &crate::ir::BindingType,
     alias_map: &std::collections::HashMap<String, crate::ir::BindingType>,
@@ -1093,6 +1147,7 @@ fn canonicalize_binding_type(
     }
 }
 
+#[cfg(feature = "parc")]
 fn build_item_provenance(
     items: &[BindingItem],
     origin_map: &FileOriginMap,
@@ -1143,6 +1198,7 @@ fn build_item_provenance(
         .collect()
 }
 
+#[cfg(feature = "parc")]
 fn build_effective_macro_environment(
     macros: &[MacroBinding],
     provenance: &[MacroProvenance],
@@ -1169,6 +1225,7 @@ fn build_effective_macro_environment(
         .collect()
 }
 
+#[cfg(feature = "parc")]
 fn attach_probe_evidence(items: &mut [BindingItem], subjects: &[ProbeSubjectReport]) {
     let subject_map = subjects
         .iter()
@@ -1240,11 +1297,13 @@ fn attach_probe_evidence(items: &mut [BindingItem], subjects: &[ProbeSubjectRepo
     }
 }
 
+#[cfg(feature = "parc")]
 fn alias_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     let _ = subject;
     AbiConfidence::LayoutProbed
 }
 
+#[cfg(feature = "parc")]
 fn enum_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     if subject.enum_underlying_size.is_some() || subject.enum_is_signed.is_some() {
         AbiConfidence::RepresentationProbed
@@ -1253,6 +1312,7 @@ fn enum_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     }
 }
 
+#[cfg(feature = "parc")]
 fn record_abi_confidence(subject: &ProbeSubjectReport) -> AbiConfidence {
     if subject
         .fields
@@ -1306,6 +1366,7 @@ fn parse_macro_definitions(source: &str) -> Vec<MacroBinding> {
         .collect()
 }
 
+#[cfg(feature = "parc")]
 fn parse_macro_definitions_with_provenance(
     source: &str,
     entry_headers: &[impl AsRef<Path>],
@@ -1331,6 +1392,7 @@ fn parse_macro_definitions_with_provenance(
     (macros, provenance)
 }
 
+#[cfg(feature = "parc")]
 fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
     let line = line.trim();
     let rest = line.strip_prefix("#define ")?;
@@ -1364,6 +1426,7 @@ fn parse_macro_definition_line(line: &str) -> Option<MacroBinding> {
     })
 }
 
+#[cfg(feature = "parc")]
 fn parse_macro_value(body: &str, function_like: bool) -> Option<MacroValue> {
     if function_like {
         return None;
@@ -1376,6 +1439,7 @@ fn parse_macro_value(body: &str, function_like: bool) -> Option<MacroValue> {
     }
 }
 
+#[cfg(feature = "parc")]
 fn parse_integer_macro_value(body: &str) -> Option<i128> {
     let trimmed = body.trim();
     if trimmed.is_empty() {
@@ -1411,6 +1475,7 @@ fn parse_integer_macro_value(body: &str) -> Option<i128> {
     }
 }
 
+#[cfg(feature = "parc")]
 fn parse_string_macro_value(body: &str) -> Option<String> {
     let trimmed = body.trim();
     let inner = trimmed.strip_prefix('"')?.strip_suffix('"')?;
@@ -1423,6 +1488,7 @@ fn parse_string_macro_value(body: &str) -> Option<String> {
     )
 }
 
+#[cfg(feature = "parc")]
 fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
     if function_like {
         return MacroKind::Other;
@@ -1448,6 +1514,7 @@ fn classify_macro_body(body: &str, function_like: bool) -> MacroKind {
     MacroKind::Other
 }
 
+#[cfg(feature = "parc")]
 fn classify_macro_category(name: &str, body: &str, function_like: bool) -> MacroCategory {
     if function_like {
         if name.contains("CALL") || name.contains("EXPORT") || name.contains("IMPORT") {
@@ -1902,7 +1969,7 @@ mod tests {
     #[test]
     fn parse_macro_regression_fixture_preserves_real_library_style_macros() {
         let macros = parse_macro_definitions(include_str!(
-            "../test/contracts/macro_regression_fixture.txt"
+            "../tests/contracts/macro_regression_fixture.txt"
         ));
 
         assert!(macros.iter().any(|m| {
@@ -1952,9 +2019,9 @@ mod tests {
 
     #[test]
     fn flavor_to_pac_conversion() {
-        assert_eq!(Flavor::GnuC11.to_pac(), pac::driver::Flavor::GnuC11);
-        assert_eq!(Flavor::ClangC11.to_pac(), pac::driver::Flavor::ClangC11);
-        assert_eq!(Flavor::StdC11.to_pac(), pac::driver::Flavor::StdC11);
+        assert_eq!(Flavor::GnuC11.to_pac(), parc::driver::Flavor::GnuC11);
+        assert_eq!(Flavor::ClangC11.to_pac(), parc::driver::Flavor::ClangC11);
+        assert_eq!(Flavor::StdC11.to_pac(), parc::driver::Flavor::StdC11);
     }
 
     #[test]

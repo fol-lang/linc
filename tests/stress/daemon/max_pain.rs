@@ -10,14 +10,14 @@ pub struct MaxPainEnvironment {
 
 pub fn max_pain_environment() -> Result<MaxPainEnvironment, LincError> {
     let root_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("test")
+        .join("tests")
         .join("stress")
         .join("daemon");
     let header = root_dir.join("max_pain.h");
 
     if !header.exists() {
         return Err(LincError::InvalidConfig {
-            reason: "combined daemon example requires test/stress/daemon/max_pain.h".into(),
+            reason: "combined daemon example requires tests/stress/daemon/max_pain.h".into(),
         });
     }
 

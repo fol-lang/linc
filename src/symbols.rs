@@ -1043,7 +1043,7 @@ mod tests {
 
     #[test]
     fn symbol_inventory_contract_snapshot_is_consumable() {
-        let json = include_str!("../test/contracts/symbol_inventory_contract_snapshot.json");
+        let json = include_str!("../tests/contracts/symbol_inventory_contract_snapshot.json");
         let inv: SymbolInventory = serde_json::from_str(json).unwrap();
         assert_eq!(inv.format, ArtifactFormat::ElfStaticLibrary);
         assert_eq!(inv.platform, ArtifactPlatform::Elf);
@@ -1055,7 +1055,7 @@ mod tests {
 
     #[test]
     fn decorated_symbol_inventory_fixture_is_consumable() {
-        let json = include_str!("../test/contracts/decorated_symbol_inventory_fixture.json");
+        let json = include_str!("../tests/contracts/decorated_symbol_inventory_fixture.json");
         let inv: SymbolInventory = serde_json::from_str(json).unwrap();
         assert_eq!(inv.kind, ArtifactKind::StaticLibrary);
         assert_eq!(inv.symbols.len(), 1);
@@ -1067,7 +1067,7 @@ mod tests {
 
     #[test]
     fn windows_import_library_fixture_is_consumable() {
-        let json = include_str!("../test/contracts/windows_import_library_fixture.json");
+        let json = include_str!("../tests/contracts/windows_import_library_fixture.json");
         let inv: SymbolInventory = serde_json::from_str(json).unwrap();
         assert_eq!(inv.format, ArtifactFormat::CoffImportLibrary);
         assert_eq!(inv.platform, ArtifactPlatform::Windows);

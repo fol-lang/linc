@@ -1,12 +1,12 @@
-#[path = "../test/stress/libcurl.rs"]
+#[path = "stress/libcurl.rs"]
 mod libcurl;
-#[path = "../test/stress/libpcap.rs"]
+#[path = "stress/libpcap.rs"]
 mod libpcap;
-#[path = "../test/stress/openssl.rs"]
+#[path = "stress/openssl.rs"]
 mod openssl;
-#[path = "../test/stress/plugin.rs"]
+#[path = "stress/plugin.rs"]
 mod plugin;
-#[path = "../test/stress/zlib.rs"]
+#[path = "stress/zlib.rs"]
 mod zlib;
 
 #[test]
@@ -118,7 +118,7 @@ fn plugin_abi_example_is_code_driven_and_consumable() {
     let config = plugin::plugin_abi_header_config().unwrap();
     let result = plugin::analyze_plugin_abi().unwrap();
 
-    assert!(environment.header.ends_with("test/stress/plugin_abi.h"));
+    assert!(environment.header.ends_with("tests/stress/plugin_abi.h"));
     assert!(config
         .linking()
         .link_libraries

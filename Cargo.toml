@@ -13,11 +13,10 @@ default = ["symbols"]
 symbols = ["dep:object"]
 
 [dependencies]
-pac = { git = "https://github.com/follang/pac" }
+parc = { path = "../parc", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 object = { version = "0.36", default-features = false, features = ["read", "elf", "macho", "coff", "pe"], optional = true }
 
-[[test]]
-name = "corpus"
-path = "test/corpus.rs"
+[dev-dependencies]
+parc = { path = "../parc" }

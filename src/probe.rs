@@ -1,11 +1,9 @@
 use std::path::PathBuf;
 
-use pac::ast::TranslationUnit;
 use serde::{Deserialize, Serialize};
 
 use crate::error::LincError;
-use crate::extract::Extractor;
-use crate::ir::{BindingItem, BindingTarget, TypeLayout};
+use crate::ir::{BindingTarget, TypeLayout};
 use crate::raw_headers::{Flavor, HeaderConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,13 +68,25 @@ pub fn probe_type_layouts(
     config: &HeaderConfig,
     type_names: &[impl AsRef<str>],
 ) -> Result<AbiProbeReport, LincError> {
+    probe_type_layouts_with_fields(config, type_names, &std::collections::BTreeMap::new())
+}
+
+/// Probe ABI layouts for the given type names, using pre-extracted field specs
+/// (from an existing `BindingPackage`) for field-level offset probing.
+///
+/// When `field_specs` is empty, only sizeof/alignof are measured (no field offsets).
+/// Field specs keys should be qualified type names like `"struct foo"` or `"union bar"`.
+pub fn probe_type_layouts_with_fields(
+    config: &HeaderConfig,
+    type_names: &[impl AsRef<str>],
+    field_specs: &std::collections::BTreeMap<String, Vec<ProbedFieldSpec>>,
+) -> Result<AbiProbeReport, LincError> {
     config.validate()?;
     if type_names.is_empty() {
         return Err(LincError::NoProbeTypes);
     }
 
     let compiler = compiler_command(config);
-    let field_specs = collect_record_field_specs(config);
     let temp_root = temp_probe_root();
     std::fs::create_dir_all(&temp_root)?;
     let source_path = temp_root.join("probe.c");
@@ -255,10 +265,15 @@ struct ParsedProbeLayout {
     fields: Vec<ProbedFieldLayout>,
 }
 
+/// Describes a field to be probed for offset measurement.
+///
+/// Callers construct these from existing IR (`RecordBinding.fields`) and pass them
+/// to [`probe_type_layouts_with_fields`] so the probe can measure `offsetof` without
+/// needing a parser.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ProbedFieldSpec {
-    name: String,
-    bit_width: Option<u64>,
+pub struct ProbedFieldSpec {
+    pub name: String,
+    pub bit_width: Option<u64>,
 }
 
 fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError> {
@@ -432,90 +447,6 @@ fn parse_layout_output(stdout: &str) -> Result<Vec<ParsedProbeLayout>, LincError
     Ok(entries)
 }
 
-// ─── Source-only helpers ────────────────────────────────────────────────
-// The functions below depend on `pac` AST parsing and `Extractor` to discover
-// record field metadata before building the probe C source.  They are source-
-// facing and would move upstream to PARC if probe field-spec extraction were
-// generalized as a frontend concern.  The measurement/evidence entry point
-// (`probe_type_layouts`) and output parsing (`parse_layout_output`) above are
-// the real LINC-owned ABI evidence logic.
-
-fn collect_record_field_specs(
-    config: &HeaderConfig,
-) -> std::collections::BTreeMap<String, Vec<ProbedFieldSpec>> {
-    let unit = match parse_probe_translation_unit(config) {
-        Some(unit) => unit,
-        None => return std::collections::BTreeMap::new(),
-    };
-    let extractor = Extractor::new();
-    let (items, _) = extractor.extract(&unit);
-    let mut fields = std::collections::BTreeMap::new();
-    for item in items {
-        if let BindingItem::Record(record) = item {
-            let key = match (record.kind, record.name.as_deref()) {
-                (_, None) => continue,
-                (crate::ir::RecordKind::Struct, Some(name)) => format!("struct {}", name),
-                (crate::ir::RecordKind::Union, Some(name)) => format!("union {}", name),
-            };
-            let named_fields = record
-                .fields
-                .unwrap_or_default()
-                .into_iter()
-                .filter_map(|field| {
-                    Some(ProbedFieldSpec {
-                        name: field.name?,
-                        bit_width: field.bit_width,
-                    })
-                })
-                .collect::<Vec<_>>();
-            if !named_fields.is_empty() {
-                fields.insert(key, named_fields);
-            }
-        }
-    }
-    fields
-}
-
-fn parse_probe_translation_unit(config: &HeaderConfig) -> Option<TranslationUnit> {
-    let combined = config
-        .entry_headers
-        .iter()
-        .map(|header| format!("#include \"{}\"\n", header.display()))
-        .collect::<String>();
-    let tmp_root = temp_probe_root().join("parse");
-    std::fs::create_dir_all(&tmp_root).ok()?;
-    let tmp_file = tmp_root.join("linc_probe_fields.c");
-    std::fs::write(&tmp_file, combined).ok()?;
-    let compiler = compiler_command(config);
-    let flavor = config.flavor.unwrap_or(Flavor::GnuC11);
-    let mut cpp_options = vec!["-E".to_string()];
-    for dir in &config.include_dirs {
-        cpp_options.push(format!("-I{}", dir.display()));
-    }
-    for (name, value) in &config.defines {
-        match value {
-            Some(value) => cpp_options.push(format!("-D{}={}", name, value)),
-            None => cpp_options.push(format!("-D{}", name)),
-        }
-    }
-    let result = pac::driver::parse(
-        &pac::driver::Config {
-            cpp_command: compiler,
-            cpp_options,
-            flavor: match flavor {
-                Flavor::GnuC11 => pac::driver::Flavor::GnuC11,
-                Flavor::ClangC11 => pac::driver::Flavor::ClangC11,
-                Flavor::StdC11 => pac::driver::Flavor::StdC11,
-            },
-        },
-        &tmp_file,
-    )
-    .ok()
-    .map(|parsed| parsed.unit);
-    cleanup_probe_root(&tmp_root);
-    result
-}
-
 fn temp_probe_root() -> PathBuf {
     use std::sync::atomic::{AtomicU64, Ordering};
     static NEXT_ID: AtomicU64 = AtomicU64::new(0);
@@ -580,9 +511,18 @@ mod tests {
         )
         .unwrap();
 
-        let report = probe_type_layouts(
+        let mut field_specs = std::collections::BTreeMap::new();
+        field_specs.insert(
+            "struct widget".to_string(),
+            vec![
+                ProbedFieldSpec { name: "a".into(), bit_width: None },
+                ProbedFieldSpec { name: "b".into(), bit_width: None },
+            ],
+        );
+        let report = probe_type_layouts_with_fields(
             &HeaderConfig::new().header(&header),
             &["value_t", "struct widget"],
+            &field_specs,
         )
         .unwrap();
 
@@ -673,7 +613,7 @@ mod tests {
 
     #[test]
     fn probe_report_contract_snapshot_is_consumable() {
-        let json = include_str!("../test/contracts/probe_report_contract_snapshot.json");
+        let json = include_str!("../tests/contracts/probe_report_contract_snapshot.json");
         let report: AbiProbeReport = serde_json::from_str(json).unwrap();
         assert_eq!(report.compiler_command, "clang");
         assert_eq!(report.target.compiler_command.as_deref(), Some("clang"));
@@ -685,7 +625,7 @@ mod tests {
 
     #[test]
     fn probe_record_contract_snapshot_is_consumable() {
-        let json = include_str!("../test/contracts/probe_record_contract_snapshot.json");
+        let json = include_str!("../tests/contracts/probe_record_contract_snapshot.json");
         let report: AbiProbeReport = serde_json::from_str(json).unwrap();
         assert_eq!(report.subjects.len(), 2);
         assert_eq!(report.subjects[0].kind, ProbeSubjectKind::Record);
@@ -792,8 +732,20 @@ mod tests {
         std::fs::write(&header, "struct flags { unsigned value:3; unsigned other:5; };\n")
             .unwrap();
 
-        let report = probe_type_layouts(&HeaderConfig::new().header(&header), &["struct flags"])
-            .unwrap();
+        let mut field_specs = std::collections::BTreeMap::new();
+        field_specs.insert(
+            "struct flags".to_string(),
+            vec![
+                ProbedFieldSpec { name: "value".into(), bit_width: Some(3) },
+                ProbedFieldSpec { name: "other".into(), bit_width: Some(5) },
+            ],
+        );
+        let report = probe_type_layouts_with_fields(
+            &HeaderConfig::new().header(&header),
+            &["struct flags"],
+            &field_specs,
+        )
+        .unwrap();
 
         assert_eq!(report.subjects.len(), 1);
         assert_eq!(report.subjects[0].fields.len(), 2);

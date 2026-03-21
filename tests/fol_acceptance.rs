@@ -122,7 +122,7 @@ fn fol_link_plan_is_ready(plan: &FolResolvedLinkPlan) -> bool {
 
 #[test]
 fn fol_acceptance_binding_scan_flow_stays_consumable() {
-    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/tricky_layouts.h");
+    let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_layouts.h");
     let result = linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("struct packed_flags")
@@ -150,7 +150,7 @@ fn fol_acceptance_binding_scan_flow_stays_consumable() {
 #[test]
 fn fol_acceptance_layout_backed_binding_flow_stays_consumable() {
     let header =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures/typedef_layout_bridge.h");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/typedef_layout_bridge.h");
     let result = linc::HeaderConfig::new()
         .entry_header(&header)
         .probe_type_layout("widget_t")
@@ -193,7 +193,7 @@ fn fol_acceptance_native_binding_and_link_flow_stays_consumable() {
     });
 
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/linux_elf_inventory_fixture.json"
+        "../tests/contracts/linux_elf_inventory_fixture.json"
     ))
     .unwrap();
 
@@ -238,7 +238,7 @@ fn fol_acceptance_native_binding_and_link_flow_stays_consumable() {
 #[test]
 fn fol_acceptance_validation_findings_gate_generation() {
     let abi_questionable: FolValidationGateReport = serde_json::from_str(include_str!(
-        "../test/contracts/function_abi_questionable_report.json"
+        "../tests/contracts/function_abi_questionable_report.json"
     ))
     .unwrap();
     assert!(fol_should_gate_on_validation(&abi_questionable));
@@ -247,7 +247,7 @@ fn fol_acceptance_validation_findings_gate_generation() {
     assert_eq!(abi_questionable.matches[0].status, MatchStatus::AbiShapeMismatch);
 
     let duplicate_providers: FolValidationGateReport = serde_json::from_str(include_str!(
-        "../test/contracts/validation_duplicate_provider_report.json"
+        "../tests/contracts/validation_duplicate_provider_report.json"
     ))
     .unwrap();
     assert!(fol_should_gate_on_validation(&duplicate_providers));
@@ -280,7 +280,7 @@ fn fol_acceptance_resolved_link_plan_stays_consumable() {
     });
 
     let inventory: SymbolInventory = serde_json::from_str(include_str!(
-        "../test/contracts/linux_elf_inventory_fixture.json"
+        "../tests/contracts/linux_elf_inventory_fixture.json"
     ))
     .unwrap();
 
