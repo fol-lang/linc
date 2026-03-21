@@ -24,10 +24,11 @@
 //!
 //! New consumers should start with:
 //!
-//! - [`from_source_package`] to ingest a frontend-neutral [`SourcePackage`]
-//! - [`HeaderConfig`] for raw-header scanning configuration
-//! - [`BindingPackage`] and IR types for serialized machine contracts
-//! - [`to_json`] and [`from_json`] for JSON transport
+//! - [`analyze_source_package`] to turn a frontend-neutral [`SourcePackage`]
+//!   into a [`LinkAnalysisPackage`]
+//! - [`from_source_package`] only when a transitional [`BindingPackage`]
+//!   bridge is still required
+//! - [`HeaderConfig`] only for transitional raw-header scanning
 //! - [`probe_type_layouts`] for compiler-assisted ABI layout probing
 //! - [`inspect_symbols`] for native artifact inventory
 //! - [`validate`] and [`validate_many`] for declaration-vs-artifact validation
@@ -49,9 +50,10 @@
 //! LINC is intentionally a library, not an executable product. The recommended
 //! usage pattern is:
 //!
-//! 1. produce a [`BindingPackage`] by scanning headers or parsing preprocessed input
-//! 2. optionally enrich the package with layout evidence or symbol inventories
-//! 3. serialize and hand the resulting values to downstream build/generation tooling
+//! 1. produce a [`SourcePackage`] in a frontend crate such as `parc`
+//! 2. call [`analyze_source_package`] to obtain a [`LinkAnalysisPackage`]
+//! 3. optionally enrich with layout evidence or symbol inventories
+//! 4. serialize and hand the resulting values to downstream build/generation tooling
 //!
 //! # Current Error-Surface Inventory
 //!

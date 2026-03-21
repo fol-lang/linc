@@ -12,7 +12,7 @@ LINC is a library crate.
 The intended downstream pattern is:
 
 1. call the crate from Rust
-2. obtain structured values such as `BindingPackage`, `SymbolInventory`, and `ValidationReport`
+2. obtain structured values such as `LinkAnalysisPackage`, `SymbolInventory`, and `ValidationReport`
 3. serialize those values only when another tool or process boundary needs them
 
 Consumers should prefer the crate root over deep module imports whenever possible.
@@ -34,8 +34,8 @@ This policy should guide both downstream usage and future maintenance work.
 If you are building on top of LINC, the current intended rules are:
 
 1. prefer crate-root re-exports over deep module imports
-2. use `HeaderConfig` or `PreprocessedInput` as the normal producer entry points
-3. treat `BindingPackage`, `SymbolInventory`, and `ValidationReport` as the primary transport-level contracts
+2. use `analyze_source_package` as the normal contract-first entry point
+3. treat `LinkAnalysisPackage`, `SymbolInventory`, and `ValidationReport` as the primary transport-level contracts
 4. treat diagnostics and validation results as normal structured output, not as ad hoc log text
 5. do not rely on exact `String` error text for durable control flow
 6. do not treat extracted declarations alone as sufficient ABI proof for layout-sensitive generation
@@ -52,14 +52,13 @@ These are the APIs downstream users should prefer first.
 
 | API | Role | Current expectation |
 |---|---|---|
-| `HeaderConfig` | raw-header scanning | preferred public entry point |
-| `PreprocessedInput` | parse preprocessed source | preferred public entry point |
-| `BindingPackage` and re-exported IR types | machine-readable binding contract | preferred public contract |
-| `to_json` / `from_json` | JSON transport | preferred public contract |
+| `analyze_source_package` | source-contract to link-analysis contract | preferred public entry point |
+| `LinkAnalysisPackage` | machine-readable link-analysis contract | preferred public contract |
+| `HeaderConfig` | raw-header scanning | transitional bootstrap entry point |
+| `BindingPackage` and re-exported IR types | migration bridge and low-level IR | transitional public contract |
 | `probe_type_layouts` | compiler-assisted ABI evidence | preferred advanced root API |
 | `inspect_symbols` | native artifact inventory | preferred advanced root API |
 | `validate` / `validate_many` | declaration-vs-artifact checks | preferred advanced root API |
-| `emit_rust_ffi` | baseline Rust FFI generation | preferred optional root API |
 
 This tier is what later API-stability work should protect most aggressively.
 
@@ -97,10 +96,10 @@ If a downstream consumer imports heavily from this tier, it is probably dependin
 Prefer:
 
 - crate-root re-exports
-- `HeaderConfig` for raw scans
-- `PreprocessedInput` for preprocessed inputs
-- root-level JSON helpers
+- `analyze_source_package` for contract-first intake
+- `LinkAnalysisPackage` as the durable downstream link contract
 - root-level validation and symbol APIs
+- `HeaderConfig` only when bootstrapping from raw headers inside the repo
 
 For long-lived downstream integrations, also prefer:
 
@@ -122,7 +121,7 @@ The following are still true today:
 - some public APIs still return `Result<_, String>`
 - some module boundaries are more historical than deliberate
 - the root exports a large raw IR surface because downstream tools genuinely need it
-- the root API is useful, but not yet fully curated for long-term semver confidence
+- `BindingPackage` is still present as migration scaffolding
 
 That is why the next plan phase starts with API cleanup and error-model hardening.
 
@@ -131,7 +130,7 @@ That is why the next plan phase starts with API cleanup and error-model hardenin
 If you are integrating LINC into another crate, treat the following as your safest surface:
 
 1. root-level types and functions
-2. serialized `BindingPackage` / `SymbolInventory` / `ValidationReport` values
+2. serialized `LinkAnalysisPackage` / `SymbolInventory` / `ValidationReport` values
 3. book-level documented behavior, not incidental implementation details
 
 If you need more than that, document exactly which lower-level modules you rely on.
