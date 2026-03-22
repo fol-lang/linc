@@ -23,6 +23,22 @@ driver, and not a Rust generator.
 - there is no backward-compatibility burden for old pipeline shapes
 - repo-local bootstrap utilities are allowed to exist, but they are not the public architecture
 
+## Responsibilities
+
+- consuming source-shaped declarations and declared link intent
+- inspecting native artifacts for symbol evidence
+- probing ABI-relevant layout information
+- validating declarations against binary reality
+- resolving normalized native link requirements
+- emitting evidence artifacts for downstream tools
+
+## Non-responsibilities
+
+- parsing or preprocessing C as the public architecture
+- owning a universal pipeline envelope
+- Rust lowering or code generation
+- downstream runtime or loader policy
+
 The practical consequence is simple:
 
 1. some frontend emits a source artifact
