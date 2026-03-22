@@ -154,7 +154,7 @@ fn probe_subject_report_supports_record_completeness_metadata() {
     let subject = ProbeSubjectReport {
         name: "struct widget".into(),
         kind: ProbeSubjectKind::Record,
-        confidence: ProbeConfidence::MeasuredLayout,
+        confidence: ProbeConfidence::FieldOffsetsMeasured,
         record_completeness: Some(RecordCompleteness::Complete),
         enum_underlying_size: None,
         enum_is_signed: None,
@@ -185,6 +185,17 @@ fn probed_field_layout_supports_partial_bitfield_metadata() {
     let json = serde_json::to_string(&field).unwrap();
     let decoded: ProbedFieldLayout = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, field);
+}
+
+#[test]
+fn probe_confidence_root_type_distinguishes_partial_layout_strength() {
+    let json = serde_json::to_string(&ProbeConfidence::FieldOffsetsMeasured).unwrap();
+    let decoded: ProbeConfidence = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, ProbeConfidence::FieldOffsetsMeasured);
+
+    let json = serde_json::to_string(&ProbeConfidence::PartialBitfieldMeasured).unwrap();
+    let decoded: ProbeConfidence = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, ProbeConfidence::PartialBitfieldMeasured);
 }
 
 #[test]

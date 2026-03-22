@@ -130,6 +130,8 @@ pub enum ProbeSubjectKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProbeConfidence {
     MeasuredLayout,
+    FieldOffsetsMeasured,
+    PartialBitfieldMeasured,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -268,7 +270,7 @@ pub fn probe_type_layouts_with_fields(
         .map(|(type_name, parsed)| ProbeSubjectReport {
             name: type_name.as_ref().to_string(),
             kind: classify_probe_subject(type_name.as_ref()),
-            confidence: ProbeConfidence::MeasuredLayout,
+            confidence: classify_probe_confidence(parsed),
             record_completeness: classify_record_completeness(type_name.as_ref()),
             enum_underlying_size: parsed.enum_underlying_size,
             enum_is_signed: parsed.enum_is_signed,
@@ -305,6 +307,16 @@ fn classify_probe_subject(type_name: &str) -> ProbeSubjectKind {
 fn classify_record_completeness(type_name: &str) -> Option<RecordCompleteness> {
     matches!(classify_probe_subject(type_name), ProbeSubjectKind::Record)
         .then_some(RecordCompleteness::Complete)
+}
+
+fn classify_probe_confidence(parsed: &ParsedProbeLayout) -> ProbeConfidence {
+    if parsed.fields.iter().any(|field| field.bit_width.is_some()) {
+        ProbeConfidence::PartialBitfieldMeasured
+    } else if !parsed.fields.is_empty() {
+        ProbeConfidence::FieldOffsetsMeasured
+    } else {
+        ProbeConfidence::MeasuredLayout
+    }
 }
 
 fn default_probe_confidence() -> ProbeConfidence {
@@ -655,6 +667,10 @@ mod tests {
             ProbeConfidence::MeasuredLayout
         );
         assert_eq!(
+            report.subjects[1].confidence,
+            ProbeConfidence::FieldOffsetsMeasured
+        );
+        assert_eq!(
             report.subjects[1].record_completeness,
             Some(RecordCompleteness::Complete)
         );
@@ -775,6 +791,58 @@ mod tests {
     }
 
     #[test]
+    fn classify_probe_confidence_distinguishes_layout_field_and_bitfield_probes() {
+        let plain = ParsedProbeLayout {
+            layout: TypeLayout {
+                name: "size_t".into(),
+                size: 8,
+                align: 8,
+            },
+            fields: Vec::new(),
+            enum_underlying_size: None,
+            enum_is_signed: None,
+        };
+        let with_fields = ParsedProbeLayout {
+            layout: TypeLayout {
+                name: "struct widget".into(),
+                size: 16,
+                align: 8,
+            },
+            fields: vec![ProbedFieldLayout {
+                name: "value".into(),
+                offset_bytes: Some(0),
+                bit_width: None,
+            }],
+            enum_underlying_size: None,
+            enum_is_signed: None,
+        };
+        let with_bitfield = ParsedProbeLayout {
+            layout: TypeLayout {
+                name: "struct flags".into(),
+                size: 4,
+                align: 4,
+            },
+            fields: vec![ProbedFieldLayout {
+                name: "ready".into(),
+                offset_bytes: None,
+                bit_width: Some(1),
+            }],
+            enum_underlying_size: None,
+            enum_is_signed: None,
+        };
+
+        assert_eq!(classify_probe_confidence(&plain), ProbeConfidence::MeasuredLayout);
+        assert_eq!(
+            classify_probe_confidence(&with_fields),
+            ProbeConfidence::FieldOffsetsMeasured
+        );
+        assert_eq!(
+            classify_probe_confidence(&with_bitfield),
+            ProbeConfidence::PartialBitfieldMeasured
+        );
+    }
+
+    #[test]
     fn probe_report_defaults_confidence_for_older_json() {
         let json = r#"{
           "target": {},
@@ -885,6 +953,10 @@ mod tests {
 
         assert_eq!(report.subjects.len(), 1);
         assert_eq!(report.subjects[0].fields.len(), 2);
+        assert_eq!(
+            report.subjects[0].confidence,
+            ProbeConfidence::PartialBitfieldMeasured
+        );
         assert_eq!(report.subjects[0].fields[0].name, "value");
         assert_eq!(report.subjects[0].fields[0].offset_bytes, None);
         assert_eq!(report.subjects[0].fields[0].bit_width, Some(3));
