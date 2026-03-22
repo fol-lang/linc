@@ -124,7 +124,32 @@ fn vendored_external_library_artifact_roundtrip_stays_consumable() {
         || source
             .declarations
             .iter()
-            .any(|decl| matches!(decl, SourceDeclaration::TypeAlias(alias) if alias.name.starts_with("png_"))));
+        .any(|decl| matches!(decl, SourceDeclaration::TypeAlias(alias) if alias.name.starts_with("png_"))));
+}
+
+#[test]
+fn vendored_zlib_artifact_roundtrip_stays_consumable() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/full_apps/external/zlib/header");
+    let include_dir = root.join("include");
+    let entry = root.join("main.c");
+    let parc_pkg = parc_file_artifact(&entry, &[include_dir]);
+
+    let binding = common::from_parc_package(&parc_pkg);
+    let source: SourcePackage = linc::intake::adapters::from_binding_package(&binding);
+    let analysis = analyze_source_package(&source);
+
+    assert!(source.declarations.len() >= 20);
+    assert!(source
+        .declarations
+        .iter()
+        .any(|decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "deflate")));
+    assert!(source
+        .declarations
+        .iter()
+        .any(|decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "inflate")));
+    assert!(analysis.diagnostics.is_empty());
+    assert!(analysis.declared_link_surface.ordered_inputs.is_empty());
 }
 
 #[test]
