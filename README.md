@@ -134,6 +134,27 @@ The current canonical evidence surfaces are:
 - OpenSSL
 - Linux event-loop stack
 
+## Canonical Corpus
+
+The current LINC production corpus is intentionally named:
+
+- hermetic vendored
+  - zlib
+  - libpng
+  - plugin ABI
+  - combined daemon fixture
+- host-dependent raises
+  - OpenSSL
+  - Linux event-loop stack
+  - epoll and socketcan examples
+- conservative-failure anchors
+  - duplicate-provider fixtures
+  - unresolved-provider fixtures
+  - ABI-questionable validation fixtures
+  - partial-layout and packed-bitfield fixtures
+
+Those are the evidence surfaces LINC should be judged against first.
+
 ## Build And Test
 
 ```sh
