@@ -7,6 +7,16 @@ Read `linc` as an analysis library. It produces evidence artifacts. It does
 not promise that every successful analysis is automatically safe for code
 generation or final build execution.
 
+In the toolchain split:
+
+- `parc` owns source meaning
+- `linc` owns link and binary meaning
+- `gec` owns Rust lowering and emitted build metadata
+
+The boundary rule is strict: `linc/src/**` must not depend on `parc` or `gec`,
+and cross-package translation belongs only in tests, examples, or external
+harnesses.
+
 ## Add the Crate
 
 Use a local path dependency while developing in the workspace:
