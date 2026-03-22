@@ -56,6 +56,21 @@ fn linux_event_loop_example_combines_multiple_system_headers() {
 
 #[cfg(target_os = "linux")]
 #[test]
+fn linux_event_loop_example_is_deterministic_when_available() {
+    if linux_event_loop::linux_event_loop_environment().is_err() {
+        return;
+    }
+
+    let make = || {
+        let result = linux_event_loop::analyze_linux_event_loop().expect("linux event-loop analysis");
+        serde_json::to_string(&result.package).expect("linux event-loop package json")
+    };
+
+    assert_eq!(make(), make());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
 fn epoll_example_is_code_driven_and_consumable() {
     let Ok(environment) = epoll::epoll_environment() else {
         return;
