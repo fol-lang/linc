@@ -19,6 +19,14 @@ The practical release split is:
 - failure suites must keep proving conservative behavior instead of optimistic
   guessing
 
+The grouped failure suites now live in:
+
+- `failure_matrix_link` for unresolved and duplicate provider outcomes
+- `failure_matrix_validation` for hidden, kind-mismatch, and ABI-mismatch
+  validation states
+- `failure_matrix_probe` for invalid bootstrap config and probe
+  unavailable-vs-failed separation
+
 The architectural rule remains the same here too:
 
 - LINC owns evidence and analysis

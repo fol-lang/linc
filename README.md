@@ -80,6 +80,7 @@ The current suite covers:
 - symbol inspection on ELF, Mach-O, and COFF-like inputs
 - ABI probe reports
 - validation reports
+- explicit link, validation, and probe failure matrices
 - raw-header bootstrap flows
 - artifact-boundary tests using upstream fixtures
 - large hostile/library surfaces such as zlib, libpng, libcurl, OpenSSL, and epoll
@@ -102,6 +103,7 @@ The current hardening ladder is easiest to read in four buckets:
   - unresolved providers
   - hidden or decorated symbol mismatches
   - ABI-questionable fixtures and partial layout evidence
+  - explicit link, validation, and probe failure matrices
 - determinism anchors
   - zlib
   - libpng
