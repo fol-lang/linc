@@ -4,14 +4,14 @@ This chapter defines the coordination policy between LINC and downstream consume
 
 The goal is to avoid accidental wire-contract drift across repositories.
 
-## Compatibility Keys
+## Artifact Keys
 
 The intended keys are:
 
-- `schema_version` for machine-contract compatibility
+- `schema_version` for machine-contract consumption
 - crate/repo versions for provenance and release coordination
 
-`schema_version` is the primary technical compatibility gate.
+`schema_version` is the primary technical artifact gate.
 
 ## Coordination Rules
 
@@ -42,9 +42,10 @@ For breaking changes:
 
 `fol` should treat new LINC producer versions as:
 
-- compatible if the relied-on `schema_version` contract is still supported
+- consumable if the relied-on `schema_version` contract is still supported
 - potentially behaviorally different if new optional fields appear
-- incompatible if the supported schema contract changes beyond what `fol` understands
+- not consumable if the supported schema contract changes beyond what `fol`
+  understands
 
 ## Recommended Workflow
 

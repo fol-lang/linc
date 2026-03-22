@@ -47,12 +47,12 @@ The stable pattern is:
 
 That is more durable than guessing from whether an operation happened to return `Ok(...)`.
 
-## Pattern 4: Gate Compatibility On `schema_version`
+## Pattern 4: Gate Artifact Consumption On `schema_version`
 
 If your tool stores or consumes package JSON:
 
 - gate on `schema_version`
-- treat `linc_version` as provenance, not wire compatibility
+- treat `linc_version` as provenance, not as the artifact gate
 - keep fixture coverage for the payload shapes you rely on
 
 This is safer than keying behavior off the producing crate version string.

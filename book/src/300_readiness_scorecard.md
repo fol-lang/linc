@@ -41,7 +41,7 @@ The main remaining open items after the current follow-up cycle are:
 - readiness: high
 - basis:
   - schema-version gate
-  - compatibility fixtures
+  - artifact fixtures
   - additive defaulting on evolving fields
 
 ### ABI Layout Evidence

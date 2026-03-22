@@ -12,7 +12,7 @@
   - [Validation](./090_validation.md)
 - [API Contract](./100_api_contract.md)
   - [Contracts And Policy](./115_contracts_and_policy.md)
-  - [JSON Compatibility](./120_json_compatibility.md)
+  - [JSON Artifacts](./120_json_compatibility.md)
   - [Error Surface](./130_error_surface.md)
   - [Error Taxonomy](./140_error_taxonomy.md)
   - [Field Stability](./150_field_stability.md)

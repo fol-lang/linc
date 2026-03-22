@@ -5,7 +5,7 @@ This section groups the durable contract and policy chapters.
 Read this section when you need to answer questions such as:
 
 - what parts of the public API are intended to stay stable
-- what JSON compatibility means in practice
+- what current JSON artifact policy means in practice
 - which failures are operational errors versus report data
 - which fields are identity, stable transport, or evolving evidence
 

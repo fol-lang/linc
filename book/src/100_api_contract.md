@@ -68,7 +68,7 @@ These modules are public and useful, but they are closer to the implementation.
 |---|---|---|
 | `extract` | useful for direct extraction flows | lower-level than crate-root workflows |
 | `probe` | useful for direct probe control | less curated than root API |
-| `raw_headers` | exposes scan orchestration details | transitional repo-facing surface, not the normal downstream API |
+| `raw_headers` | exposes repo-local scan orchestration details | bootstrap-oriented surface, not the normal downstream API |
 | `symbols` | useful for direct artifact work | implementation-shaped details still live here |
 | `validate` | useful for direct report logic | root re-exports are preferred |
 
