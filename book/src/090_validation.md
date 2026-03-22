@@ -179,7 +179,9 @@ consumers can distinguish:
 - stronger routine evidence such as count plus return/parameter shape
 - mismatched routine evidence where the symbol exists but the observed routine shape disagrees
 
-The older `matches` list remains available as the flatter compatibility surface.
+The flattened `matches` list remains part of the current documented validation
+artifact. It exists because current consumers and tests still use it, not
+because `linc` is carrying a permanent legacy layer for discarded shapes.
 
 ## Confidence
 

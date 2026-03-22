@@ -3,7 +3,7 @@
 Use this checklist whenever a release includes changes to schema, public API, or checked-in
 contract fixtures.
 
-The goal is to make compatibility-impacting changes deliberate rather than accidental.
+The goal is to make contract-impacting changes deliberate rather than accidental.
 
 ## Schema Changes
 
@@ -13,8 +13,8 @@ Before releasing a schema-affecting change:
 - keep `schema_version` unchanged for additive/defaulted changes
 - bump `schema_version` only when older consumers can no longer deserialize or safely interpret the
   payload
-- add or update compatibility fixtures that demonstrate the intended behavior
-- verify older fixture shapes still deserialize when compatibility is claimed
+- add or update contract fixtures that demonstrate the intended behavior
+- only keep older fixture shapes when the current documented artifact still claims to accept them
 
 ## Public API Changes
 
@@ -49,7 +49,7 @@ Ask these before tagging a release:
 - did this change alter what downstream code can safely rely on?
 - did fixture coverage change to prove that new reliance boundary?
 - did the docs change to describe the same boundary?
-- would an older consumer misread the new payload or semantics?
+- would a consumer that still claims to understand this schema line misread the new payload or semantics?
 
 If the answer to any of those questions is "yes" and the release notes do not explain it yet,
 the release is not ready.

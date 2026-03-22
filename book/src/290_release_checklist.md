@@ -19,7 +19,7 @@ expected to pin.
 - confirm `BindingPackage` JSON remains consumable by the documented schema version
 - confirm `ValidationReport` fixture coverage still matches current structured fields
 - confirm `ResolvedLinkPlan` remains consumable through the documented downstream subset
-- confirm new additive fields use `#[serde(default)]` where compatibility requires it
+- confirm new additive fields use `#[serde(default)]` only when the documented artifact shape needs it
 
 ## Documentation
 
@@ -50,5 +50,5 @@ LINC is ready to release only when:
 - the code builds
 - the tests pass
 - the documented contract still matches the code
-- the compatibility fixtures still match the intended consumer boundary
+- the contract fixtures still match the intended consumer boundary
 - the current platform/support claims are still true

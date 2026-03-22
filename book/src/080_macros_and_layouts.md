@@ -127,7 +127,9 @@ For bitfields, the current probe surface is intentionally partial:
 That is deliberate. LINC preserves width evidence where it can, but does not guess a byte offset
 for bitfields when the probe path cannot establish one safely.
 
-The older `layouts` array is still preserved as a flattened compatibility surface.
+The flattened `layouts` array remains part of the current documented artifact
+shape. It should be treated as today's supported layout summary, not as a
+promise to preserve every older layout envelope forever.
 
 ## Probe Degradation Semantics
 

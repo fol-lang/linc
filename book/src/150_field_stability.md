@@ -1,9 +1,11 @@
 # Field Stability
 
-This chapter classifies the current `BindingPackage` contract by stability expectations.
+This chapter classifies the current `BindingPackage` artifact by stability
+expectations.
 
-It does not mean every field is forever frozen.
-It means downstream consumers now have an explicit guide for what is safer to rely on.
+It does not mean every field is frozen forever.
+It means downstream consumers have an explicit guide for what is safer to rely
+on in the currently documented and tested shape.
 
 ## Top-Level `BindingPackage`
 
@@ -15,13 +17,13 @@ The top-level package fields fall into three practical groups:
 
 ## Contract Identity Fields
 
-These are the primary package identity and compatibility fields:
+These are the primary package identity and artifact-shape fields:
 
 | Field | Current classification | Notes |
 |---|---|---|
-| `schema_version` | required contract field | compatibility gate |
-| `linc_version` | stable provenance field | producer version, not the main compatibility key |
-| `source_path` | useful provenance field | helpful, but not the primary compatibility anchor |
+| `schema_version` | required contract field | artifact-shape gate |
+| `linc_version` | stable provenance field | producer version, not the main shape gate |
+| `source_path` | useful provenance field | helpful, but not the primary artifact anchor |
 
 ## Stable Container Fields
 
@@ -130,8 +132,8 @@ Consumers should avoid assuming the current set of diagnostic kinds is final.
 Today, the safest posture is:
 
 1. rely on top-level package sections and documented meanings
-2. treat nested metadata as additive/defaultable unless explicitly documented as a compatibility gate
-3. use `schema_version` as the hard compatibility boundary
+2. treat nested metadata as additive/defaultable unless explicitly documented as a shape gate
+3. use `schema_version` as the hard artifact boundary
 4. avoid assuming current minimal models are final models
 
 This is the right balance between "the contract is meaningless" and "every nested field is frozen forever."
