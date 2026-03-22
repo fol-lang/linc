@@ -133,6 +133,8 @@ Those are the confidence anchors LINC should be judged against first.
 - explicit runtime-loader boundary surfaces
 - at least one OpenSSL-style host-dependent evidence target
 - at least one combined Linux/system evidence target
+- for whole-pipeline production claims, confirm the current downstream `gerc`
+  canonical anchors still ingest `linc` evidence cleanly in tests/examples
 
 The current canonical evidence surfaces are:
 
@@ -164,6 +166,10 @@ The current LINC production corpus is intentionally named:
   - partial-layout and packed-bitfield fixtures
 
 Those are the evidence surfaces LINC should be judged against first.
+
+Whole-pipeline readiness is stricter than crate-local readiness: downstream
+`gerc` canonical anchors are part of the final production bar even though
+`linc/src/**` must not depend on `gerc`.
 
 ## Build And Test
 

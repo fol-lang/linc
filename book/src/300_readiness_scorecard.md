@@ -14,6 +14,9 @@ LINC should currently be read as:
 - still dependent on host availability for the largest OpenSSL and Linux-system
   ladders
 
+For whole-pipeline claims, this score is also capped by downstream `gerc`
+anchors that ingest `linc` evidence in tests/examples.
+
 ## Subsystem Scorecard
 
 - source-shaped intake: high
