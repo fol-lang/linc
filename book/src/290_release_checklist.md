@@ -20,6 +20,10 @@ Use this checklist before cutting a release candidate.
   - Linux event-loop stack
 - confirm failure suites still reject duplicate, unresolved, hidden, decorated,
   and ABI-questionable cases conservatively
+- confirm plugin-style `dl` surfaces still produce explicit runtime-boundary
+  notes instead of over-claiming runtime truth
+- confirm the hermetic ELF static, Mach-O framework, and Windows PE fixture
+  suite still passes
 - confirm determinism anchors still hold on the canonical large surfaces
 
 ## Contract Surfaces

@@ -103,10 +103,12 @@ The current hardening ladder is easiest to read in four buckets:
   - unresolved providers
   - hidden or decorated symbol mismatches
   - ABI-questionable fixtures and partial layout evidence
+  - explicit runtime-loader boundary notes on plugin-style surfaces
   - explicit link, validation, and probe failure matrices
   - explicit typed operational-error matrix
   - explicit ELF/Mach-O/Windows confidence-floor matrix
   - explicit Mach-O provider-policy matrix
+  - expanded hermetic ELF/Mach-O/Windows artifact fixtures
 - determinism anchors
   - zlib
   - libpng
@@ -128,6 +130,7 @@ Those are the confidence anchors LINC should be judged against first.
 - typed operational-error matrix
 - ELF/Mach-O/Windows confidence-floor matrix
 - Mach-O framework and dylib provider-policy matrix
+- explicit runtime-loader boundary surfaces
 - at least one OpenSSL-style host-dependent evidence target
 - at least one combined Linux/system evidence target
 
