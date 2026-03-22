@@ -33,5 +33,6 @@
   - [Reproducibility](./270_reproducibility.md)
   - [Link Resolution Boundary](./280_link_resolution_boundary.md)
   - [Release Checklist](./290_release_checklist.md)
+  - [Hermeticity Matrix](./295_hermeticity_matrix.md)
   - [Readiness Scorecard](./300_readiness_scorecard.md)
   - [Contract Change Checklist](./310_contract_change_checklist.md)

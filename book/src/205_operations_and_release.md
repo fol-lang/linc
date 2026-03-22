@@ -12,6 +12,13 @@ and serialized, not launched as a separate end-user service.
 A release should be judged on build and test health, JSON contract stability,
 documentation alignment, fixture coverage, and platform support posture.
 
+The practical release split is:
+
+- hermetic vendored baselines must stay green everywhere
+- host-dependent large evidence ladders should stay green where available
+- failure suites must keep proving conservative behavior instead of optimistic
+  guessing
+
 The architectural rule remains the same here too:
 
 - LINC owns evidence and analysis
