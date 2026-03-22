@@ -2,6 +2,12 @@
 
 This chapter ties the separate surfaces together into practical workflows.
 
+Read the workflows in this order:
+
+1. start from `SourcePackage` when a frontend already exists
+2. attach artifact evidence only when you actually need it
+3. keep repo-local bootstrap flows secondary
+
 ## Workflow 1: Analyze A Source Contract And Save JSON
 
 ```rust
@@ -32,26 +38,7 @@ artifact into `linc` input and then run `analyze_source_package(...)`.
 
 That translator should live outside `linc/src/**`.
 
-## Workflow 3: Repo-Local Raw-Header Bootstrap
-
-```rust
-use linc::analyze_source_package;
-use linc::raw_headers::HeaderConfig;
-
-let result = HeaderConfig::new()
-    .header("include/demo.h")
-    .include_dir("include")
-    .process()?;
-
-let source = linc::intake::adapters::from_binding_package(&result.package);
-let analysis = analyze_source_package(&source);
-```
-
-This exists as a repo-local bootstrap path for difficult fixtures and
-repository self-hosting. It is not the package boundary that downstream tools
-should depend on.
-
-## Workflow 4: Inspect A Native Artifact
+## Workflow 3: Inspect A Native Artifact
 
 ```rust
 use linc::inspect_symbols;
@@ -69,7 +56,7 @@ Typical reasons:
 - checking archive member provenance
 - checking shared-library dependency edges
 
-## Workflow 5: Validate Source-Derived Bindings Against Artifacts
+## Workflow 4: Validate Source-Derived Bindings Against Artifacts
 
 ```rust
 use linc::{inspect_symbols, validate, SourcePackage};
@@ -94,7 +81,7 @@ let support = inspect_symbols("build/libsupport.a")?;
 let report = validate_many(&binding, &[core, support]);
 ```
 
-## Workflow 6: Extract Just The Link Surface
+## Workflow 5: Extract Just The Link Surface
 
 ```rust
 let declared = &analysis.declared_link_surface;
@@ -108,6 +95,39 @@ This is the useful boundary if a downstream tool only wants:
 - framework inputs
 - platform constraints
 - ordering and link preference metadata
+
+## Workflow 6: Downstream `fol` / `gerc` Consumption
+
+The intended downstream pattern is:
+
+1. `parc` produces a PARC-owned source artifact
+2. tests/examples/harnesses translate that artifact into `linc` input
+3. `linc` produces `LinkAnalysisPackage`
+4. downstream generation reads source and link analysis in parallel
+5. downstream generation reads `analysis.resolved_link_plan` to construct native link inputs
+6. downstream generation may use validation output as a gate or diagnostic surface
+
+That division keeps `linc` focused on analysis and evidence rather than parser
+ownership or final build execution.
+
+## Workflow 7: Repo-Local Raw-Header Bootstrap
+
+```rust
+use linc::analyze_source_package;
+use linc::raw_headers::HeaderConfig;
+
+let result = HeaderConfig::new()
+    .header("include/demo.h")
+    .include_dir("include")
+    .process()?;
+
+let source = linc::intake::adapters::from_binding_package(&result.package);
+let analysis = analyze_source_package(&source);
+```
+
+This exists as a repo-local bootstrap path for difficult fixtures and
+repository self-hosting. It is not the package boundary that downstream tools
+should depend on.
 
 ## Workflow 7: ABI-Sensitive Packages
 
@@ -135,20 +155,6 @@ This gives you:
 - symbol-provider evidence
 - a source-level contract that can be re-analyzed
 - a separate validation decision surface
-
-## Workflow 8: Downstream `fol` / `gerc` Consumption
-
-The intended downstream pattern is:
-
-1. `parc` produces a PARC-owned source artifact
-2. tests/examples/harnesses translate that artifact into `linc` input
-3. `linc` produces `LinkAnalysisPackage`
-4. downstream generation reads source and link analysis in parallel
-5. downstream generation reads `analysis.resolved_link_plan` to construct native link inputs
-6. downstream generation may use validation output as a gate or diagnostic surface
-
-That division keeps `linc` focused on analysis and evidence rather than parser
-ownership or final build execution.
 
 ## Recommended Validation Gate
 
