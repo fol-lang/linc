@@ -17,6 +17,10 @@ LINC should currently be read as:
 For whole-pipeline claims, this score is also capped by downstream `gerc`
 anchors that ingest `linc` evidence in tests/examples.
 
+For Level 1 production, this score should be read as Linux/ELF-first. Apple
+and Windows readiness should raise confidence, not redefine the primary
+production envelope.
+
 ## Subsystem Scorecard
 
 - source-shaped intake: high
@@ -37,6 +41,7 @@ The release posture should be judged against these anchors first:
 - vendored libpng
 - plugin ABI fixture
 - combined daemon fixture
+- difficult-record evidence fixtures
 - OpenSSL when available
 - Linux event-loop analysis when available
 

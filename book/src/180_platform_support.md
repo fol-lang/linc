@@ -23,3 +23,9 @@ repository, and it is reasonable for controlled internal use.
 - prefer Linux/ELF for the most mature end-to-end native validation path
 - treat Apple support as useful but still maturing
 - treat Windows-native linker/artifact support as incomplete
+
+For the Level 1 production claim, interpret that as:
+
+- Linux/ELF = primary production platform
+- Apple/Mach-O = secondary confidence scope
+- Windows/COFF = tested but non-primary confidence scope

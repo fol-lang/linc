@@ -6,6 +6,31 @@ toolchain.
 It owns evidence: declared native inputs, discovered artifacts, resolved link
 plans, ABI probe results, and validation findings.
 
+## Scoped Production Statement
+
+The current Level 1 production claim for the whole pipeline is:
+
+- Linux/ELF-first
+- canonical-corpus-backed
+- conservative where platform or ABI evidence is still incomplete
+
+For LINC specifically, that means:
+
+- production-ready as the primary evidence layer for Linux/ELF-first workflows
+- Apple/Mach-O remains a secondary confidence ladder
+- Windows/COFF remains useful and tested, but is not part of the first
+  production envelope
+
+## Level 1 Support Matrix
+
+| Area | Level 1 status | Notes |
+|---|---|---|
+| Linux / ELF workflows | primary production scope | Strongest current evidence path. |
+| Apple / Mach-O workflows | secondary confidence scope | Useful, but still more conservative than ELF. |
+| Windows / COFF workflows | non-primary confidence scope | Tested and useful, but not in the first production claim. |
+| difficult layout evidence | partial but explicit | Exact-vs-partial confidence remains part of the contract. |
+| runtime-loader truth | intentionally out of scope | LINC models the boundary, not deployment truth. |
+
 ## What LINC Actually Exposes Today
 
 There are two real consumer layers in the crate:
@@ -118,6 +143,10 @@ The current hardening ladder is easiest to read in four buckets:
 
 Those are the confidence anchors LINC should be judged against first.
 
+For the Level 1 production claim, read those anchors as Linux/ELF-first. The
+Apple and Windows anchors raise confidence, but they do not redefine the
+primary production scope.
+
 ## Release Gates
 
 `linc` should only be treated as release-ready when all of these remain green:
@@ -135,6 +164,21 @@ Those are the confidence anchors LINC should be judged against first.
 - at least one combined Linux/system evidence target
 - for whole-pipeline production claims, confirm the current downstream `gerc`
   canonical anchors still ingest `linc` evidence cleanly in tests/examples
+
+The Level 1 production floor is the hermetic subset of those gates:
+
+- vendored zlib
+- vendored libpng
+- plugin ABI
+- combined daemon fixture
+- difficult-record evidence fixtures
+- ELF/Mach-O/Windows confidence-floor matrix
+
+The host-dependent confidence-raise layer is:
+
+- OpenSSL
+- Linux event-loop stack
+- epoll and socketcan examples
 
 The current canonical evidence surfaces are:
 
