@@ -976,6 +976,36 @@ mod tests {
     }
 
     #[test]
+    fn abi_confidence_summary_helpers_distinguish_exact_and_partial_layouts() {
+        assert!(!AbiConfidence::DeclaredOnly.has_layout_evidence());
+        assert_eq!(AbiConfidence::DeclaredOnly.summary_label(), "declared-only");
+
+        assert!(AbiConfidence::LayoutProbed.has_layout_evidence());
+        assert!(AbiConfidence::LayoutProbed.is_exact_layout_family());
+        assert_eq!(AbiConfidence::LayoutProbed.summary_label(), "layout-probed");
+
+        assert!(AbiConfidence::FieldOffsetsProbed.is_exact_layout_family());
+        assert_eq!(
+            AbiConfidence::FieldOffsetsProbed.summary_label(),
+            "field-offsets-probed"
+        );
+
+        assert!(AbiConfidence::RepresentationProbed.is_exact_layout_family());
+        assert_eq!(
+            AbiConfidence::RepresentationProbed.summary_label(),
+            "representation-probed"
+        );
+
+        assert!(AbiConfidence::PartialBitfieldLayout.has_layout_evidence());
+        assert!(AbiConfidence::PartialBitfieldLayout.is_partial_layout());
+        assert!(!AbiConfidence::PartialBitfieldLayout.is_exact_layout_family());
+        assert_eq!(
+            AbiConfidence::PartialBitfieldLayout.summary_label(),
+            "partial-bitfield-layout"
+        );
+    }
+
+    #[test]
     fn alias_resolution_roundtrip() {
         let resolution = AliasResolution {
             alias_chain: vec!["size_t".into()],

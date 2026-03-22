@@ -273,6 +273,33 @@ pub enum AbiConfidence {
     PartialBitfieldLayout,
 }
 
+impl AbiConfidence {
+    pub fn has_layout_evidence(&self) -> bool {
+        !matches!(self, Self::DeclaredOnly)
+    }
+
+    pub fn is_partial_layout(&self) -> bool {
+        matches!(self, Self::PartialBitfieldLayout)
+    }
+
+    pub fn is_exact_layout_family(&self) -> bool {
+        matches!(
+            self,
+            Self::LayoutProbed | Self::FieldOffsetsProbed | Self::RepresentationProbed
+        )
+    }
+
+    pub fn summary_label(&self) -> &'static str {
+        match self {
+            Self::DeclaredOnly => "declared-only",
+            Self::LayoutProbed => "layout-probed",
+            Self::FieldOffsetsProbed => "field-offsets-probed",
+            Self::RepresentationProbed => "representation-probed",
+            Self::PartialBitfieldLayout => "partial-bitfield-layout",
+        }
+    }
+}
+
 /// Extracted external variable declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariableBinding {
