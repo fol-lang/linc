@@ -6,6 +6,9 @@ The goal is not "bit-for-bit identical on every machine" for every external tool
 The goal is that regressions are explainable, fixtures are stable, and platform-dependent tests are
 clearly classified.
 
+For `linc`, reproducibility is mainly about evidence artifacts and analysis
+results, not about preserving dead envelopes forever.
+
 ## Reproducibility Requirements
 
 The current practical requirements are:
@@ -26,6 +29,15 @@ For stable fixtures:
 The checked-in fixture headers under `test/fixtures/` are part of that rule.
 They exist so tricky layout and macro cases remain regression-tested through the public library
 surface instead of only through inline one-off test strings.
+
+## Contract Tests
+
+The main contract tests for `linc` should prove:
+
+- source intake produces the intended evidence artifacts
+- symbol and validation analysis remain explainable
+- link planning stays deterministic for the same evidence surface
+- serialized artifacts still match the currently documented and tested shape
 
 ## Toolchain-Dependent Tests
 
@@ -61,3 +73,18 @@ For `fol` and other consumers, the most reliable fixtures to depend on are:
 
 That gives a stronger integration boundary than relying only on whatever happens to be installed on
 the developer machine.
+
+## What "supported" means
+
+For `linc`, support means:
+
+- the documented evidence artifacts are tested and reproducible
+- platform/toolchain assumptions are named explicitly where they matter
+- cross-package composition is proven through tests/examples/harnesses instead
+  of library coupling
+
+It does not mean:
+
+- every external machine will produce identical raw native observations
+- old artifact wrappers remain live forever
+- repo-local bootstrap flows are automatically the preferred downstream path
