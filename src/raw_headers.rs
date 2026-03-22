@@ -126,6 +126,23 @@ pub struct ProbeConfigRef<'a> {
     pub probe_types: &'a [String],
 }
 
+/// Lightweight summary of the mixed bootstrap surface still carried by `HeaderConfig`.
+///
+/// This is intentionally small and count-oriented so callers can reason about
+/// which domains are active without treating the whole builder as one flat bag
+/// of options.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HeaderConfigSummary {
+    pub entry_header_count: usize,
+    pub include_dir_count: usize,
+    pub define_count: usize,
+    pub declared_link_input_count: usize,
+    pub probe_type_count: usize,
+    pub native_surface_kind: NativeSurfaceKind,
+    pub preferred_link_mode: LinkResolutionMode,
+    pub has_origin_filter: bool,
+}
+
 impl HeaderConfig {
     /// Create a new scan configuration.
     ///
@@ -478,6 +495,19 @@ impl HeaderConfig {
 
     pub fn filtering(&self) -> Option<&OriginFilter> {
         self.origin_filter.as_ref()
+    }
+
+    pub fn summary(&self) -> HeaderConfigSummary {
+        HeaderConfigSummary {
+            entry_header_count: self.entry_headers.len(),
+            include_dir_count: self.include_dirs.len(),
+            define_count: self.defines.len(),
+            declared_link_input_count: self.ordered_link_inputs.len(),
+            probe_type_count: self.probe_types.len(),
+            native_surface_kind: self.native_surface_kind(),
+            preferred_link_mode: self.preferred_link_mode,
+            has_origin_filter: self.origin_filter.is_some(),
+        }
     }
 
     pub fn validate(&self) -> Result<(), LincError> {
@@ -1514,6 +1544,28 @@ mod tests {
         let probing = cfg.probing();
         assert_eq!(probing.probe_types, &["size_t".to_string()]);
         assert!(cfg.filtering().is_some());
+    }
+
+    #[test]
+    fn config_summary_distinguishes_bootstrap_domains_without_flattening_them() {
+        let cfg = HeaderConfig::new()
+            .entry_header("api.h")
+            .add_include_dir("/usr/include")
+            .define_flag("DEBUG")
+            .link_library("z")
+            .link_framework("Security")
+            .request_probe_type_layout("size_t")
+            .prefer_dynamic_linking();
+
+        let summary = cfg.summary();
+        assert_eq!(summary.entry_header_count, 1);
+        assert_eq!(summary.include_dir_count, 1);
+        assert_eq!(summary.define_count, 1);
+        assert_eq!(summary.declared_link_input_count, 2);
+        assert_eq!(summary.probe_type_count, 1);
+        assert_eq!(summary.native_surface_kind, NativeSurfaceKind::LibraryNames);
+        assert_eq!(summary.preferred_link_mode, LinkResolutionMode::PreferDynamic);
+        assert!(summary.has_origin_filter);
     }
 
     #[test]
