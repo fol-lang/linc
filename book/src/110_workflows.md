@@ -47,8 +47,9 @@ let source = linc::intake::adapters::from_binding_package(&result.package);
 let analysis = analyze_source_package(&source);
 ```
 
-This exists only as a repo-local bootstrap path while difficult test fixtures
-and stress scenarios are being moved fully onto `parc`.
+This exists as a repo-local bootstrap path for difficult fixtures and
+repository self-hosting. It is not the package boundary that downstream tools
+should depend on.
 
 ## Workflow 4: Inspect A Native Artifact
 
@@ -146,7 +147,8 @@ The intended downstream pattern is:
 5. downstream generation reads `analysis.resolved_link_plan` to construct native link inputs
 6. downstream generation may use validation output as a gate or diagnostic surface
 
-That division keeps LINC focused on analysis and normalization rather than owning final build execution.
+That division keeps `linc` focused on analysis and evidence rather than parser
+ownership or final build execution.
 
 ## Recommended Validation Gate
 

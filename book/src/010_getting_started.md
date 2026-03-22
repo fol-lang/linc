@@ -1,11 +1,11 @@
 # Getting Started
 
-This chapter shows the shortest path from "I have parsed source metadata" to "I have
-machine-readable link analysis".
+This chapter shows the shortest path from "I have source-shaped API metadata"
+to "I have machine-readable link and binary evidence".
 
-LINC should be read as a library that produces analysis artifacts.
-It should not be read as a promise that every successful scan is ready for generation without
-additional policy checks.
+Read `linc` as an analysis library. It produces evidence artifacts. It does
+not promise that every successful analysis is automatically safe for code
+generation or final build execution.
 
 ## Add the Crate
 
@@ -56,34 +56,7 @@ fn main() -> Result<(), String> {
 ```
 
 The preferred output contract is `LinkAnalysisPackage`.
-That is the value downstream generators should learn to consume.
-
-## Transitional Raw-Header Scan
-
-```rust
-use linc::{analyze_source_package, HeaderConfig};
-
-let result = HeaderConfig::new()
-    .header("api.h")
-    .include_dir("vendor/include")
-    .library_dir("vendor/lib")
-    .define("MYLIB_FEATURE_X", Some("1".into()))
-    .link_lib("mylib")
-    .link_shared_lib("dl")
-    .probe_type_layout("struct api_context")
-    .process()?;
-
-let analysis = analyze_source_package(&linc::intake::adapters::from_binding_package(&result.package));
-```
-
-This path still exists so the repository can bootstrap itself from real headers, but it is not the
-architectural target.
-
-The long-term split is:
-
-- `parc` owns source/header understanding
-- `linc` owns link and binary evidence
-- `gerc` consumes both in parallel
+That is the main machine-readable artifact downstream tools should consume.
 
 ## JSON Round Trip
 
@@ -110,6 +83,10 @@ The most common downstream pattern is:
 4. Optionally validate against those artifacts
 5. Feed `SourcePackage` plus `LinkAnalysisPackage` into your generator/build system
 
+Cross-package translation belongs outside `linc/src/**`.
+If `parc` emits a serialized source artifact, a test, example, or external
+harness should decode and translate it before calling `linc`.
+
 ## First Things To Inspect
 
 When an analysis result does not look right, inspect these fields first:
@@ -131,10 +108,12 @@ Those surfaces usually tell you whether the problem is:
 
 ## Library-Only Design
 
-LINC is intended to be consumed as a Rust library.
+`linc` is intended to be consumed as a Rust library that owns only link and
+binary evidence concerns.
 
-That means the normal integration path is:
+That means:
 
 1. call `analyze_source_package()` or other library APIs directly
-2. serialize the resulting values if another tool needs JSON
-3. keep executable/tooling policy in the downstream crate rather than in LINC itself
+2. serialize the resulting values if another tool needs artifacts
+3. keep cross-package translation in tests/examples/harnesses
+4. keep final generation and build policy in downstream tools rather than in `linc`

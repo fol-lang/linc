@@ -1,74 +1,99 @@
 # LINC (link and binary evidence)
 
-LINC is a Rust library for link-surface analysis, native-symbol inspection,
-ABI probing, validation, and binary evidence production.
+LINC is the link-analysis layer of the pipeline. It takes source-shaped input,
+normalizes declared native dependencies, inspects real artifacts, validates
+source claims against binary reality, and emits machine-readable evidence.
 
-It sits in the `PARC -> LINC -> GERC` pipeline:
+In the intended architecture:
 
-- **PARC** (`parc`) handles C preprocessing, parsing, and declaration extraction
-- **LINC** (`linc`) consumes normalized source contracts, inspects native artifacts,
-  validates declarations against symbols, and produces link/binary evidence
-- **GERC** (`gec`) consumes that evidence to emit Rust projections
+- `parc` owns source meaning
+- `linc` owns link and binary meaning
+- `gec` owns Rust lowering and emitted build metadata
 
-Architecturally, `linc` owns its own model and artifact.
+Those roles are intentionally separate. `linc` is not a parser, not a header
+driver, and not a Rust generator.
 
-- `linc` library code must not depend on `parc` or `gec`
-- `linc` may use `parc` only in tests/examples or external harnesses
+## Architectural Rules
+
+`linc` owns its own internal model and its own evidence artifacts.
+
+- `linc/src/**` must not depend on `parc` or `gec`
+- cross-package translation belongs only in tests, examples, or external harnesses
 - there is no shared ABI crate
-- if `linc` consumes `parc` output, that translation belongs outside `linc/src/**`
+- there is no backward-compatibility burden for old pipeline shapes
+- repo-local bootstrap utilities are allowed to exist, but they are not the public architecture
+
+The practical consequence is simple:
+
+1. some frontend emits a source artifact
+2. a test, example, or harness translates that artifact into `linc` input
+3. `linc` emits evidence artifacts
+4. a downstream generator consumes those artifacts on its own terms
 
 ## What LINC Produces
 
-- `LinkAnalysisPackage` — machine-readable link and binary evidence derived from a source contract
-- `SymbolInventory` — exported/imported symbols from ELF, Mach-O, COFF, and PE artifacts
-- `ValidationReport` — declaration-vs-artifact match evidence
-- `ResolvedLinkPlan` — normalized link plan with provider matching
+The main output families are:
 
-## Usage
+- `LinkAnalysisPackage`
+  a normalized evidence bundle derived from source intent plus optional binary inspection
+- `SymbolInventory`
+  exported/imported symbol evidence from ELF, Mach-O, COFF, and PE artifacts
+- `ValidationReport`
+  declaration-vs-artifact evidence, including missing and mismatched cases
+- `ResolvedLinkPlan`
+  normalized library/framework/object requirements with provider matching
+
+These are evidence products, not parser products.
+
+## Core Workflow
 
 ```rust
 use linc::{analyze_source_package, SourcePackage};
 
-// Build a source package from any frontend
 let mut src = SourcePackage::default();
-// ... populate declarations, macros, link requirements ...
+// populate declarations, macros, and declared native link requirements
 
-// Convert to LINC's analysis package
 let analysis = analyze_source_package(&src);
-
-// Serialize for downstream tooling
 let json = serde_json::to_string_pretty(&analysis).unwrap();
 ```
 
-Raw-header scanning still exists as a repo-local bootstrap path, but it is not
-the long-term architecture. The preferred story is:
+For more serious native pipelines, the usual sequence is:
 
-1. `parc` or another frontend emits a source artifact
-2. tests/examples or an external harness translate that artifact into `linc` input
-3. `linc` emits a `LinkAnalysisPackage` or other evidence artifacts
+1. analyze declared link surface with `analyze_source_package(...)`
+2. inspect artifacts with `inspect_symbols(...)`
+3. validate source intent with `validate(...)` or `validate_many(...)`
+4. resolve concrete provider choices with `resolve_link_plan(...)`
+5. pass source artifacts and evidence artifacts to the downstream tool
 
-For ABI-sensitive workflows:
+## Artifact Boundary
 
-1. Inspect `analysis.diagnostics`
-2. Probe layouts with `probe_type_layouts(...)`
-3. Inspect artifacts with `inspect_symbols(...)`
-4. Validate with `validate(...)`
-5. Construct link plans with `resolve_link_plan(...)`
+The real integration boundary is serialized artifacts, not shared Rust types
+across crates.
+
+- `parc` may serialize a source artifact
+- tests/examples/harnesses may translate that artifact into `linc` input
+- `linc` may serialize `LinkAnalysisPackage`, `SymbolInventory`, or `ValidationReport`
+- `gec` or another consumer may load those artifacts through its own test/example code
+
+Library code inside `linc` must not be the place where cross-package translation lives.
 
 ## Tested Scope
 
+The suite currently exercises:
+
 - Linux and other ELF-oriented flows
 - macOS / Mach-O inventory and validation evidence
-- Stress-tested against: zlib, libpcap, libcurl, OpenSSL, SocketCAN, epoll
+- split-pipeline artifact tests using `parc` fixtures
+- difficult header surfaces including zlib, libpcap, libcurl, OpenSSL, SocketCAN, epoll, and libpng
 
-## Building
+The tests are the main statement of supported behavior.
+
+## Build And Test
 
 ```sh
 make build
 make test
 ```
-
-The test suite is the primary statement of supported behavior.
 
 ## License
 

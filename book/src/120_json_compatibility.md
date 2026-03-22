@@ -1,152 +1,129 @@
-# JSON Compatibility
+# JSON Artifacts
 
-This chapter defines the intended compatibility model for serialized `BindingPackage` values.
+This chapter describes how `linc` treats serialized JSON artifacts.
 
-That matters because `BindingPackage` is the main machine-to-machine contract between LINC and downstream consumers such as `fol`.
+The important framing is architectural:
+
+- JSON is an artifact format
+- it is not a promise to preserve old pipeline shapes forever
+- the only shapes that matter are the ones currently documented and tested
+
+`linc` does not carry a backward-compatibility burden for discarded designs.
 
 ## First Principle
 
-The compatibility contract is about the meaning of the data, not the exact pretty-printed formatting.
+The artifact contract is about semantic meaning, not pretty-print formatting.
 
-Consumers should depend on:
+Consumers may depend on:
 
-- field names
-- field meanings
-- schema-version behavior
-- documented defaulting behavior
+- documented field names
+- documented field meanings
+- `schema_version`
+- documented defaulting behavior when tests rely on it
 
-Consumers should not depend on:
+Consumers must not depend on:
 
 - whitespace
-- formatting layout
-- incidental field ordering in pretty JSON for semantic correctness
+- pretty-print layout
+- incidental field ordering
+- undocumented fields that happen to be present today
+
+## Main Serialized Artifacts
+
+The main JSON-bearing values are:
+
+- `LinkAnalysisPackage`
+- `SymbolInventory`
+- `ValidationReport`
+- `ResolvedLinkPlan`
+
+Older package names or historical envelopes are not the contract.
 
 ## Version Fields
 
-Two version-like fields exist in the package:
+Two version-like fields matter:
 
 - `schema_version`
 - `linc_version`
 
 They do different jobs.
 
-## `schema_version`
+### `schema_version`
 
-`schema_version` is the compatibility gate.
+`schema_version` is the artifact gate.
 
-Downstream tools should use it to decide whether they understand the payload contract.
+Consumers should use it to decide whether they understand the artifact shape
+they are about to ingest.
 
 Rules:
 
-- if `schema_version` is newer than this build of LINC supports, deserialization should fail
-- if `schema_version` is older, deserialization may still succeed when missing fields are intentionally defaultable
-- schema changes should be deliberate, documented, and fixture-tested
+- if `schema_version` is newer than the consumer understands, reject it
+- if the shape changes in a meaning-changing way, review it explicitly and update tests
+- if a field is only additive and has a safe default, document that choice and test it
 
-## `linc_version`
+### `linc_version`
 
-`linc_version` identifies the producing crate version.
+`linc_version` identifies the producing build.
 
 It is useful for:
 
 - diagnostics
-- auditing
-- reproducing bugs
-- understanding producer provenance
+- audits
+- bug reproduction
+- provenance
 
-It is not the primary compatibility key.
+It is not the primary shape gate.
 
-## Backward Compatibility Expectations
+## Change Policy
 
-The intended backward-compatibility policy for additive evolution is:
+Because these crates are still new, the policy is intentionally strict and
+simple:
 
-- new optional fields should use serde defaults when old payloads can reasonably omit them
-- older payloads should continue to deserialize when their missing data can be represented safely by defaults
-- changes that alter meaning rather than only adding optional data should be treated as schema changes, not silent field growth
-
-Current examples already following this pattern include defaultable nested metadata such as:
-
-- `target`
-- `inputs`
-- `link`
-- macro category defaults
-
-## Forward Compatibility Expectations
-
-Forward compatibility is intentionally conservative.
-
-If a payload advertises a future `schema_version`, LINC should reject it rather than guessing.
-
-That is safer than partially interpreting a payload whose semantics may have changed.
-
-## What Counts As A Schema Change
-
-These cases should generally force explicit compatibility review and likely a schema-version bump:
-
-- changing the meaning of an existing field
-- removing a field that downstream consumers may rely on
-- changing representation in a non-defaultable way
-- tightening semantics such that old values would be misinterpreted
-
-These cases may be compatible without a schema bump if handled deliberately:
-
-- adding a new field with a safe default
-- adding new metadata that older consumers can ignore
-- clarifying documentation without changing wire meaning
-
-## Consumer Guidance
-
-If another tool stores or consumes `BindingPackage` JSON, it should:
-
-1. check `schema_version`
-2. deserialize into documented structures
-3. rely only on documented semantics
-4. avoid depending on undocumented incidental formatting details
-
-For `fol` specifically, this means:
-
-- the package should be treated as a versioned data contract
-- any new relied-on field should be documented explicitly before it becomes part of the stable integration contract
+- do not preserve obsolete artifact envelopes just because they existed earlier
+- do not keep old field layouts alive unless current tests still need them
+- do make semantic changes explicit in docs and fixtures
+- do update `schema_version` when consumers would otherwise misread the artifact
 
 ## Producer Guidance
 
-If a library or build step produces `BindingPackage` JSON for other tools, it should:
+If a tool emits `linc` JSON:
 
 1. preserve `schema_version` exactly
-2. treat additive/defaultable fields as the preferred way to evolve the payload
-3. avoid changing the meaning of an existing field without explicit schema review
-4. avoid using `linc_version` as a substitute for wire compatibility
-5. keep compatibility fixtures in sync with any newly relied-on field
+2. serialize the documented artifact, not an old transitional wrapper
+3. keep fixture coverage in sync with newly relied-on fields
+4. treat `linc_version` as provenance, not as the shape contract
 
-This matters because the producer side can break consumers long before deserialization fails.
+## Consumer Guidance
 
-## Recommended Consumer Posture
+If a tool consumes `linc` JSON:
 
-The safest downstream posture is:
+1. check `schema_version`
+2. deserialize into the currently documented structure
+3. rely on documented semantics only
+4. reject future shapes instead of guessing
 
-- reject payloads whose `schema_version` is newer than the consumer understands
-- accept older payloads only when missing data is intentionally defaultable
-- rely on documented container semantics first
-- treat newer additive metadata as optional until it is explicitly required by the integration contract
+## What Counts As A Real Shape Change
 
-## Additive Evolution Checklist
+These usually require explicit review and likely a schema bump:
 
-Before a new field becomes part of the practical contract, ask:
+- changing the meaning of an existing field
+- removing a relied-on field
+- changing representation so an older consumer would misread the artifact
+- promoting previously incidental data into required semantics
 
-1. can older payloads omit it safely?
-2. does it have a clear default meaning?
-3. would an older consumer misinterpret the payload if it ignored this field?
-4. does downstream tooling plan to rely on it immediately?
+These may stay within the same schema line if documented and tested:
 
-If the answer to item 3 is yes, the change is probably not just additive growth.
+- adding a new field with a safe default
+- adding new metadata that older consumers can ignore without semantic confusion
+- clarifying documentation without changing meaning
 
-## Current Limitations
+## Maintenance Rule
 
-This compatibility policy is still early.
+The tests are the practical statement of the JSON contract.
 
-Today:
+When artifact shapes change:
 
-- `SCHEMA_VERSION` is still conservative relative to how much the IR has grown
-- not every field has been formally classified as stable vs provisional
-- fixture coverage for schema evolution still needs to expand
-
-That is why compatibility policy is being established before more major IR changes land.
+1. update the docs
+2. update or replace the relevant fixtures
+3. update consumers in tests/examples/harnesses
+4. do not carry a dead compatibility layer just to keep an obsolete shape deserializable

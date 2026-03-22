@@ -1,177 +1,49 @@
 # Header Processing
 
-`HeaderConfig` is the transitional bootstrap driver for turning raw headers into a `BindingPackage`.
+`HeaderConfig` exists as a repo-local bootstrap utility for turning raw header
+sets into source-ish input that `linc` can analyze.
 
-It is still useful inside this repo, but it is not the architectural center of LINC.
-The target split is:
+It is documented here because the code still exists and the test corpus still
+uses it in places. It is not the architectural center of `linc`.
 
-- `parc` owns source/header understanding
-- `linc` consumes `SourcePackage`
-- `HeaderConfig` remains only as a temporary convenience path while that split lands
+The intended architecture is:
 
-It owns three separate concerns:
+- a frontend such as `parc` owns preprocessing, parsing, and declaration extraction
+- `linc` consumes source-shaped input and produces evidence
+- cross-package translation belongs outside `linc/src/**`
 
-- how headers are preprocessed
-- which declarations are treated as part of the bindable surface
-- what native-link metadata should be attached to the resulting package
+Read this chapter as operational guidance for a bootstrap utility, not as the
+main contract that downstream tools should build around.
 
-That description is directionally right, but still too coarse for long-term API stability.
-For production use, it is better to think about `HeaderConfig` as five conceptual subdomains.
+## What `HeaderConfig` Is Good For
 
-## Conceptual Subdomains
+`HeaderConfig` is useful when you need to:
 
-`HeaderConfig` currently groups the following configuration domains:
+- bootstrap the repository from real system or vendored headers
+- drive difficult header fixtures without first teaching another frontend every edge case
+- gather preprocessing output, extracted declarations, and probe evidence in one local pass
 
-1. preprocessing inputs
-2. binding-surface inputs
-3. native link declarations
+It is not the preferred downstream boundary.
+The preferred downstream boundary is still:
+
+```text
+source-shaped input -> analyze_source_package(...) -> LinkAnalysisPackage
+```
+
+## Conceptual Domains
+
+Even though `HeaderConfig` is one builder, it carries several distinct domains:
+
+1. preprocessing environment
+2. entry-header selection
+3. declared native-link intent
 4. ABI probe requests
 5. origin-filtering policy
 
-The implementation is still a single builder type.
-This categorization matters because future API cleanup work is likely to preserve these domains even if the concrete type layout changes.
+Those domains are useful when auditing scans because header failures often come
+from one domain while the others are correct.
 
-If you are writing new downstream integration code, do not make `HeaderConfig` your primary
-contract boundary. Prefer `SourcePackage -> LinkAnalysisPackage` instead.
-
-The current library API also exposes borrowed views for these domains, so downstream code can
-already treat them separately without waiting for a full type split:
-
-- `HeaderConfig::preprocessing()`
-- `HeaderConfig::binding_surface()`
-- `HeaderConfig::linking()`
-- `HeaderConfig::probing()`
-- `HeaderConfig::filtering()`
-
-### 1. Preprocessing Inputs
-
-These options exist to make the header stack preprocess and parse correctly:
-
-- `include_dir(...)`
-- `define(...)`
-- `compiler(...)`
-- `flavor(...)`
-
-These are about creating the right translation-unit environment.
-
-### 2. Binding-Surface Inputs
-
-These options define what surface is being scanned:
-
-- `header(...)`
-
-In practice, entry headers define the intended top-level bind surface, while origin filtering later controls how much transitive material remains in the final package.
-
-### 3. Native Link Declarations
-
-These options preserve native dependency intent alongside the extracted API:
-
-- `framework_dir(...)`
-- `library_dir(...)`
-- `link_lib(...)`
-- `link_static_lib(...)`
-- `link_shared_lib(...)`
-- `link_framework(...)`
-- `link_object_file(...)`
-- `link_static_artifact(...)`
-- `link_shared_artifact(...)`
-- `prefer_static_linking()`
-- `prefer_dynamic_linking()`
-- `target_constraint(...)`
-
-These do not perform linking.
-They describe and normalize the native surface the package expects.
-
-### 4. ABI Probe Requests
-
-These options request compiler-assisted ABI evidence:
-
-- `probe_type_layout(...)`
-
-These affect whether `package.layouts` is populated during the scan.
-
-### 5. Origin-Filtering Policy
-
-These options decide how much of the parsed declaration world survives into the returned package:
-
-- `origin_filter(...)`
-- `no_origin_filter()`
-
-This is a post-extraction policy layer, not a preprocessing input.
-
-## Defaults And Precedence Rules
-
-For stable downstream use, `HeaderConfig` should be read as an append-oriented builder with a
-small set of important defaults.
-
-Current defaults:
-
-- `origin_filter` starts as `Some(OriginFilter::default())`
-- `preferred_link_mode` starts as `LinkResolutionMode::Default`
-- `flavor` starts effectively as `GnuC11`
-- `compiler` starts effectively as:
-  - `clang` when the effective flavor is `ClangC11`
-  - `gcc` otherwise
-- all path, define, link, constraint, and probe lists start empty
-
-Current precedence and accumulation rules:
-
-- repeated calls to `header(...)`, `include_dir(...)`, `define(...)`, link-declaration methods,
-  `target_constraint(...)`, and `probe_type_layout(...)` append in declaration order
-- bulk builders such as `headers(...)` and `include_dirs(...)` use the same append semantics as
-  repeated single-item builders
-- no current builder method performs deduplication for you; if order or duplicates matter to
-  your downstream flow, treat the builder input as authoritative
-- `compiler(...)` overrides the compiler command that would otherwise be inferred from flavor
-- `flavor(...)` overrides the default dialect assumption and also changes compiler inference when
-  no explicit compiler has been provided
-- `origin_filter(...)` installs an explicit filter policy
-- `no_origin_filter()` disables filtering entirely, which is materially different from using the
-  default filter
-
-These rules matter because the configuration is preserved into multiple outputs:
-
-- the actual preprocess/probe invocation
-- `package.target`
-- `package.inputs`
-- `package.link`
-
-In other words, `HeaderConfig` is not only execution input.
-It is also provenance metadata.
-
-## Validation Happens Before Execution
-
-Configuration validation is part of the public library contract.
-
-That means:
-
-- `HeaderConfig::validate()` is a supported preflight API
-- `HeaderConfig::process()` validates before it attempts preprocessing or extraction
-- `probe_type_layouts(...)` validates before it attempts compiler probing
-
-Downstream code should treat invalid configuration as an operational error, not as a diagnostic
-inside an otherwise successful result.
-
-## What `process()` Does
-
-Calling `.process()` performs this sequence:
-
-1. Build a temporary translation unit that includes the configured entry headers
-2. Run the configured compiler/preprocessor through `pac`
-3. Capture macro definitions from the same header set
-4. Extract binding items from the parsed translation unit
-5. Attach target/input/link metadata
-6. Optionally probe requested type layouts
-7. Optionally filter items by source origin
-
-The returned `RawHeaderResult` contains:
-
-- `package`: the extracted result
-- `report.command`: compiler executable used
-- `report.args`: effective preprocessor arguments
-- `report.preprocessed_source`: the exact source seen by the parser
-
-## Core Configuration Surface
+## Configuration Surface
 
 The most important builder methods are:
 
@@ -182,47 +54,46 @@ The most important builder methods are:
 | `framework_dir(path)` | Add a framework search path |
 | `library_dir(path)` | Add a native library search path |
 | `define(name, value)` | Add a preprocessor define |
-| `compiler(cmd)` | Override the compiler/preprocessor driver |
-| `flavor(f)` | Select C dialect handling |
-| `origin_filter(f)` | Use a custom origin filter |
+| `compiler(cmd)` | Override the driver used for preprocessing or probing |
+| `flavor(f)` | Select dialect handling |
+| `origin_filter(f)` | Keep only declarations from selected origins |
 | `no_origin_filter()` | Keep declarations from every origin |
 | `probe_type_layout(name)` | Request compiler-probed layout data |
 
-For downstream API design, it is often cleaner to inspect one of the borrowed domain views than
-to pass the full `HeaderConfig` everywhere.
+Repeated path, define, link, constraint, and probe calls append in order.
+The builder does not deduplicate for you.
 
-## Builder Naming Policy
+## Validation Before Execution
 
-`HeaderConfig` still carries some short historical builder names, but the intended naming direction
-is now explicit.
+`HeaderConfig::validate()` is a public preflight API.
+`HeaderConfig::process()` validates before it attempts preprocessing,
+extraction, or probing.
 
-Preferred style for new downstream code:
+Treat invalid configuration as an operational error, not as one diagnostic
+inside an otherwise usable result.
 
-- `entry_header(...)`
-- `add_include_dir(...)`
-- `add_framework_dir(...)`
-- `add_library_dir(...)`
-- `define_flag(...)`
-- `define_value(...)`
-- `link_library(...)`
-- `request_probe_type_layout(...)`
+## What `process()` Does
 
-Still supported for compatibility:
+Calling `.process()` performs a local bootstrap scan:
 
-- `header(...)`
-- `include_dir(...)`
-- `framework_dir(...)`
-- `library_dir(...)`
-- `define(...)`
-- `link_lib(...)`
-- `probe_type_layout(...)`
+1. synthesize a temporary translation unit from the configured entry headers
+2. preprocess it with the configured compiler and dialect settings
+3. capture macros from the same environment
+4. extract declarations and attached metadata
+5. attach target, input, and declared link provenance
+6. optionally probe requested layouts
+7. optionally filter by origin
 
-The rule is simple: old short names remain valid, but clearer names are preferred for new code and
-new examples.
+The returned `RawHeaderResult` contains:
 
-## Entry Headers
+- `package`
+- `report.command`
+- `report.args`
+- `report.preprocessed_source`
 
-Entry headers define the top-level API surface you are scanning.
+## Practical Examples
+
+### Entry Headers
 
 ```rust
 let result = HeaderConfig::new()
@@ -231,18 +102,10 @@ let result = HeaderConfig::new()
     .process()?;
 ```
 
-Internally, LINC synthesizes a temporary source file containing `#include` lines for each entry header.
+The configured entry headers are treated as one scan unit, so order still
+matters when headers depend on prior macros or type setup.
 
-That means:
-
-- order matters when headers depend on previous macro or type setup
-- multiple entry headers are treated as one scan unit
-- diagnostics and origin filtering are still tracked back to source origins
-
-## Include Directories And Defines
-
-Headers almost always depend on compile-time environment.
-If your scan omits that environment, the extracted package is unreliable.
+### Include Directories And Defines
 
 ```rust
 let result = HeaderConfig::new()
@@ -258,6 +121,31 @@ Notes:
 
 - `define("NAME", None)` corresponds to `-DNAME`
 - `define("NAME", Some("VALUE".into()))` corresponds to `-DNAME=VALUE`
+
+### Native Link Intent
+
+`HeaderConfig` can also attach declared native-link requirements while scanning:
+
+- library search paths
+- framework search paths
+- library declarations
+- object or artifact declarations
+- preferred static/dynamic bias
+- target constraints
+
+That does not perform real linking. It preserves declared native dependency
+intent so later analysis can reason about it.
+
+## Policy
+
+If you are writing new downstream code:
+
+- do not treat `HeaderConfig` as the pipeline contract
+- do not move cross-package translation into `linc/src/**`
+- do not build new docs or examples around this path unless the point is specifically repository bootstrap
+
+Use it when it helps the repository analyze difficult headers.
+Do not mistake it for the long-term boundary between packages.
 - the configured values are preserved in `package.inputs.defines`
 
 ## Compiler And Flavor
