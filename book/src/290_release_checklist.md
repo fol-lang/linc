@@ -16,7 +16,8 @@ expected to pin.
 
 ## Contract Surfaces
 
-- confirm `BindingPackage` JSON remains consumable by the documented schema version
+- confirm the current documented JSON artifact shapes remain consumable by the
+  documented schema version
 - confirm `ValidationReport` fixture coverage still matches current structured fields
 - confirm `ResolvedLinkPlan` remains consumable through the documented downstream subset
 - confirm new additive fields use `#[serde(default)]` only when the documented artifact shape needs it
@@ -40,6 +41,7 @@ expected to pin.
 - confirm the generic library contract stays primary
 - confirm `fol` guidance is still documented as consumer guidance, not universal crate policy
 - confirm the producer-side `fol` acceptance tests still model the intended narrow consumer subset
+- confirm cross-package composition is still described as tests/examples/harness work, not crate-to-crate library coupling
 
 ## Release Decision
 
