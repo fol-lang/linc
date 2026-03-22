@@ -4,6 +4,7 @@ use crate::diagnostics::Diagnostic;
 use crate::ir::{BindingInputs, BindingLinkSurface, BindingTarget, BindingPackage, SCHEMA_VERSION};
 use crate::link_plan::{resolve_link_plan, ResolvedLinkPlan};
 use crate::probe::AbiProbeReport;
+use crate::ir::LinkInput;
 
 #[cfg(feature = "symbols")]
 use crate::symbols::SymbolInventory;
@@ -29,6 +30,8 @@ pub struct LinkAnalysisPackage {
     #[serde(default)]
     pub declared_link_surface: BindingLinkSurface,
     #[serde(default)]
+    pub runtime_boundaries: Vec<RuntimeBoundary>,
+    #[serde(default)]
     pub resolved_link_plan: Option<ResolvedLinkPlan>,
     #[serde(default)]
     pub abi_probe: Option<AbiProbeReport>,
@@ -49,6 +52,7 @@ impl Default for LinkAnalysisPackage {
             inputs: BindingInputs::default(),
             diagnostics: Vec::new(),
             declared_link_surface: BindingLinkSurface::default(),
+            runtime_boundaries: Vec::new(),
             resolved_link_plan: None,
             abi_probe: None,
             #[cfg(feature = "symbols")]
@@ -65,7 +69,7 @@ impl LinkAnalysisPackage {
     }
 
     /// Build a link-analysis contract from LINC's current internal binding IR.
-    pub(crate) fn from_binding_package(package: &BindingPackage) -> Self {
+    pub fn from_binding_package(package: &BindingPackage) -> Self {
         Self {
             schema_version: schema_version(),
             linc_version: linc_version(),
@@ -73,6 +77,7 @@ impl LinkAnalysisPackage {
             inputs: package.inputs.clone(),
             diagnostics: package.diagnostics.clone(),
             declared_link_surface: package.link.clone(),
+            runtime_boundaries: detect_runtime_boundaries(package),
             resolved_link_plan: Some(resolve_link_plan(package)),
             abi_probe: None,
             #[cfg(feature = "symbols")]
@@ -81,6 +86,47 @@ impl LinkAnalysisPackage {
             validation: None,
         }
     }
+}
+
+impl From<&BindingPackage> for LinkAnalysisPackage {
+    fn from(package: &BindingPackage) -> Self {
+        Self::from_binding_package(package)
+    }
+}
+
+impl From<BindingPackage> for LinkAnalysisPackage {
+    fn from(package: BindingPackage) -> Self {
+        Self::from_binding_package(&package)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeBoundaryKind {
+    DynamicLoader,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeBoundary {
+    pub kind: RuntimeBoundaryKind,
+    pub trigger: String,
+    pub message: String,
+}
+
+fn detect_runtime_boundaries(package: &BindingPackage) -> Vec<RuntimeBoundary> {
+    let mut boundaries = Vec::new();
+    for input in &package.link.ordered_inputs {
+        if let LinkInput::Library(library) = input {
+            if library.name == "dl" {
+                boundaries.push(RuntimeBoundary {
+                    kind: RuntimeBoundaryKind::DynamicLoader,
+                    trigger: library.name.clone(),
+                    message: "declared dynamic-loader dependency requires downstream runtime policy"
+                        .into(),
+                });
+            }
+        }
+    }
+    boundaries
 }
 
 const fn schema_version() -> u32 {
@@ -134,6 +180,7 @@ mod tests {
         assert!(analysis.resolved_link_plan.is_none());
         assert!(analysis.diagnostics.is_empty());
         assert!(analysis.declared_link_surface.ordered_inputs.is_empty());
+        assert!(analysis.runtime_boundaries.is_empty());
     }
 
     #[test]
@@ -144,6 +191,7 @@ mod tests {
         assert_eq!(analysis.inputs, package.inputs);
         assert_eq!(analysis.target, package.target);
         assert_eq!(analysis.declared_link_surface, package.link);
+        assert!(analysis.runtime_boundaries.is_empty());
         assert_eq!(
             analysis
                 .resolved_link_plan
@@ -163,5 +211,24 @@ mod tests {
         let decoded: LinkAnalysisPackage = serde_json::from_str(&json).unwrap();
 
         assert_eq!(decoded, analysis);
+    }
+
+    #[test]
+    fn analysis_package_marks_dynamic_loader_boundaries_explicitly() {
+        let mut package = sample_binding_package();
+        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
+            name: "dl".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
+
+        let analysis = LinkAnalysisPackage::from_binding_package(&package);
+
+        assert_eq!(analysis.runtime_boundaries.len(), 1);
+        assert_eq!(
+            analysis.runtime_boundaries[0].kind,
+            RuntimeBoundaryKind::DynamicLoader
+        );
+        assert_eq!(analysis.runtime_boundaries[0].trigger, "dl");
     }
 }

@@ -130,7 +130,7 @@ pub mod validate;
 
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 pub use error::LincError;
-pub use analysis::LinkAnalysisPackage;
+pub use analysis::{LinkAnalysisPackage, RuntimeBoundary, RuntimeBoundaryKind};
 pub use ir::SCHEMA_VERSION;
 pub use intake::{
     SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,

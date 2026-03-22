@@ -231,6 +231,7 @@ fn plugin_abi_example_is_code_driven_and_consumable() {
     let environment = plugin::plugin_abi_environment().unwrap();
     let config = plugin::plugin_abi_header_config().unwrap();
     let result = plugin::analyze_plugin_abi().unwrap();
+    let analysis = linc::LinkAnalysisPackage::from(result.package.clone());
 
     assert!(environment.header.ends_with("tests/stress/plugin_abi.h"));
     assert!(config
@@ -255,4 +256,7 @@ fn plugin_abi_example_is_code_driven_and_consumable() {
         .layouts
         .iter()
         .any(|layout| layout.name == "struct bic_plugin_descriptor" && layout.size > 0));
+    assert!(analysis.runtime_boundaries.iter().any(|boundary| {
+        boundary.kind == linc::RuntimeBoundaryKind::DynamicLoader && boundary.trigger == "dl"
+    }));
 }

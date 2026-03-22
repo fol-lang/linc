@@ -12,6 +12,8 @@ use linc::{
     ProbeSubjectReport,
     ProbedFieldLayout,
     RecordCompleteness,
+    RuntimeBoundary,
+    RuntimeBoundaryKind,
     RoutineAbiConfidence,
     RoutineAbiEvidence,
     RoutineAbiEvidenceKind,
@@ -196,6 +198,18 @@ fn probe_confidence_root_type_distinguishes_partial_layout_strength() {
     let json = serde_json::to_string(&ProbeConfidence::PartialBitfieldMeasured).unwrap();
     let decoded: ProbeConfidence = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded, ProbeConfidence::PartialBitfieldMeasured);
+}
+
+#[test]
+fn runtime_boundary_root_types_roundtrip() {
+    let boundary = RuntimeBoundary {
+        kind: RuntimeBoundaryKind::DynamicLoader,
+        trigger: "dl".into(),
+        message: "declared dynamic-loader dependency requires downstream runtime policy".into(),
+    };
+    let json = serde_json::to_string(&boundary).unwrap();
+    let decoded: RuntimeBoundary = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, boundary);
 }
 
 #[test]
