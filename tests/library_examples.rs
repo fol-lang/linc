@@ -206,6 +206,27 @@ fn libpng_vendored_example_is_deterministic() {
 }
 
 #[test]
+fn libpng_vendored_example_resolves_expected_link_surface() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/full_apps/external/libpng/header");
+    let include_dir = root.join("include");
+    let entry = root.join("main.c");
+
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&entry)
+            .include_dir(&include_dir)
+            .link_lib("png")
+            .no_origin_filter(),
+    )
+    .unwrap();
+    let plan = linc::resolve_link_plan(&result.package);
+
+    assert!(plan.inputs.iter().any(
+        |input| matches!(input, linc::ir::LinkInput::Library(library) if library.name == "png")
+    ));
+}
+
+#[test]
 fn plugin_abi_example_is_code_driven_and_consumable() {
     let environment = plugin::plugin_abi_environment().unwrap();
     let config = plugin::plugin_abi_header_config().unwrap();
