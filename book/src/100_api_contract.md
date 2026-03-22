@@ -17,7 +17,7 @@ The intended downstream pattern is:
 
 Consumers should prefer the crate root over deep module imports whenever possible.
 
-## Crate API Policy
+## Preferred public surface
 
 The current intended crate policy is:
 
@@ -42,7 +42,7 @@ If you are building on top of LINC, the current intended rules are:
 
 These rules are the safest current downstream posture until later API and error-model slices land.
 
-## Stability Tiers
+## Public surface tiers
 
 The public surface is best understood in three tiers.
 
@@ -89,7 +89,7 @@ These modules are public today, but consumers should only depend on them deliber
 
 If a downstream consumer imports heavily from this tier, it is probably depending on details that later cleanup work may want to simplify.
 
-## What Downstream Users Should Prefer
+## Downstream posture
 
 Prefer:
 
@@ -111,7 +111,7 @@ Avoid reaching for deep modules first unless:
 - you need lower-level control not exposed at the crate root
 - you are contributing to LINC itself
 
-## Current Sharp Edges
+## Internal and evolving surfaces
 
 This inventory is honest about the present state.
 The following are still true today:
@@ -122,6 +122,18 @@ The following are still true today:
 - parts of the internal IR are still more public than the final architecture wants
 
 That is why the next plan phase starts with API cleanup and error-model hardening.
+
+## Explicit non-goals
+
+The current contract does not yet guarantee:
+
+- typed operational errors across the whole crate
+- full ABI completeness for all C constructs
+- full cross-platform parity across ELF, Mach-O, and Windows-native artifact formats
+- that every public module is equally stable as a consumer boundary
+- that repo-local bootstrap utilities are the public architecture
+
+These are roadmap items, not present-tense promises.
 
 ## Immediate Consumer Guidance
 
@@ -148,13 +160,12 @@ They explain things like:
 
 For durable integrations, read those source-level invariant notes as part of the supported API.
 
-## Explicit Non-Guarantees
+## Artifact boundary reminder
 
-The current contract does not yet guarantee:
+`linc` owns evidence, not universal pipeline state.
 
-- typed operational errors across the whole crate
-- full ABI completeness for all C constructs
-- full cross-platform parity across ELF, Mach-O, and Windows-native artifact formats
-- that every public module is equally stable as a consumer boundary
+That means:
 
-These are roadmap items, not present-tense promises.
+- `linc/src/**` must not depend on `parc` or `gec`
+- cross-package translation belongs only in tests/examples/harnesses
+- downstream consumers should treat explicit contracts as the boundary, not old all-in-one flows
