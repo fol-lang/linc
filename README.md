@@ -8,7 +8,7 @@ In the intended architecture:
 
 - `parc` owns source meaning
 - `linc` owns link and binary meaning
-- `gec` owns Rust lowering and emitted build metadata
+- `gerc` owns Rust lowering and emitted build metadata
 
 Those roles are intentionally separate. `linc` is not a parser, not a header
 driver, and not a Rust generator.
@@ -17,7 +17,7 @@ driver, and not a Rust generator.
 
 `linc` owns its own internal model and its own evidence artifacts.
 
-- `linc/src/**` must not depend on `parc` or `gec`
+- `linc/src/**` must not depend on `parc` or `gerc`
 - cross-package translation belongs only in tests, examples, or external harnesses
 - there is no shared ABI crate
 - there is no backward-compatibility burden for old pipeline shapes
@@ -89,7 +89,7 @@ across crates.
 - `parc` may serialize a source artifact
 - tests/examples/harnesses may translate that artifact into `linc` input
 - `linc` may serialize `LinkAnalysisPackage`, `SymbolInventory`, or `ValidationReport`
-- `gec` or another consumer may load those artifacts through its own test/example code
+- `gerc` or another consumer may load those artifacts through its own test/example code
 
 Library code inside `linc` must not be the place where cross-package translation lives.
 

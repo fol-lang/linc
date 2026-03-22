@@ -166,6 +166,6 @@ For durable integrations, read those source-level invariant notes as part of the
 
 That means:
 
-- `linc/src/**` must not depend on `parc` or `gec`
+- `linc/src/**` must not depend on `parc` or `gerc`
 - cross-package translation belongs only in tests/examples/harnesses
 - downstream consumers should treat explicit contracts as the boundary, not old all-in-one flows

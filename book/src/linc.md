@@ -9,7 +9,7 @@ In practice LINC sits between:
 
 - `parc`, which handles preprocessing, parsing, and declaration extraction
 - native artifacts such as `.o`, `.a`, `.so`, and `.dylib`
-- downstream consumers such as `gec` (Rust projection), `fol`, or validation/reporting tooling
+- downstream consumers such as `gerc` (Rust projection), `fol`, or validation/reporting tooling
 
 ## What LINC Produces
 
@@ -36,7 +36,7 @@ PARC (parc)
     -> SourcePackage (frontend-neutral contract)
     -> LINC (linc)
     -> LinkAnalysisPackage / link and binary evidence
-    -> GERC (gec)
+    -> GERC (gerc)
     -> Rust projection / emitted crate
 ```
 
@@ -55,7 +55,7 @@ PARC (parc)
 
 - source parsing or preprocessing (upstream: `parc`)
 - source-level declaration extraction (upstream: `parc`)
-- Rust FFI code generation (downstream: `gec`)
+- Rust FFI code generation (downstream: `gerc`)
 
 ## Module and API surface
 
@@ -74,7 +74,7 @@ Most users touch one or more of these library entry points:
 
 The boundary rule is:
 
-- `linc/src/**` must not depend on `parc` or `gec`
+- `linc/src/**` must not depend on `parc` or `gerc`
 - cross-package translation belongs only in tests, examples, or external harnesses
 - repo-local bootstrap utilities are secondary, not the public architecture
 

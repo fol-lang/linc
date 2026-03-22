@@ -16,7 +16,7 @@ details of lower-level modules.
 
 The most important policy rule is architectural:
 
-- `linc/src/**` must not depend on `parc` or `gec`
+- `linc/src/**` must not depend on `parc` or `gerc`
 - cross-package translation belongs in tests/examples/harnesses
 - `linc` owns its own internal model and its own evidence artifacts
 - there is no shared ABI crate

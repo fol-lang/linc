@@ -11,9 +11,9 @@ In the toolchain split:
 
 - `parc` owns source meaning
 - `linc` owns link and binary meaning
-- `gec` owns Rust lowering and emitted build metadata
+- `gerc` owns Rust lowering and emitted build metadata
 
-The boundary rule is strict: `linc/src/**` must not depend on `parc` or `gec`,
+The boundary rule is strict: `linc/src/**` must not depend on `parc` or `gerc`,
 and cross-package translation belongs only in tests, examples, or external
 harnesses.
 

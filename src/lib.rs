@@ -18,7 +18,7 @@
 //!
 //! - source parsing and preprocessing (upstream frontend)
 //! - source-level declaration extraction (upstream frontend)
-//! - Rust FFI code generation (downstream: `gec`)
+//! - Rust FFI code generation (downstream: `gerc`)
 //!
 //! # Preferred API
 //!
