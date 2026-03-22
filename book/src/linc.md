@@ -29,7 +29,7 @@ When native artifacts are involved, LINC can also produce:
 - `ValidationReport` values from `validate`
 - `ResolvedLinkPlan` values from `resolve_link_plan`
 
-## Pipeline Position
+## Data flow
 
 ```text
 PARC (parc)
@@ -57,7 +57,7 @@ PARC (parc)
 - source-level declaration extraction (upstream: `parc`)
 - Rust FFI code generation (downstream: `gec`)
 
-## Main Public Surfaces
+## Module and API surface
 
 Most users touch one or more of these library entry points:
 
@@ -67,6 +67,16 @@ Most users touch one or more of these library entry points:
 - `validate` and `validate_many` for declaration-vs-artifact checks
 - `resolve_link_plan` for link-plan construction
 - `serde_json` over the final explicit contracts when transport is needed
+
+## Artifact boundary
+
+`linc` owns evidence, not universal pipeline state.
+
+The boundary rule is:
+
+- `linc/src/**` must not depend on `parc` or `gec`
+- cross-package translation belongs only in tests, examples, or external harnesses
+- repo-local bootstrap utilities are secondary, not the public architecture
 
 ## Recommended Reading Order
 
