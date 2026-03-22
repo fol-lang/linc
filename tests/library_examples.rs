@@ -123,6 +123,20 @@ fn openssl_example_is_code_driven_and_consumable() {
 }
 
 #[test]
+fn openssl_example_is_deterministic_when_available() {
+    if openssl::openssl_environment().is_err() {
+        return;
+    }
+
+    let make = || {
+        let result = openssl::analyze_openssl().expect("openssl analysis");
+        serde_json::to_string(&result.package).expect("openssl package json")
+    };
+
+    assert_eq!(make(), make());
+}
+
+#[test]
 fn plugin_abi_example_is_code_driven_and_consumable() {
     let environment = plugin::plugin_abi_environment().unwrap();
     let config = plugin::plugin_abi_header_config().unwrap();
