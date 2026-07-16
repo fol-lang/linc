@@ -794,6 +794,223 @@ fn strict_wrapper_rejects_unresolved_and_unaudited_probe_evidence() {
 }
 
 #[test]
+fn layout_probe_binding_rejects_tampered_and_missing_layouts() {
+    let fixture = corpus_fixture();
+    let mut tampered_input = package_input(&fixture.package);
+    let record_index = tampered_input
+        .layouts
+        .iter()
+        .position(|layout| matches!(layout, LayoutEvidence::Record(_)))
+        .expect("preservation record layout");
+    let LayoutEvidence::Record(record) = &tampered_input.layouts[record_index] else {
+        unreachable!("record index selected above");
+    };
+    let original_fingerprint = record.fingerprint().expect("record fingerprint");
+    let tampered = RecordLayoutEvidence::try_new(
+        record.declaration(),
+        record.source_fingerprint(),
+        record.target_fingerprint(),
+        record.size_bits() + 8,
+        record.alignment_bits(),
+        record.fields().to_vec(),
+        record.probe(),
+        record.source(),
+        record.confidence(),
+    )
+    .expect("structurally valid tampered record layout");
+    assert_ne!(
+        original_fingerprint,
+        tampered.fingerprint().expect("tampered fingerprint")
+    );
+    tampered_input.layouts[record_index] = LayoutEvidence::Record(tampered);
+    let tampered_package = LinkAnalysisPackage::try_new(tampered_input)
+        .expect("tampered layout remains a structurally valid raw package");
+    assert!(matches!(
+        ValidatedLinkAnalysis::try_new(&fixture.complete, tampered_package),
+        Err(ContractError::ProbeOutcomeFingerprintMismatch { .. })
+    ));
+
+    let fixture = corpus_fixture();
+    let mut tampered_input = package_input(&fixture.package);
+    let enum_index = tampered_input
+        .layouts
+        .iter()
+        .position(|layout| matches!(layout, LayoutEvidence::Enum(_)))
+        .expect("preservation enum layout");
+    let LayoutEvidence::Enum(enumeration) = &tampered_input.layouts[enum_index] else {
+        unreachable!("enum index selected above");
+    };
+    let original_fingerprint = enumeration.fingerprint().expect("enum fingerprint");
+    let tampered = EnumLayoutEvidence::try_new(
+        enumeration.declaration(),
+        enumeration.source_fingerprint(),
+        enumeration.target_fingerprint(),
+        enumeration.storage_bits() + 8,
+        enumeration.alignment_bits(),
+        enumeration.signedness(),
+        enumeration.variants().to_vec(),
+        enumeration.probe(),
+        enumeration.source(),
+        enumeration.confidence(),
+    )
+    .expect("structurally valid tampered enum layout");
+    assert_ne!(
+        original_fingerprint,
+        tampered.fingerprint().expect("tampered enum fingerprint")
+    );
+    tampered_input.layouts[enum_index] = LayoutEvidence::Enum(tampered);
+    let tampered_package = LinkAnalysisPackage::try_new(tampered_input)
+        .expect("tampered enum remains a structurally valid raw package");
+    assert!(matches!(
+        ValidatedLinkAnalysis::try_new(&fixture.complete, tampered_package),
+        Err(ContractError::ProbeOutcomeFingerprintMismatch { .. })
+    ));
+
+    let fixture = corpus_fixture();
+    let mut missing_input = package_input(&fixture.package);
+    missing_input
+        .layouts
+        .retain(|layout| !matches!(layout, LayoutEvidence::Record(_)));
+    assert!(matches!(
+        LinkAnalysisPackage::try_new(missing_input),
+        Err(ContractError::RequiredLayoutEvidence { .. })
+    ));
+}
+
+#[test]
+fn layout_shape_fingerprint_excludes_only_the_probe_back_reference() {
+    let fixture = corpus_fixture();
+    let record = fixture
+        .package
+        .layouts()
+        .iter()
+        .find_map(|layout| match layout {
+            LayoutEvidence::Record(record) => Some(record),
+            LayoutEvidence::Enum(_) => None,
+        })
+        .expect("preservation record layout");
+    let other_probe = ProbeEvidenceId::from_str(&format!("lprobe1_{}", "f".repeat(64)))
+        .expect("syntactically valid different probe ID");
+    let rebound = RecordLayoutEvidence::try_new(
+        record.declaration(),
+        record.source_fingerprint(),
+        record.target_fingerprint(),
+        record.size_bits(),
+        record.alignment_bits(),
+        record.fields().to_vec(),
+        other_probe,
+        record.source(),
+        record.confidence(),
+    )
+    .expect("rebound layout");
+    assert_ne!(record.probe(), rebound.probe());
+    assert_eq!(
+        record.fingerprint().expect("record fingerprint"),
+        rebound.fingerprint().expect("rebound fingerprint")
+    );
+
+    let source_changed = RecordLayoutEvidence::try_new(
+        record.declaration(),
+        record.source_fingerprint(),
+        record.target_fingerprint(),
+        record.size_bits(),
+        record.alignment_bits(),
+        record.fields().to_vec(),
+        record.probe(),
+        EvidenceSource::Corroborated,
+        record.confidence(),
+    )
+    .expect("record with changed source");
+    let confidence_changed = RecordLayoutEvidence::try_new(
+        record.declaration(),
+        record.source_fingerprint(),
+        record.target_fingerprint(),
+        record.size_bits(),
+        record.alignment_bits(),
+        record.fields().to_vec(),
+        record.probe(),
+        record.source(),
+        EvidenceConfidence::Corroborated,
+    )
+    .expect("record with changed confidence");
+    assert_ne!(
+        record.fingerprint().expect("record fingerprint"),
+        source_changed.fingerprint().expect("changed source")
+    );
+    assert_ne!(
+        record.fingerprint().expect("record fingerprint"),
+        confidence_changed
+            .fingerprint()
+            .expect("changed confidence")
+    );
+
+    let enumeration = fixture
+        .package
+        .layouts()
+        .iter()
+        .find_map(|layout| match layout {
+            LayoutEvidence::Record(_) => None,
+            LayoutEvidence::Enum(enumeration) => Some(enumeration),
+        })
+        .expect("preservation enum layout");
+    let rebound = EnumLayoutEvidence::try_new(
+        enumeration.declaration(),
+        enumeration.source_fingerprint(),
+        enumeration.target_fingerprint(),
+        enumeration.storage_bits(),
+        enumeration.alignment_bits(),
+        enumeration.signedness(),
+        enumeration.variants().to_vec(),
+        other_probe,
+        enumeration.source(),
+        enumeration.confidence(),
+    )
+    .expect("rebound enum layout");
+    assert_ne!(enumeration.probe(), rebound.probe());
+    assert_eq!(
+        enumeration.fingerprint().expect("enum fingerprint"),
+        rebound.fingerprint().expect("rebound enum fingerprint")
+    );
+
+    let source_changed = EnumLayoutEvidence::try_new(
+        enumeration.declaration(),
+        enumeration.source_fingerprint(),
+        enumeration.target_fingerprint(),
+        enumeration.storage_bits(),
+        enumeration.alignment_bits(),
+        enumeration.signedness(),
+        enumeration.variants().to_vec(),
+        enumeration.probe(),
+        EvidenceSource::Corroborated,
+        enumeration.confidence(),
+    )
+    .expect("enum with changed source");
+    let confidence_changed = EnumLayoutEvidence::try_new(
+        enumeration.declaration(),
+        enumeration.source_fingerprint(),
+        enumeration.target_fingerprint(),
+        enumeration.storage_bits(),
+        enumeration.alignment_bits(),
+        enumeration.signedness(),
+        enumeration.variants().to_vec(),
+        enumeration.probe(),
+        enumeration.source(),
+        EvidenceConfidence::Corroborated,
+    )
+    .expect("enum with changed confidence");
+    assert_ne!(
+        enumeration.fingerprint().expect("enum fingerprint"),
+        source_changed.fingerprint().expect("changed source")
+    );
+    assert_ne!(
+        enumeration.fingerprint().expect("enum fingerprint"),
+        confidence_changed
+            .fingerprint()
+            .expect("changed confidence")
+    );
+}
+
+#[test]
 fn package_canonicalizes_sets_but_never_link_sequence() {
     let fixture = corpus_fixture();
     let mut inventories = fixture.package.inventories().to_vec();
@@ -1609,11 +1826,28 @@ fn corpus_fixture_with(options: FixtureOptions) -> CorpusFixture {
     } else {
         complete.source().target().compiler().clone()
     };
+    let placeholder_probe = ProbeEvidenceId::from_str(&format!("lprobe1_{}", "0".repeat(64)))
+        .expect("syntactically valid placeholder probe ID");
+    let prototype_layouts = seed_layouts(
+        &seed,
+        &complete,
+        evidence_source_fingerprint,
+        placeholder_probe,
+        options,
+    );
     let subject_outcomes = probe_subjects
         .iter()
         .copied()
         .map(|subject| {
-            let label = probe_subject_label(subject);
+            let evidence_fingerprint = prototype_layouts
+                .iter()
+                .find(|layout| layout.declaration() == subject.declaration())
+                .map(LayoutEvidence::fingerprint)
+                .transpose()
+                .expect("canonical layout fingerprint")
+                .unwrap_or_else(|| {
+                    ContentFingerprint::from_content(probe_subject_label(subject).as_bytes())
+                });
             ProbeSubjectOutcome::try_new(
                 subject,
                 if options.reject_probe_outcome {
@@ -1622,7 +1856,7 @@ fn corpus_fixture_with(options: FixtureOptions) -> CorpusFixture {
                     }
                 } else {
                     ProbeSubjectStatus::Verified {
-                        evidence_fingerprint: ContentFingerprint::from_content(label.as_bytes()),
+                        evidence_fingerprint,
                     }
                 },
             )
@@ -1667,82 +1901,13 @@ fn corpus_fixture_with(options: FixtureOptions) -> CorpusFixture {
         subject_outcomes,
     })
     .expect("typed GCC ABI probe evidence");
-
-    let confidence = if options.inferred_layout {
-        EvidenceConfidence::Inferred
-    } else {
-        EvidenceConfidence::Measured
-    };
-    let enum_child = complete
-        .source()
-        .declarations()
-        .iter()
-        .find_map(|declaration| match &declaration.kind {
-            SourceDeclarationKind::Enum(enumeration) => {
-                enumeration.variants.first().map(|variant| variant.id)
-            }
-            _ => None,
-        });
-    let mut layouts = Vec::new();
-    for layout in &seed.record_layouts {
-        let fields = layout
-            .fields
-            .iter()
-            .map(|field| {
-                let child = if options.foreign_record_child {
-                    enum_child.expect("foreign enum child")
-                } else {
-                    field.child
-                };
-                FieldLayoutEvidence::try_new(
-                    child,
-                    field.offset_bits,
-                    field.size_bits,
-                    field.alignment_bits,
-                )
-                .expect("seed field layout")
-            })
-            .collect();
-        layouts.push(LayoutEvidence::Record(
-            RecordLayoutEvidence::try_new(
-                layout.declaration,
-                evidence_source_fingerprint,
-                complete.source().target_fingerprint(),
-                layout.size_bits,
-                layout.alignment_bits,
-                fields,
-                probe.id(),
-                if options.object_metadata_layout {
-                    EvidenceSource::ObjectMetadata
-                } else {
-                    EvidenceSource::CompilerProbe
-                },
-                confidence,
-            )
-            .expect("seed record layout"),
-        ));
-    }
-    for layout in &seed.enum_representations {
-        layouts.push(LayoutEvidence::Enum(
-            EnumLayoutEvidence::try_new(
-                layout.declaration,
-                evidence_source_fingerprint,
-                complete.source().target_fingerprint(),
-                layout.storage_bits,
-                layout.alignment_bits,
-                layout.signedness,
-                enum_variants(&complete, layout),
-                probe.id(),
-                if options.object_metadata_layout {
-                    EvidenceSource::ObjectMetadata
-                } else {
-                    EvidenceSource::CompilerProbe
-                },
-                confidence,
-            )
-            .expect("seed enum layout"),
-        ));
-    }
+    let layouts = seed_layouts(
+        &seed,
+        &complete,
+        evidence_source_fingerprint,
+        probe.id(),
+        options,
+    );
     let layout_assessment: BTreeMap<_, _> = layouts
         .iter()
         .map(|layout| (layout.declaration(), (layout.confidence(), layout.probe())))
@@ -1896,6 +2061,86 @@ fn preservation_selection(seed: &EvidenceSeed) -> Selection {
             ),
     )
     .expect("nonempty distinct preservation roots")
+}
+
+fn seed_layouts(
+    seed: &EvidenceSeed,
+    complete: &CompleteSourcePackage,
+    source_fingerprint: SourceFingerprint,
+    probe: ProbeEvidenceId,
+    options: FixtureOptions,
+) -> Vec<LayoutEvidence> {
+    let confidence = if options.inferred_layout {
+        EvidenceConfidence::Inferred
+    } else {
+        EvidenceConfidence::Measured
+    };
+    let evidence_source = if options.object_metadata_layout {
+        EvidenceSource::ObjectMetadata
+    } else {
+        EvidenceSource::CompilerProbe
+    };
+    let enum_child = complete
+        .source()
+        .declarations()
+        .iter()
+        .find_map(|declaration| match &declaration.kind {
+            SourceDeclarationKind::Enum(enumeration) => {
+                enumeration.variants.first().map(|variant| variant.id)
+            }
+            _ => None,
+        });
+    let records = seed.record_layouts.iter().map(|layout| {
+        let fields = layout
+            .fields
+            .iter()
+            .map(|field| {
+                FieldLayoutEvidence::try_new(
+                    if options.foreign_record_child {
+                        enum_child.expect("foreign enum child")
+                    } else {
+                        field.child
+                    },
+                    field.offset_bits,
+                    field.size_bits,
+                    field.alignment_bits,
+                )
+                .expect("seed field layout")
+            })
+            .collect();
+        LayoutEvidence::Record(
+            RecordLayoutEvidence::try_new(
+                layout.declaration,
+                source_fingerprint,
+                complete.source().target_fingerprint(),
+                layout.size_bits,
+                layout.alignment_bits,
+                fields,
+                probe,
+                evidence_source,
+                confidence,
+            )
+            .expect("seed record layout"),
+        )
+    });
+    let enumerations = seed.enum_representations.iter().map(|layout| {
+        LayoutEvidence::Enum(
+            EnumLayoutEvidence::try_new(
+                layout.declaration,
+                source_fingerprint,
+                complete.source().target_fingerprint(),
+                layout.storage_bits,
+                layout.alignment_bits,
+                layout.signedness,
+                enum_variants(complete, layout),
+                probe,
+                evidence_source,
+                confidence,
+            )
+            .expect("seed enum layout"),
+        )
+    });
+    records.chain(enumerations).collect()
 }
 
 fn package_input(package: &LinkAnalysisPackage) -> LinkAnalysisPackageInput {

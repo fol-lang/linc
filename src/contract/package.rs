@@ -1256,6 +1256,11 @@ fn validate_required_layout(
     probes: &BTreeMap<ProbeEvidenceId, &AbiProbeEvidence>,
     subject: ProbeSubject,
 ) -> Result<(), ContractError> {
+    let subject_label = match subject {
+        ProbeSubject::RecordLayout { .. } => "record layout",
+        ProbeSubject::EnumRepresentation { .. } => "enum representation",
+        ProbeSubject::CallableAbi { .. } => "callable ABI",
+    };
     let LayoutAssessment::Available { confidence, probe } = evidence.layout() else {
         return Err(ContractError::RequiredLayoutEvidence { declaration });
     };
@@ -1276,11 +1281,29 @@ fn validate_required_layout(
         return Err(ContractError::ProbeSubjectMismatch {
             probe: *probe,
             declaration,
-            subject: match subject {
-                ProbeSubject::RecordLayout { .. } => "record layout",
-                ProbeSubject::EnumRepresentation { .. } => "enum representation",
-                ProbeSubject::CallableAbi { .. } => "callable ABI",
-            },
+            subject: subject_label,
+        });
+    }
+    let actual = evidence
+        .subject_outcomes()
+        .iter()
+        .find(|outcome| outcome.subject() == subject)
+        .and_then(|outcome| match outcome.status() {
+            super::ProbeSubjectStatus::Verified {
+                evidence_fingerprint,
+            } => Some(*evidence_fingerprint),
+            super::ProbeSubjectStatus::Rejected { .. } => None,
+        })
+        .ok_or(ContractError::ProbeSubjectMismatch {
+            probe: *probe,
+            declaration,
+            subject: subject_label,
+        })?;
+    let expected = layout.fingerprint()?;
+    if actual != expected {
+        return Err(ContractError::ProbeOutcomeFingerprintMismatch {
+            probe: *probe,
+            declaration,
         });
     }
     Ok(())

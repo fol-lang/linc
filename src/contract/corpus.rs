@@ -17,7 +17,7 @@ pub const PRESERVATION_LINK_ANALYSIS_JSON: &[u8] =
 
 /// Frozen identity of [`PRESERVATION_LINK_ANALYSIS_JSON`].
 pub const PRESERVATION_LINK_ANALYSIS_FINGERPRINT: &str =
-    "lanalysis2_470f6007292587b5d92e1ecc5c92c8baa67caf96f39e6492eb6f6bfabe35db37";
+    "lanalysis2_73908931002eb143f283fc5edb31d3cf40d257050ca04fbf7692b5e05e3ea4a1";
 
 const PRESERVATION_ROOTS: [&str; 3] = [
     "pdecl1_524bcccd395cfaad5d0697f01bc545663e82eaad03be1e515beeb81933f5b37d",

@@ -958,6 +958,41 @@ impl RecordLayoutEvidence {
     pub const fn confidence(&self) -> EvidenceConfidence {
         self.confidence
     }
+
+    /// Canonical fingerprint of the measured record shape.
+    ///
+    /// Probe identity is deliberately excluded. The probe outcome binds this
+    /// fingerprint while the layout separately points back to that probe;
+    /// including the probe ID would create a cryptographic cycle because the
+    /// probe ID also commits to its subject outcomes.
+    pub fn fingerprint(&self) -> Result<ContentFingerprint, ContractError> {
+        #[derive(Serialize)]
+        struct RecordLayoutFingerprint<'a> {
+            domain: &'static str,
+            declaration: DeclarationId,
+            source_fingerprint: SourceFingerprint,
+            target_fingerprint: TargetFingerprint,
+            size_bits: u64,
+            alignment_bits: u32,
+            fields: &'a [FieldLayoutEvidence],
+            source: EvidenceSource,
+            confidence: EvidenceConfidence,
+        }
+
+        serde_json::to_vec(&RecordLayoutFingerprint {
+            domain: "follang.linc.record-layout-shape.v1",
+            declaration: self.declaration,
+            source_fingerprint: self.source_fingerprint,
+            target_fingerprint: self.target_fingerprint,
+            size_bits: self.size_bits,
+            alignment_bits: self.alignment_bits,
+            fields: &self.fields,
+            source: self.source,
+            confidence: self.confidence,
+        })
+        .map(|bytes| ContentFingerprint::from_content(&bytes))
+        .map_err(canonical_error)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1045,6 +1080,41 @@ impl EnumLayoutEvidence {
     pub const fn confidence(&self) -> EvidenceConfidence {
         self.confidence
     }
+
+    /// Canonical fingerprint of the measured enum representation.
+    ///
+    /// The probe back-reference is excluded for the same reason as
+    /// [`RecordLayoutEvidence::fingerprint`].
+    pub fn fingerprint(&self) -> Result<ContentFingerprint, ContractError> {
+        #[derive(Serialize)]
+        struct EnumLayoutFingerprint<'a> {
+            domain: &'static str,
+            declaration: DeclarationId,
+            source_fingerprint: SourceFingerprint,
+            target_fingerprint: TargetFingerprint,
+            storage_bits: u64,
+            alignment_bits: u32,
+            signedness: Signedness,
+            variants: &'a [EnumVariantEvidence],
+            source: EvidenceSource,
+            confidence: EvidenceConfidence,
+        }
+
+        serde_json::to_vec(&EnumLayoutFingerprint {
+            domain: "follang.linc.enum-layout-shape.v1",
+            declaration: self.declaration,
+            source_fingerprint: self.source_fingerprint,
+            target_fingerprint: self.target_fingerprint,
+            storage_bits: self.storage_bits,
+            alignment_bits: self.alignment_bits,
+            signedness: self.signedness,
+            variants: &self.variants,
+            source: self.source,
+            confidence: self.confidence,
+        })
+        .map(|bytes| ContentFingerprint::from_content(&bytes))
+        .map_err(canonical_error)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -1099,6 +1169,14 @@ impl LayoutEvidence {
         match self {
             Self::Record(evidence) => evidence.probe,
             Self::Enum(evidence) => evidence.probe,
+        }
+    }
+
+    /// Canonical fingerprint bound by this layout's verified probe outcome.
+    pub fn fingerprint(&self) -> Result<ContentFingerprint, ContractError> {
+        match self {
+            Self::Record(evidence) => evidence.fingerprint(),
+            Self::Enum(evidence) => evidence.fingerprint(),
         }
     }
 }

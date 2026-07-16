@@ -106,6 +106,13 @@ pub enum ContractError {
         declaration: DeclarationId,
         subject: &'static str,
     },
+    #[error(
+        "ABI probe evidence {probe} outcome fingerprint does not bind layout declaration {declaration}"
+    )]
+    ProbeOutcomeFingerprintMismatch {
+        probe: ProbeEvidenceId,
+        declaration: DeclarationId,
+    },
     #[error("ABI probe evidence {probe} compiler or ABI flags differ from the PARC target")]
     ProbeCompilerMismatch { probe: ProbeEvidenceId },
     #[error("ABI probe evidence {probe} uses an incompatible method for {subject}")]
