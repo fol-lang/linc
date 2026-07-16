@@ -14,7 +14,7 @@ and `ValidatedLinkAnalysis` coverage proofs. The optional
 - deterministic exact-path or declared-search-path resolution with explicit
   ambiguity, weak-symbol, order, repetition, and transitive-provider rules;
 - direct-argv ABI probes with a cleared environment, secure temporary files,
-  compiler identity, wall/output bounds, and Linux process-group cleanup; and
+  compiler identity, wall/output bounds, and Linux process-group cleanup;
 - bounded `CertificationToolchain::observe`, which owns compiler identity
   observation before PARC target construction; and
 - `NativeAnalyzer::certify`, the production operation that resolves providers,
@@ -47,22 +47,45 @@ assert!(!toolchain.reported_target().is_empty());
 # }
 ```
 
-Enable the implementation explicitly:
+For a repository development checkout, spell both package and library
+identities explicitly:
 
 ```toml
 [dependencies]
-linc = { package = "follang-linc", version = "0.1", default-features = false, features = ["native-inspection"] }
+linc = { package = "follang-linc", path = "../linc", default-features = false, features = ["native-inspection"] }
 ```
 
-The certified H3 platform tier is Linux ELF. Mach-O, COFF/import libraries,
-frameworks, and ambient loader/linker lookup are not silently accepted. A
-foreign-target probe must be compile-only or use an explicit absolute runner.
-Memory/process-count fields remain recorded contract evidence; the H3 runner
-enforces wall time, captured output, bounded file reads, and descendant process
-cleanup rather than claiming a portable OS memory sandbox.
+Registry publication is disabled. Released consumers must use the exact tested
+Git tag/archive described by the release policy rather than inventing a
+registry version or following an unpinned branch.
+
+The initial certified platform tier is C17 GNU x86-64 Linux ELF LP64 with the
+SysV ABI and GCC or Clang. Mach-O, COFF/import libraries, frameworks, and
+ambient loader/linker lookup are not silently accepted. A foreign-target probe
+must be compile-only or use an explicit absolute runner.
+Memory/process-count fields remain recorded contract evidence; the Linux
+runner enforces wall time, captured output, bounded file reads, and descendant
+process cleanup rather than claiming a portable OS memory sandbox.
 
 Run the real native-evidence lane with `make test-native`, or all repository
 gates with `make verify`.
 
 The packaged preservation pair remains available under
-`linc::contract::corpus` for H1 contract compatibility.
+`linc::contract::corpus` for schema-v2 compatibility.
+
+## Distribution and compatibility
+
+The package identity is `follang-linc` 0.1.0 and the Rust import name is
+`linc`. Registry publication is disabled (`publish = false`), so no crates.io
+name ownership or availability is claimed. Candidate archives are tested with
+the exact `follang-parc` 0.16.0 contract at revision
+`ba603cdccc9375473eca0c42e5462cf90b6da249` and with a clean external consumer.
+
+`make release-check` is a non-mutating eligibility check. It never changes a
+version, commits, tags, pushes, uploads, or publishes. SemVer, schema-v2, MSRV,
+certified-surface, exact-upstream, and tag/archive rules are recorded in
+[`RELEASE.md`](RELEASE.md).
+
+## License
+
+Dual-licensed under Apache 2.0 or MIT.

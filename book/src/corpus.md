@@ -1,7 +1,7 @@
 # Preservation corpus
 
-`linc::contract::corpus` embeds the checked link-analysis artifact paired with
-PARC's complete preservation source package.
+`linc::contract::corpus` embeds the checked schema-v2 link-analysis artifact
+paired with PARC's complete preservation source package.
 
 The normal downstream flow is:
 

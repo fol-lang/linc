@@ -5,11 +5,12 @@ edition = "2021"
 rust-version = "1.89"
 authors = ["Trim Bresilla"]
 description = "Link-surface, symbol-inventory, validation, and ABI-evidence layer for C interop"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/follang/linc"
 homepage = "https://github.com/follang/linc"
-documentation = "https://docs.rs/follang-linc"
+documentation = "https://follang.github.io/linc/"
 readme = "README.md"
+publish = false
 keywords = ["c", "ffi", "linker", "symbols", "abi"]
 categories = ["development-tools::ffi"]
 include = [
@@ -21,6 +22,7 @@ include = [
     "/Cargo.toml",
     "/LICENSE-*",
     "/README.md",
+    "/RELEASE.md",
 ]
 
 [lib]
@@ -34,7 +36,7 @@ native-inspection = ["contracts", "dep:object", "dep:tempfile"]
 [dependencies]
 blake3 = "1"
 object = { version = "=0.37.3", default-features = false, features = ["read", "std"], optional = true }
-parc = { package = "follang-parc", version = "0.16.0", path = "../parc" }
+parc = { package = "follang-parc", version = "=0.16.0", path = "../parc" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "=1.0.145", features = ["raw_value"] }
 tempfile = { version = "=3.27.0", optional = true }

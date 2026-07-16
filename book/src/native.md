@@ -1,8 +1,8 @@
 # Native evidence
 
-Enable `native-inspection` for LINC's certified H3 Linux ELF lane. The lane
-accepts ELF relocatable objects, static archives, and shared libraries. It does
-not infer support for Mach-O, COFF/import libraries, or frameworks.
+Enable `native-inspection` for LINC's initial certified Linux ELF lane. The
+lane accepts ELF relocatable objects, static archives, and shared libraries.
+It does not infer support for Mach-O, COFF/import libraries, or frameworks.
 
 ## Authoritative operation
 
@@ -70,4 +70,4 @@ sandbox.
 `make test-native` builds real ELF fixtures and exercises successful and
 negative inspection, resolution, symbol, ABI, stale-evidence, probe-bound, and
 cross-target cases. `make verify` also runs feature, schema, package-consumer,
-documentation, and H1 corpus gates.
+documentation, and frozen-corpus gates.

@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: follang/lang-c
-          ref: 9b8f5638da70fba0f7b8310affd043d537f7e568
+          ref: ba603cdccc9375473eca0c42e5462cf90b6da249
           path: parc
 
       - name: Install Rust toolchain

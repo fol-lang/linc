@@ -1,6 +1,7 @@
 PROJECT_NAME := $(shell sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 PROJECT_CAP  := $(shell echo $(PROJECT_NAME) | tr '[:lower:]' '[:upper:]')
 CURRENT_VERSION := $(shell grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+PARC_RELEASE_REVISION := ba603cdccc9375473eca0c42e5462cf90b6da249
 LATEST_TAG   ?= $(shell git describe --tags --abbrev=0 2>/dev/null)
 TOP_DIR      := $(CURDIR)
 BUILD_DIR    := $(TOP_DIR)/target
@@ -18,7 +19,7 @@ $(info Project: $(PROJECT_NAME))
 $(info Version: $(CURRENT_VERSION))
 $(info ------------------------------------------)
 
-.PHONY: build b compile c fmt fmt-check lint check-features test t test-contract test-native test-package test-system docs-check verify help h clean docs release
+.PHONY: build b compile c fmt fmt-check lint check-features test t test-contract test-native test-package test-system docs-check verify release-check help h clean docs
 
 SHELL := /bin/bash
 
@@ -71,10 +72,11 @@ test-native:
 		cargo test --features native-inspection --test native_evidence -- --nocapture --test-threads=1
 
 test-package:
-	@tools/test-package.sh follang-linc linc
+	@LINC_PARC_RELEASE_REVISION=$(PARC_RELEASE_REVISION) \
+		tools/test-package.sh follang-linc linc
 
 test-system:
-	@tools/require-nonzero-tests.sh system-h1-corpus \
+	@tools/require-nonzero-tests.sh system-schema-v2-corpus \
 		cargo test --test contract_corpus -- --nocapture --test-threads=1
 
 docs-check:
@@ -128,7 +130,7 @@ help:
 	@echo "  docs-check     Build Rust and mdBook documentation"
 	@echo "  verify         Run the complete non-mutating gate"
 	@echo "  docs         Build documentation (TYPE=mdbook|doxygen)"
-	@echo "  release      Create a new release (TYPE=patch|minor|major)"
+	@echo "  release-check  Verify clean, synchronized release eligibility"
 	@echo
 
 h : help
@@ -147,16 +149,67 @@ else
 	$(error Invalid documentation type. Use 'make docs TYPE=mdbook' or 'make docs TYPE=doxygen')
 endif
 
-TYPE ?= patch
-HAS_REL := $(shell command -v git-rel 2>/dev/null)
-
-release:
-	@if [ -z "$(HAS_REL)" ]; then \
-		echo "git-rel is not installed. Please install it first."; \
-		exit 1; \
-	fi
-	@if [ -z "$(TYPE)" ]; then \
-		echo "Release type not specified. Use 'make release TYPE=[patch|minor|major|m.m.p]'"; \
-		exit 1; \
-	fi
-	@git rel $(TYPE)
+release-check:
+	@set -eu; \
+		branch="$$(git symbolic-ref --quiet --short HEAD)" || { \
+			echo "release check requires a branch checkout, not detached HEAD"; \
+			exit 1; \
+		}; \
+		upstream="$$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)" || { \
+			echo "release check requires an upstream for $$branch"; \
+			exit 1; \
+		}; \
+		test -z "$$(git status --porcelain=v1 --untracked-files=all)" || { \
+			echo "release check requires a clean LINC worktree"; \
+			exit 1; \
+		}; \
+		head="$$(git rev-parse HEAD)"; \
+		upstream_head="$$(git rev-parse "$$upstream")"; \
+		test "$$head" = "$$upstream_head" || { \
+			echo "release check requires HEAD to equal $$upstream"; \
+			echo "HEAD:     $$head"; \
+			echo "upstream: $$upstream_head"; \
+			exit 1; \
+		}; \
+		tag="follang-linc-v$(CURRENT_VERSION)"; \
+		! git rev-parse --quiet --verify "refs/tags/$$tag" >/dev/null || { \
+			echo "release tag already exists: $$tag"; \
+			exit 1; \
+		}; \
+		grep -Fqx 'publish = false' Cargo.toml || { \
+			echo "registry publication must remain disabled"; \
+			exit 1; \
+		}; \
+		parc_path="$$(sed -n 's/^parc = .*path = "\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)"; \
+		test -n "$$parc_path" || { echo "PARC path dependency is not recorded"; exit 1; }; \
+		case "$$parc_path" in /*) ;; *) parc_path="$(TOP_DIR)/$$parc_path" ;; esac; \
+		parc_path="$$(cd "$$parc_path" && pwd -P)"; \
+		test -z "$$(git -C "$$parc_path" status --porcelain=v1 --untracked-files=all)" || { \
+			echo "release check requires a clean PARC worktree"; \
+			exit 1; \
+		}; \
+		parc_head="$$(git -C "$$parc_path" rev-parse HEAD)"; \
+		test "$$parc_head" = "$(PARC_RELEASE_REVISION)" || { \
+			echo "release check requires PARC $(PARC_RELEASE_REVISION)"; \
+			echo "PARC: $$parc_head"; \
+			exit 1; \
+		}; \
+		parc_branch="$$(git -C "$$parc_path" symbolic-ref --quiet --short HEAD)" || { \
+			echo "release check requires a PARC branch checkout"; \
+			exit 1; \
+		}; \
+		parc_upstream="$$(git -C "$$parc_path" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)" || { \
+			echo "release check requires an upstream for PARC $$parc_branch"; \
+			exit 1; \
+		}; \
+		parc_upstream_head="$$(git -C "$$parc_path" rev-parse "$$parc_upstream")"; \
+		test "$$parc_head" = "$$parc_upstream_head" || { \
+			echo "release check requires PARC HEAD to equal $$parc_upstream"; \
+			echo "PARC HEAD:     $$parc_head"; \
+			echo "PARC upstream: $$parc_upstream_head"; \
+			exit 1; \
+		}; \
+		$(MAKE) verify; \
+		echo "release candidate is eligible: $$tag at $$head"; \
+		echo "required PARC revision: $$parc_head"; \
+		echo "release-check is non-mutating; follow RELEASE.md to create an archive/tag"
