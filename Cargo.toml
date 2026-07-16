@@ -14,7 +14,8 @@ keywords = ["c", "ffi", "linker", "symbols", "abi"]
 categories = ["development-tools::ffi"]
 include = [
     "/src/**/*.rs",
-    "/tests/contracts/**",
+    "/contract-corpus/v2/preservation/link-analysis.json",
+    "/tests/contract_corpus.rs",
     "/Cargo.toml",
     "/LICENSE-*",
     "/README.md",
@@ -23,10 +24,15 @@ include = [
 [lib]
 name = "linc"
 
+[features]
+default = ["contracts"]
+contracts = []
+
 [dependencies]
+blake3 = "1"
+parc = { package = "follang-parc", version = "0.16.0", path = "../parc" }
 serde = { version = "1", features = ["derive"] }
-serde_json = "=1.0.145"
-object = { version = "0.36", default-features = false, features = ["read", "elf", "macho", "coff", "pe"] }
+serde_json = { version = "=1.0.145", features = ["raw_value"] }
+thiserror = "2"
 
 [dev-dependencies]
-parc = { package = "follang-parc", path = "../parc" }

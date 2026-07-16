@@ -1,4 +1,4 @@
-PROJECT_NAME := $(shell grep '^name = ' Cargo.toml | sed -E 's/name = "(.*)"/\1/')
+PROJECT_NAME := $(shell sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 PROJECT_CAP  := $(shell echo $(PROJECT_NAME) | tr '[:lower:]' '[:upper:]')
 CURRENT_VERSION := $(shell grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
 LATEST_TAG   ?= $(shell git describe --tags --abbrev=0 2>/dev/null)
@@ -49,15 +49,18 @@ check-features:
 	@cargo check --all-targets
 	@cargo check --all-targets --all-features
 	@cargo check --all-targets --no-default-features
+	@cargo check --all-targets --no-default-features --features contracts
 
 test-contract:
-	@cargo test --test artifact_boundaries --test public_api -- --test-threads=1
+	@tools/require-nonzero-tests.sh contract \
+		cargo test --test contract_corpus -- --test-threads=1
 
 test-package:
 	@tools/test-package.sh follang-linc linc
 
 test-system:
-	@cargo test -- --ignored --nocapture --test-threads=1
+	@tools/require-nonzero-tests.sh system-h1-corpus \
+		cargo test --test contract_corpus -- --nocapture --test-threads=1
 
 docs-check:
 	@command -v mdbook >/dev/null 2>&1 || { echo "mdbook is required"; exit 1; }
@@ -82,7 +85,9 @@ verify:
 		$(MAKE) check-features; \
 		$(MAKE) test; \
 		$(MAKE) test-contract; \
+		$(MAKE) clean; \
 		$(MAKE) test-package; \
+		$(MAKE) clean; \
 		$(MAKE) test-system; \
 		$(MAKE) docs-check; \
 		git status --porcelain=v1 --untracked-files=all >"$$after"; \
