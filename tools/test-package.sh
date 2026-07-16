@@ -167,9 +167,11 @@ cargo test --manifest-path "$scratch/Cargo.toml" -p "$package_name" --offline
 if test "$(uname -s)" = Linux; then
     command -v cc >/dev/null 2>&1 || { echo "packaged native tests require cc"; exit 1; }
     command -v ar >/dev/null 2>&1 || { echo "packaged native tests require ar"; exit 1; }
+    command -v ld >/dev/null 2>&1 || { echo "packaged native tests require ld"; exit 1; }
     test -x /bin/kill || { echo "packaged native tests require /bin/kill"; exit 1; }
     "$root/tools/require-nonzero-tests.sh" packaged-native-linux \
         env LINC_TEST_CC="$(command -v cc)" LINC_TEST_AR="$(command -v ar)" \
+        LINC_TEST_LD="$(command -v ld)" \
         LINC_TEST_CLANG="$(command -v clang 2>/dev/null || true)" \
         cargo test --manifest-path "$scratch/Cargo.toml" -p "$package_name" \
             --features native-inspection --test native_evidence --offline -- \

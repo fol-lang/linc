@@ -41,6 +41,7 @@ const PARC_OPEN: &str = "pdecl1_524bcccd395cfaad5d0697f01bc545663e82eaad03be1e51
 struct Fixtures {
     root: TempDir,
     compiler: PathBuf,
+    linker_directory: PathBuf,
     cross_compiler: PathBuf,
     object: PathBuf,
     first_archive: PathBuf,
@@ -64,6 +65,11 @@ impl Fixtures {
             .expect("create fixture directory");
         let compiler = required_tool("LINC_TEST_CC");
         let archive_tool = required_tool("LINC_TEST_AR");
+        let linker = required_tool("LINC_TEST_LD");
+        let linker_directory = linker
+            .parent()
+            .expect("linker must have a containing directory")
+            .to_path_buf();
         let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/native-fixtures");
         let cross_compiler = root.path().join("fake-aarch64-cc");
         compile_executable(
@@ -177,6 +183,7 @@ impl Fixtures {
         Self {
             root,
             compiler,
+            linker_directory,
             cross_compiler,
             object,
             first_archive,
@@ -1130,7 +1137,16 @@ fn bounded_probe_runner_captures_identity_environment_and_exact_subject_mapping(
         evidence.execution_policy().environment().policy(),
         ProbeEnvironmentPolicy::Explicit
     );
-    assert_eq!(evidence.execution_policy().environment().entries().len(), 2);
+    assert_eq!(
+        evidence
+            .execution_policy()
+            .environment()
+            .entries()
+            .iter()
+            .map(|entry| entry.name())
+            .collect::<Vec<_>>(),
+        ["HOME", "LINC_EXPLICIT", "PATH"]
+    );
     assert_eq!(probe_directories(fixtures.root.path()), before);
 }
 
@@ -1545,10 +1561,14 @@ fn probe_request<'a>(
     fingerprint: ContentFingerprint,
     method: ProbeMethod,
     runner: Option<RunnerSpec>,
-    environment: Vec<EnvironmentSetting>,
+    mut environment: Vec<EnvironmentSetting>,
     wall_millis: u64,
     output_bytes: u64,
 ) -> ProbeRequest<'a> {
+    environment.push(EnvironmentSetting::Set {
+        name: "PATH".to_owned(),
+        value: fixtures.linker_directory.as_os_str().to_os_string(),
+    });
     ProbeRequest {
         source_fingerprint: complete.source().fingerprint(),
         target: complete.source().target(),

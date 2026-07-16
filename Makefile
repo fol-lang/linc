@@ -65,9 +65,11 @@ test-native:
 	@test "$$(uname -s)" = Linux || { echo "native evidence tests require Linux"; exit 1; }
 	@command -v cc >/dev/null 2>&1 || { echo "native evidence tests require cc"; exit 1; }
 	@command -v ar >/dev/null 2>&1 || { echo "native evidence tests require ar"; exit 1; }
+	@command -v ld >/dev/null 2>&1 || { echo "native evidence tests require ld"; exit 1; }
 	@test -x /bin/kill || { echo "native evidence tests require /bin/kill"; exit 1; }
 	@tools/require-nonzero-tests.sh native-linux \
 		env LINC_TEST_CC="$$(command -v cc)" LINC_TEST_AR="$$(command -v ar)" \
+		LINC_TEST_LD="$$(command -v ld)" \
 		LINC_TEST_CLANG="$$(command -v clang 2>/dev/null || true)" \
 		cargo test --features native-inspection --test native_evidence -- --nocapture --test-threads=1
 
