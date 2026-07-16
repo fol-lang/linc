@@ -236,19 +236,11 @@ pub(crate) fn validate_internal(package: &LinkAnalysisPackage) -> Result<(), Con
         for edge in inventory.dependency_edges() {
             if let Some(child) = edge.provider() {
                 validate_dependency_provider(artifact.provider_id(), child, &providers)?;
-                let child_inventory = providers
-                    .get(&child)
-                    .expect("dependency child existence was checked");
-                if !matches!(
-                    child_inventory.artifact().resolution(),
-                    ProviderResolution::Dependency { parent }
-                        if *parent == artifact.provider_id()
-                ) {
-                    return Err(ContractError::DependencyCrossReference {
-                        parent: artifact.provider_id(),
-                        child,
-                    });
-                }
+                // An artifact can satisfy multiple DT_NEEDED edges (a diamond)
+                // or also be named directly. Its resolution records one
+                // primary discovery route, while every parent relationship is
+                // retained by these ordered edges. The primary dependency
+                // route is checked in the artifact-resolution branch above.
             }
         }
     }
@@ -1121,6 +1113,7 @@ fn validate_linked_declaration(
                 .filter(|symbol| {
                     symbol.name() == canonical_actual
                         && symbol.kind() == expected_kind
+                        && symbol.decoration() == decoration
                         && symbol.is_visible_export()
                 })
                 .count()
@@ -1203,8 +1196,14 @@ pub(crate) fn canonical_symbol_spelling(
                 Err("stdcall spelling requires Windows x86 and confirmed stdcall ABI")
             }
         }
-        SymbolDecoration::Versioned { .. } => {
-            Err("versioned symbol spelling is not accepted by the strict H1 path")
+        SymbolDecoration::Versioned { version, .. } => {
+            if target.object_format() != ObjectFormat::Elf {
+                return Err("symbol versions are certified only for ELF providers");
+            }
+            if version.is_empty() || version.contains(&0) {
+                return Err("ELF symbol version is empty or contains NUL");
+            }
+            Ok(expected_name.to_owned())
         }
         SymbolDecoration::Other { .. } => {
             Err("unmodeled symbol decoration is not accepted by the strict H1 path")

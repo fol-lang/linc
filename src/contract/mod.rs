@@ -34,5 +34,8 @@ pub use parc::contract::{
 pub use request::*;
 pub use schema::{LINK_ANALYSIS_KIND, LINK_ANALYSIS_SCHEMA_ID, LINK_ANALYSIS_SCHEMA_VERSION};
 
+#[cfg(feature = "native-inspection")]
+pub(crate) use package::canonical_symbol_spelling;
+
 #[cfg(test)]
 mod tests;

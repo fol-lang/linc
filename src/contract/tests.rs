@@ -977,22 +977,19 @@ fn dependency_graph_requires_bidirectional_evidence_and_acyclic_plan_order() {
     ));
 
     let explicit_child = inventory_named(&fixture.package, "librepeat.a").clone();
-    let mut mismatched_child_resolution = accepted_input.clone();
+    let mut explicit_child_resolution = accepted_input.clone();
     replace_inventory(
-        &mut mismatched_child_resolution.inventories,
+        &mut explicit_child_resolution.inventories,
         explicit_child.clone(),
     );
-    mismatched_child_resolution.resolved_link_plan = replace_plan_artifact(
-        &mismatched_child_resolution.resolved_link_plan,
+    explicit_child_resolution.resolved_link_plan = replace_plan_artifact(
+        &explicit_child_resolution.resolved_link_plan,
         explicit_child.artifact().clone(),
     );
-    assert!(matches!(
-        LinkAnalysisPackage::try_new(mismatched_child_resolution),
-        Err(ContractError::DependencyCrossReference {
-            parent,
-            child
-        }) if parent == parent_provider && child == child_provider
-    ));
+    let explicit_dependency = LinkAnalysisPackage::try_new(explicit_child_resolution)
+        .expect("an explicitly selected provider may satisfy an ordered dependency edge");
+    ValidatedLinkAnalysis::try_new(&fixture.complete, explicit_dependency)
+        .expect("direct providers retain parent edges without a second discovery identity");
 
     let mut cycle = accepted_input;
     let parent_dependency = artifact_with_resolution(
@@ -1490,15 +1487,12 @@ fn corpus_fixture_with(options: FixtureOptions) -> CorpusFixture {
                     id: ArtifactSymbolId::new(0, symbol_index),
                     name: link_name.clone(),
                     raw_name: link_name.as_bytes().to_vec(),
-                    version: Some(b"DUPLICATE_1".to_vec()),
+                    version: None,
                     direction: SymbolDirection::Exported,
                     kind,
                     binding: SymbolBinding::Global,
                     visibility: SymbolVisibility::Default,
-                    decoration: SymbolDecoration::Versioned {
-                        version: b"DUPLICATE_1".to_vec(),
-                        is_default: false,
-                    },
+                    decoration: SymbolDecoration::None,
                     size: 16,
                     address: Some(0x2000 + symbol_index * 16),
                     section: Some(b".text".to_vec()),

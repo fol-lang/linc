@@ -61,10 +61,13 @@ publish = false
 
 [dependencies]
 parc = { package = "${parc_package}", version = "=${parc_version}", default-features = false }
-${crate_name} = { package = "${package_name}", version = "=${version}", default-features = false, features = ["contracts"] }
+${crate_name} = { package = "${package_name}", version = "=${version}", default-features = false, features = ["native-inspection"] }
 EOF
 cat >"$scratch/consumer/src/lib.rs" <<'EOF'
 use linc::contract::corpus as linc_corpus;
+use linc::native::{
+    InspectionLimits, NativeAnalyzer, NativeInspector, NativeResolver, ResolverConfiguration,
+};
 use parc::contract::{corpus as parc_corpus, decode_source_package};
 
 pub fn packaged_contract_pair_is_checked() -> bool {
@@ -79,11 +82,34 @@ pub fn packaged_contract_pair_is_checked() -> bool {
         && validated.package().target_fingerprint() == complete.source().target_fingerprint()
 }
 
+pub fn packaged_native_surface_is_checked() -> bool {
+    let inspector = NativeInspector::new(InspectionLimits::default())
+        .expect("packaged native inspector accepts default limits");
+    let resolver = NativeResolver::new(inspector, ResolverConfiguration::default())
+        .expect("packaged native resolver accepts default policy");
+    let analyzer = NativeAnalyzer::new(resolver);
+    analyzer.resolver().inspector().limits().max_symbols != 0
+}
+
 #[test]
 fn packaged_contract_pair_roundtrips() {
     assert!(packaged_contract_pair_is_checked());
+    assert!(packaged_native_surface_is_checked());
 }
 EOF
 
+# Never reuse build fingerprints from an earlier extracted archive with the
+# same package version. Package validation must compile the bytes just unpacked.
+export CARGO_TARGET_DIR="$scratch/target"
 cargo test --manifest-path "$scratch/Cargo.toml" -p "$package_name" --offline
+if test "$(uname -s)" = Linux; then
+    command -v cc >/dev/null 2>&1 || { echo "packaged native tests require cc"; exit 1; }
+    command -v ar >/dev/null 2>&1 || { echo "packaged native tests require ar"; exit 1; }
+    test -x /bin/kill || { echo "packaged native tests require /bin/kill"; exit 1; }
+    "$root/tools/require-nonzero-tests.sh" packaged-native-linux \
+        env LINC_TEST_CC="$(command -v cc)" LINC_TEST_AR="$(command -v ar)" \
+        cargo test --manifest-path "$scratch/Cargo.toml" -p "$package_name" \
+            --features native-inspection --test native_evidence --offline -- \
+            --nocapture --test-threads=1
+fi
 cargo test --manifest-path "$scratch/Cargo.toml" -p "${crate_name}-package-consumer" --offline

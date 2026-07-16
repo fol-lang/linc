@@ -7,4 +7,12 @@
 //! evidence, probe provenance, policy, diagnostics, and the preservation
 //! corpus shared with downstream consumers.
 
+#![forbid(unsafe_code)]
+
 pub mod contract;
+
+/// Optional operational implementation which produces the canonical contract
+/// types. The contract remains available without native parsing or execution
+/// dependencies.
+#[cfg(feature = "native-inspection")]
+pub mod native;

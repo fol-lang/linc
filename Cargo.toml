@@ -16,6 +16,8 @@ include = [
     "/src/**/*.rs",
     "/contract-corpus/v2/preservation/link-analysis.json",
     "/tests/contract_corpus.rs",
+    "/tests/native_evidence.rs",
+    "/tests/native-fixtures/**",
     "/Cargo.toml",
     "/LICENSE-*",
     "/README.md",
@@ -27,12 +29,15 @@ name = "linc"
 [features]
 default = ["contracts"]
 contracts = []
+native-inspection = ["contracts", "dep:object", "dep:tempfile"]
 
 [dependencies]
 blake3 = "1"
+object = { version = "=0.37.3", default-features = false, features = ["read", "std"], optional = true }
 parc = { package = "follang-parc", version = "0.16.0", path = "../parc" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "=1.0.145", features = ["raw_value"] }
+tempfile = { version = "=3.27.0", optional = true }
 thiserror = "2"
 
 [dev-dependencies]
