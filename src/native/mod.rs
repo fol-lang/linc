@@ -5,13 +5,16 @@
 //! [`crate::contract`]; there is no second serialized evidence model.
 
 mod analyze;
+mod certify;
 mod error;
 mod inspect;
 mod probe;
 mod resolve;
+mod sysv;
 mod validate;
 
 pub use analyze::{NativeAnalysisInput, NativeAnalyzer, NativeDeclarationRequest};
+pub use certify::CertificationToolchain;
 pub use error::{NativeError, NativeResult};
 pub use inspect::{
     ArtifactInspection, InspectionLimits, NativeInspector, NeededLibrary, OBJECT_PARSER_VERSION,

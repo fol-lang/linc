@@ -13,8 +13,8 @@ use crate::contract::{
 };
 
 use super::{
-    AbiShapeEvidence, NativeError, NativeResolver, NativeResult, StrictDeclarationRequest,
-    StrictEvidenceValidator,
+    AbiShapeEvidence, CertificationToolchain, NativeError, NativeResolution, NativeResolver,
+    NativeResult, StrictDeclarationRequest, StrictEvidenceValidator,
 };
 
 /// Owned strict-validation request for one linked source declaration.
@@ -107,6 +107,31 @@ impl NativeAnalyzer {
     ) -> NativeResult<ValidatedLinkAnalysis> {
         validate_explicit_evidence(request.source(), &input)?;
         let resolution = self.resolver.resolve(request)?;
+        self.analyze_resolved(request, input, resolution)
+    }
+
+    /// Resolve, measure, and validate the complete native link contract without
+    /// accepting caller-authored ABI evidence.
+    pub fn certify(
+        &self,
+        request: &crate::contract::AnalysisRequest<'_>,
+        toolchain: &CertificationToolchain,
+    ) -> NativeResult<ValidatedLinkAnalysis> {
+        super::certify::validate_certification_request(request)?;
+        // Provider inspection happens before compilation so a missing, wrong-
+        // target, or ambiguous artifact cannot trigger an unnecessary probe.
+        let resolution = self.resolver.resolve(request)?;
+        let input = super::certify::certify_input(request, toolchain)?;
+        validate_explicit_evidence(request.source(), &input)?;
+        self.analyze_resolved(request, input, resolution)
+    }
+
+    fn analyze_resolved(
+        &self,
+        request: &crate::contract::AnalysisRequest<'_>,
+        input: NativeAnalysisInput,
+        resolution: NativeResolution,
+    ) -> NativeResult<ValidatedLinkAnalysis> {
         let mut requests = declaration_request_map(input.declarations)?;
         let mut declaration_evidence =
             Vec::with_capacity(request.source().declaration_closure().len());

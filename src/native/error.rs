@@ -71,6 +71,8 @@ pub enum NativeError {
     MissingCrossRunner { target: String },
     #[error("runner evidence is invalid: {detail}")]
     InvalidRunner { detail: String },
+    #[error("probe compiler identity does not match the requested target: {detail}")]
+    CompilerIdentityMismatch { detail: String },
     #[error("symbol evidence for declaration {declaration} was rejected: {detail}")]
     SymbolRejected {
         declaration: DeclarationId,
@@ -81,6 +83,10 @@ pub enum NativeError {
         declaration: DeclarationId,
         detail: String,
     },
+    #[error("source type is outside the certified probe profile: {detail}")]
+    UnsupportedProbeType { detail: String },
+    #[error("the certified probe closure cannot be rendered: {detail}")]
+    ProbeRender { detail: String },
     #[error("contract construction rejected native evidence: {0}")]
     Contract(#[from] ContractError),
 }
@@ -110,8 +116,11 @@ impl NativeError {
             Self::ProbeUnsafeStreams => "LINC-E3037",
             Self::MissingCrossRunner { .. } => "LINC-E3034",
             Self::InvalidRunner { .. } => "LINC-E3035",
+            Self::CompilerIdentityMismatch { .. } => "LINC-E3036",
             Self::SymbolRejected { .. } => "LINC-E3040",
             Self::AbiMismatch { .. } => "LINC-E3041",
+            Self::UnsupportedProbeType { .. } => "LINC-E3050",
+            Self::ProbeRender { .. } => "LINC-E3051",
             Self::Contract(_) => "LINC-E3099",
         }
     }

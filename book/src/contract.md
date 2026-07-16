@@ -25,8 +25,10 @@ declaration closure.
 `LinkAnalysisPackageInput` remains public for corpus decoding and low-level
 contract construction. Native consumers must not treat it as the authoritative
 inspection boundary: enable `native-inspection` and call
-`NativeAnalyzer::analyze`, which returns a `ValidatedLinkAnalysis` only after
-resolution and all evidence dimensions pass.
+`NativeAnalyzer::certify`, which accepts no caller-authored ABI facts and
+returns a `ValidatedLinkAnalysis` only after resolution, measurement, and all
+evidence dimensions pass. `NativeAnalyzer::analyze` remains available only as
+the advanced typed-evidence intake.
 
 Native inputs and resolved link atoms are sequences: order and repetition are
 semantic. Inventories, probes, layouts, declaration evidence, and diagnostics

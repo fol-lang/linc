@@ -64,11 +64,15 @@ parc = { package = "${parc_package}", version = "=${parc_version}", default-feat
 ${crate_name} = { package = "${package_name}", version = "=${version}", default-features = false, features = ["native-inspection"] }
 EOF
 cat >"$scratch/consumer/src/lib.rs" <<'EOF'
-use linc::contract::corpus as linc_corpus;
+use linc::contract::{
+    corpus as linc_corpus, AnalysisRequest, ProbeResourceLimits, ValidatedLinkAnalysis,
+};
 use linc::native::{
-    InspectionLimits, NativeAnalyzer, NativeInspector, NativeResolver, ResolverConfiguration,
+    CertificationToolchain, InspectionLimits, NativeAnalyzer, NativeInspector, NativeResolver,
+    NativeResult, ResolverConfiguration,
 };
 use parc::contract::{corpus as parc_corpus, decode_source_package};
+use std::path::PathBuf;
 
 pub fn packaged_contract_pair_is_checked() -> bool {
     let source = decode_source_package(parc_corpus::COMPLETE_SOURCE_PACKAGE_JSON)
@@ -80,6 +84,22 @@ pub fn packaged_contract_pair_is_checked() -> bool {
         .expect("packaged LINC corpus covers that closure");
     validated.package().source_fingerprint() == complete.source().fingerprint()
         && validated.package().target_fingerprint() == complete.source().target_fingerprint()
+}
+
+pub fn packaged_observation_surface_is_checked(
+    compiler: PathBuf,
+    limits: ProbeResourceLimits,
+) -> NativeResult<parc::contract::CompilerIdentity> {
+    CertificationToolchain::observe(compiler, Vec::new(), limits)
+        .map(|toolchain| toolchain.compiler_identity().clone())
+}
+
+pub fn packaged_certification_surface_is_checked(
+    analyzer: &NativeAnalyzer,
+    request: &AnalysisRequest<'_>,
+    toolchain: &CertificationToolchain,
+) -> NativeResult<ValidatedLinkAnalysis> {
+    analyzer.certify(request, toolchain)
 }
 
 pub fn packaged_native_surface_is_checked() -> bool {

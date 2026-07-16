@@ -6,16 +6,21 @@ not infer support for Mach-O, COFF/import libraries, or frameworks.
 
 ## Authoritative operation
 
-Construct an `AnalysisRequest` from a complete PARC closure, an explicit
-`AnalysisPolicy`, and ordered `NativeInput` values. Then pass typed probe,
-layout, and linked-declaration requests to `NativeAnalyzer::analyze`.
+First call bounded `CertificationToolchain::observe`; its compiler identity is
+the compiler fact used to construct the PARC target. Construct an
+`AnalysisRequest` from the complete PARC closure, strict compile-only policy,
+and exact-path `NativeInput` values. Then call `NativeAnalyzer::certify`.
+Production callers do not provide probes, layouts, callable shapes, or
+declaration evidence. `NativeAnalyzer::analyze` remains a lower-level boundary
+for advanced evidence producers.
 
 The analyzer:
 
-1. checks source and target fingerprints on all explicit evidence;
-2. resolves and inspects every provider without ambient loader lookup;
-3. validates provider, symbol, layout, and callable-ABI dimensions separately;
-4. requires exact evidence for every selected closure member;
+1. resolves and inspects every provider without ambient loader lookup;
+2. renders a header-free translation unit from the checked PARC closure;
+3. re-observes the compiler and decodes compiler-produced layout facts;
+4. derives and independently revalidates x86-64 SysV callable classification
+   bound to compiler-lowered witness functions;
 5. constructs the durable schema-v2 package; and
 6. returns only after `ValidatedLinkAnalysis::try_new` succeeds.
 

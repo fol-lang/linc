@@ -19,18 +19,21 @@ use linc::{
         SymbolDirection, SymbolKind, SymbolVisibility, WeakSymbolPolicy,
     },
     native::{
-        AbiDimension, AbiShapeEvidence, EnvironmentSetting, InspectionLimits, LibraryPreference,
-        NativeAnalysisInput, NativeAnalyzer, NativeDeclarationRequest, NativeError,
-        NativeInspector, NativeResolver, ProbeExpectation, ProbeProgram, ProbeRejectionKind,
-        ProbeRequest, ProbeRunOutcome, ProbeRunner, ResolverConfiguration, ReturnConvention,
-        RunnerSpec, StrictDeclarationRequest, StrictEvidenceValidator, ValuePassing,
+        AbiDimension, AbiShapeEvidence, CertificationToolchain, EnvironmentSetting,
+        InspectionLimits, LibraryPreference, NativeAnalysisInput, NativeAnalyzer,
+        NativeDeclarationRequest, NativeError, NativeInspector, NativeResolver, ProbeExpectation,
+        ProbeProgram, ProbeRejectionKind, ProbeRequest, ProbeRunOutcome, ProbeRunner,
+        ResolverConfiguration, ReturnConvention, RunnerSpec, StrictDeclarationRequest,
+        StrictEvidenceValidator, ValuePassing,
     },
 };
 use parc::contract::{
-    corpus as parc_corpus, decode_source_package, Architecture, CompilerFamily, CompilerIdentity,
-    CompleteSourcePackage, ContentFingerprint, DeclarationId, Selection, SourceDeclarationKind,
-    SourceFingerprint, SourcePackage, SourcePackageInput, TargetSpec, TargetSpecParts,
+    corpus as parc_corpus, decode_source_package, Architecture, CallingConvention, CompilerFamily,
+    CompilerIdentity, CompleteSourcePackage, ContentFingerprint, DeclarationId, ExtensionFamily,
+    ExtensionProfile, Selection, SourceDeclarationKind, SourceFingerprint, SourcePackage,
+    SourcePackageInput, TargetSpec, TargetSpecParts,
 };
+use parc::scan::{scan_headers, PathMapping, PathMappingRule, PreprocessorMode, ScanConfig};
 use tempfile::TempDir;
 
 const PARC_OPEN: &str = "pdecl1_524bcccd395cfaad5d0697f01bc545663e82eaad03be1e515beeb81933f5b37d";
@@ -901,6 +904,175 @@ fn authoritative_analyzer_returns_only_fully_validated_packages() {
 }
 
 #[test]
+fn production_certifier_owns_probe_facts_and_returns_validated_analysis() {
+    let fixtures = Fixtures::build();
+    let compiler = canonical(&fixtures.compiler);
+    let toolchain =
+        CertificationToolchain::observe(compiler, Vec::new(), limits(5_000, 1024 * 1024)).unwrap();
+    let complete = complete_certification_source_for_toolchain(&toolchain);
+    let temporary_parent = canonical(fixtures.root.path());
+    let policy = AnalysisPolicy::strict(
+        ResolutionPolicy::ExactPathsOnly,
+        ProbePolicy::CompileOnly,
+        RunnerPolicy::Unavailable,
+        ProbeExecutionPolicy::try_new(
+            temporary_parent,
+            ProbeEnvironmentIdentity::try_new(ProbeEnvironmentPolicy::Empty, Vec::new()).unwrap(),
+            limits(5_000, 1024 * 1024),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let native_inputs = [NativeInput::DynamicLibraryPath(canonical(
+        &fixtures.global_one,
+    ))];
+    let request = AnalysisRequest::try_new(&complete, &native_inputs, policy).unwrap();
+    let resolver = NativeResolver::new(
+        NativeInspector::default(),
+        ResolverConfiguration::new(Vec::new(), LibraryPreference::DynamicOnly, 128).unwrap(),
+    )
+    .unwrap();
+    let validated = NativeAnalyzer::new(resolver)
+        .certify(&request, &toolchain)
+        .expect("production certifier must construct and validate its own evidence");
+
+    assert_eq!(validated.package().abi_probes().len(), 1);
+    assert_eq!(
+        validated.package().abi_probes()[0].method(),
+        ProbeMethod::CompileTimeAssertion
+    );
+    assert!(validated.package().abi_probes()[0]
+        .execution_result()
+        .is_none());
+    assert_eq!(validated.package().layouts().len(), 2);
+    assert_eq!(validated.package().declaration_evidence().len(), 5);
+}
+
+#[test]
+fn clang_observation_uses_resource_directory_not_gcc_sysroot_flags() {
+    let Some(clang) = std::env::var_os("LINC_TEST_CLANG").filter(|value| !value.is_empty()) else {
+        eprintln!("skipping optional Clang observation: LINC_TEST_CLANG is unset");
+        return;
+    };
+    let toolchain = CertificationToolchain::observe(
+        canonical(Path::new(&clang)),
+        Vec::new(),
+        limits(5_000, 1024 * 1024),
+    )
+    .expect("supported Clang must be observable without GCC-only sysroot flags");
+    assert!(matches!(
+        toolchain.compiler_identity().family(),
+        CompilerFamily::Clang | CompilerFamily::AppleClang
+    ));
+    assert!(toolchain.compiler_sysroot().is_none());
+    assert!(toolchain.compiler_resource_dir().is_some_and(Path::is_dir));
+}
+
+#[test]
+fn production_certifier_measures_nontrivial_aggregate_closure() {
+    let fixtures = Fixtures::build();
+    let compiler = canonical(&fixtures.compiler);
+    let toolchain =
+        CertificationToolchain::observe(compiler.clone(), Vec::new(), limits(5_000, 1024 * 1024))
+            .unwrap();
+    let header = fixtures.root.path().join("certification-api.h");
+    let provider_source = fixtures.root.path().join("certification-provider.c");
+    let declaration_source = r#"
+struct linc_inner { int x; double y; };
+union linc_word { unsigned long long u; double d; };
+enum linc_mode { LINC_MODE_LOW = -1, LINC_MODE_HIGH = 7 };
+typedef int (*linc_callback)(int value);
+struct linc_aggregate {
+    int values[3];
+    struct linc_inner inner;
+    union linc_word word;
+    linc_callback callback;
+};
+typedef struct linc_aggregate linc_payload;
+typedef void linc_nothing;
+struct linc_bits { unsigned flags : 3; unsigned ready : 1; };
+extern linc_payload linc_state;
+linc_payload linc_transform(linc_payload value, enum linc_mode mode);
+linc_nothing linc_notify(int value);
+"#;
+    fs::write(&header, declaration_source).unwrap();
+    fs::write(
+        &provider_source,
+        format!(
+            "{declaration_source}\nlinc_payload linc_state;\nlinc_payload linc_transform(linc_payload value, enum linc_mode mode) {{ (void)mode; return value; }}\nlinc_nothing linc_notify(int value) {{ (void)value; }}\n"
+        ),
+    )
+    .unwrap();
+    let target = certification_target(&toolchain);
+    let mapping =
+        PathMapping::try_new([PathMappingRule::try_new(fixtures.root.path(), "fixture").unwrap()])
+            .unwrap();
+    let report = scan_headers(
+        &ScanConfig::new(target, mapping, PreprocessorMode::Builtin)
+            .unwrap()
+            .entry_header(&header),
+    )
+    .unwrap();
+    let complete = report.into_complete(&Selection::all_supported()).unwrap();
+    let provider_object = fixtures.root.path().join("certification-provider.o");
+    let provider = fixtures.root.path().join("libcertification-provider.so");
+    compile_object(
+        &compiler,
+        &provider_source,
+        &provider_object,
+        &["-fPIC", "-std=gnu17"],
+    );
+    link_shared(&compiler, &[&provider_object], &provider, &[]);
+    let policy = AnalysisPolicy::strict(
+        ResolutionPolicy::ExactPathsOnly,
+        ProbePolicy::CompileOnly,
+        RunnerPolicy::Unavailable,
+        ProbeExecutionPolicy::try_new(
+            canonical(fixtures.root.path()),
+            ProbeEnvironmentIdentity::try_new(ProbeEnvironmentPolicy::Empty, Vec::new()).unwrap(),
+            limits(5_000, 1024 * 1024),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let native_inputs = [NativeInput::DynamicLibraryPath(canonical(&provider))];
+    let request = AnalysisRequest::try_new(&complete, &native_inputs, policy).unwrap();
+    let validated = NativeAnalyzer::default()
+        .certify(&request, &toolchain)
+        .expect("aggregate certification must be fully LINC-owned");
+
+    assert_eq!(validated.package().layouts().len(), 5);
+    assert!(validated.package().abi_probes()[0]
+        .subjects()
+        .iter()
+        .any(|subject| matches!(subject, ProbeSubject::CallableAbi { .. })));
+    let bitfield_layout = validated
+        .package()
+        .layouts()
+        .iter()
+        .find_map(|layout| match layout {
+            linc::contract::LayoutEvidence::Record(record)
+                if record
+                    .fields()
+                    .iter()
+                    .any(|field| field.size_bits() == Some(3)) =>
+            {
+                Some(record)
+            }
+            _ => None,
+        })
+        .expect("bitfield record layout");
+    assert_eq!(bitfield_layout.fields().len(), 2);
+    let mut bit_ranges = bitfield_layout
+        .fields()
+        .iter()
+        .map(|field| (field.offset_bits(), field.size_bits()))
+        .collect::<Vec<_>>();
+    bit_ranges.sort_unstable();
+    assert_eq!(bit_ranges, [(0, Some(3)), (3, Some(1))]);
+}
+
+#[test]
 fn bounded_probe_runner_captures_identity_environment_and_exact_subject_mapping() {
     let fixtures = Fixtures::build();
     let complete = complete_source();
@@ -1197,6 +1369,58 @@ fn complete_source_for_compiler(compiler_path: &Path) -> CompleteSourcePackage {
     .unwrap();
     let selection = Selection::only([DeclarationId::from_str(PARC_OPEN).unwrap()]).unwrap();
     package.into_complete(&selection).unwrap()
+}
+
+fn complete_certification_source_for_toolchain(
+    toolchain: &CertificationToolchain,
+) -> CompleteSourcePackage {
+    let base = decode_source_package(parc_corpus::COMPLETE_SOURCE_PACKAGE_JSON).unwrap();
+    let target = certification_target(toolchain);
+    let declaration = DeclarationId::from_str(PARC_OPEN).unwrap();
+    let mut declarations = base.declarations().to_vec();
+    let callable = declarations
+        .iter_mut()
+        .find(|candidate| candidate.id == declaration)
+        .unwrap();
+    let SourceDeclarationKind::Function(function) = &mut callable.kind else {
+        unreachable!()
+    };
+    function.calling_convention = CallingConvention::C;
+    let package = SourcePackage::try_new(SourcePackageInput {
+        target,
+        files: base.files().to_vec(),
+        inputs: base.inputs().clone(),
+        declarations,
+        macros: base.macros().to_vec(),
+        diagnostics: base.diagnostics().to_vec(),
+        completeness: base.completeness().clone(),
+    })
+    .unwrap();
+    package
+        .into_complete(&linc_corpus::preservation_selection())
+        .unwrap()
+}
+
+fn certification_target(toolchain: &CertificationToolchain) -> TargetSpec {
+    let base = decode_source_package(parc_corpus::COMPLETE_SOURCE_PACKAGE_JSON).unwrap();
+    let target = base.target();
+    TargetSpec::try_new(TargetSpecParts {
+        triple: target.triple().to_owned(),
+        architecture: target.architecture(),
+        vendor: target.vendor().clone(),
+        operating_system: target.operating_system(),
+        environment: target.environment(),
+        object_format: target.object_format(),
+        endian: target.endian(),
+        pointer_width: target.pointer_width(),
+        c_data_model: target.c_data_model().clone(),
+        language_standard: target.language_standard(),
+        extension_profile: ExtensionProfile::new(ExtensionFamily::Gnu, []),
+        compiler: toolchain.compiler_identity().clone(),
+        sysroot: None,
+        abi_flags: target.abi_flags().to_vec(),
+    })
+    .unwrap()
 }
 
 fn observed_compiler_identity(compiler: &Path) -> CompilerIdentity {

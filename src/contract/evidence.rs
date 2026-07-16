@@ -1463,7 +1463,7 @@ fn validate_layout_shape(
     size_bits: u64,
     alignment_bits: u32,
 ) -> Result<(), ContractError> {
-    if size_bits == 0 || size_bits % 8 != 0 || !valid_alignment(alignment_bits) {
+    if size_bits == 0 || !size_bits.is_multiple_of(8) || !valid_alignment(alignment_bits) {
         Err(ContractError::InvalidLayout { declaration })
     } else {
         Ok(())

@@ -519,9 +519,33 @@ impl StrictEvidenceValidator {
             false,
             shape.declaration,
         )?;
-        match (&function.return_type.kind, shape.return_convention) {
-            (CTypeKind::Void, ReturnConvention::Void) => {}
-            (CTypeKind::Void, _) => {
+        if source.source().target().triple() == "x86_64-unknown-linux-gnu"
+            && matches!(
+                function.calling_convention,
+                CallingConvention::C | CallingConvention::Cdecl | CallingConvention::SysV64
+            )
+        {
+            let classification = super::sysv::classify_sysv64_callable(source, function, layouts)?;
+            if classification.parameters().len() != shape.parameters.len()
+                || classification
+                    .parameters()
+                    .iter()
+                    .zip(&shape.parameters)
+                    .any(|(expected, measured)| *expected != measured.passing())
+                || classification.return_value() != shape.return_value.passing()
+                || classification.return_convention() != shape.return_convention
+            {
+                return Err(abi_error(
+                    shape.declaration,
+                    "callable passing or return convention differs from the SysV64 classifier",
+                ));
+            }
+        }
+        let return_category =
+            return_type_category(source, &function.return_type, &mut BTreeSet::new())?;
+        match (return_category, shape.return_convention) {
+            (ReturnTypeCategory::Void, ReturnConvention::Void) => {}
+            (ReturnTypeCategory::Void, _) => {
                 return Err(abi_error(
                     shape.declaration,
                     "void return requires the void return convention",
@@ -533,8 +557,8 @@ impl StrictEvidenceValidator {
                     "non-void return cannot use the void return convention",
                 ));
             }
-            (CTypeKind::RecordRef(_) | CTypeKind::Array { .. }, _) => {}
-            (_, ReturnConvention::IndirectSret) => {
+            (ReturnTypeCategory::Aggregate, _) => {}
+            (ReturnTypeCategory::Scalar, ReturnConvention::IndirectSret) => {
                 return Err(abi_error(
                     shape.declaration,
                     "scalar return cannot claim an aggregate sret convention",
@@ -570,6 +594,47 @@ impl StrictEvidenceValidator {
                 "probe outcome fingerprint does not bind the typed callable evidence",
             )),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReturnTypeCategory {
+    Void,
+    Aggregate,
+    Scalar,
+}
+
+fn return_type_category(
+    source: &CompleteSourcePackage,
+    ty: &CType,
+    aliases: &mut BTreeSet<DeclarationId>,
+) -> NativeResult<ReturnTypeCategory> {
+    match &ty.kind {
+        CTypeKind::Void => Ok(ReturnTypeCategory::Void),
+        CTypeKind::RecordRef(_) | CTypeKind::Array { .. } => Ok(ReturnTypeCategory::Aggregate),
+        CTypeKind::AliasRef(id) => {
+            if !aliases.insert(*id) {
+                return Err(NativeError::InvalidPolicy {
+                    detail: "alias cycle reached during return-category validation".to_owned(),
+                });
+            }
+            let declaration =
+                source
+                    .source()
+                    .declaration(*id)
+                    .ok_or_else(|| NativeError::InvalidPolicy {
+                        detail: format!("alias declaration {id} is missing"),
+                    })?;
+            let SourceDeclarationKind::TypeAlias(alias) = &declaration.kind else {
+                return Err(NativeError::InvalidPolicy {
+                    detail: format!("declaration {id} is not an alias"),
+                });
+            };
+            let result = return_type_category(source, &alias.target, aliases);
+            aliases.remove(id);
+            result
+        }
+        _ => Ok(ReturnTypeCategory::Scalar),
     }
 }
 

@@ -15,22 +15,34 @@ and `ValidatedLinkAnalysis` coverage proofs. The optional
   ambiguity, weak-symbol, order, repetition, and transitive-provider rules;
 - direct-argv ABI probes with a cleared environment, secure temporary files,
   compiler identity, wall/output bounds, and Linux process-group cleanup; and
-- `NativeAnalyzer`, the authoritative operation that resolves, validates every
-  selected declaration and evidence dimension, and returns only a
-  `ValidatedLinkAnalysis`.
+- bounded `CertificationToolchain::observe`, which owns compiler identity
+  observation before PARC target construction; and
+- `NativeAnalyzer::certify`, the production operation that resolves providers,
+  generates header-free structural probes, measures layouts, certifies SysV64
+  call shapes against compiled witnesses, and returns only a
+  `ValidatedLinkAnalysis`. The lower-level `analyze` API is retained for
+  advanced evidence producers.
 
 ```rust
 # #[cfg(feature = "native-inspection")]
 # fn build_analyzer() -> Result<(), Box<dyn std::error::Error>> {
 use linc::native::{
-    InspectionLimits, NativeAnalyzer, NativeInspector, NativeResolver,
-    ResolverConfiguration,
+    CertificationToolchain, InspectionLimits, NativeAnalyzer, NativeInspector,
+    NativeResolver, ResolverConfiguration,
 };
+use linc::contract::ProbeResourceLimits;
+use std::path::PathBuf;
 
 let inspector = NativeInspector::new(InspectionLimits::default())?;
 let resolver = NativeResolver::new(inspector, ResolverConfiguration::default())?;
 let analyzer = NativeAnalyzer::new(resolver);
 assert_ne!(analyzer.resolver().inspector().limits().max_symbols, 0);
+let limits = ProbeResourceLimits::try_new(10_000, 512 << 20, 1 << 20, 16)?;
+# let compiler = PathBuf::from("/absolute/path/to/cc");
+# if compiler.exists() {
+let toolchain = CertificationToolchain::observe(compiler, Vec::new(), limits)?;
+assert!(!toolchain.reported_target().is_empty());
+# }
 # Ok(())
 # }
 ```

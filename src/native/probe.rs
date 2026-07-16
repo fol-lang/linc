@@ -245,6 +245,32 @@ impl ProbeRunOutcome {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProbeRunner;
 
+/// One compiler-produced object and the exact provenance needed to turn its
+/// decoded facts into durable probe evidence.
+///
+/// This type is intentionally confined to the native implementation. Public
+/// callers never receive raw measurement objects or get to supply the facts
+/// decoded from them.
+pub(super) struct OwnedProbeCompilation {
+    pub compiler: CompilerIdentity,
+    pub compiler_executable: PathBuf,
+    pub compiler_arguments: Vec<ProbeCompilerArgument>,
+    pub source_fingerprint: ContentFingerprint,
+    pub execution_policy: ProbeExecutionPolicy,
+    pub compile_result: ProbeProcessResult,
+    pub compiler_resource_dir: Option<PathBuf>,
+    pub object: Vec<u8>,
+}
+
+/// Bounded compiler facts exposed to the high-level certification toolchain
+/// before a PARC target is assembled.
+pub(super) struct ObservedCertificationCompiler {
+    pub compiler: CompilerIdentity,
+    pub compiler_executable: PathBuf,
+    pub sysroot: Option<PathBuf>,
+    pub resource_dir: Option<PathBuf>,
+}
+
 impl ProbeRunner {
     pub fn run(&self, mut request: ProbeRequest<'_>) -> NativeResult<ProbeRunOutcome> {
         canonicalize_expectations(&mut request.expectations)?;
@@ -569,10 +595,223 @@ impl ProbeRunner {
     }
 }
 
+/// Compile a LINC-owned, header-free measurement translation unit and retain
+/// its object bytes for structural decoding before any evidence fingerprint is
+/// constructed.
+pub(super) fn compile_owned_probe(
+    target: &TargetSpec,
+    compiler_executable: &Path,
+    environment_settings: &[EnvironmentSetting],
+    execution_policy: &ProbeExecutionPolicy,
+    source: &str,
+) -> NativeResult<OwnedProbeCompilation> {
+    if source.is_empty() || source.contains('\0') || source.len() > MAX_PROBE_SOURCE_BYTES {
+        return Err(NativeError::ProbeRender {
+            detail: "owned probe source is empty, contains NUL, or exceeds the source limit"
+                .to_owned(),
+        });
+    }
+    if !compiler_executable.is_absolute() {
+        return Err(NativeError::InvalidPolicy {
+            detail: "certification compiler executable must be absolute".to_owned(),
+        });
+    }
+    let compiler = fs::canonicalize(compiler_executable).map_err(|error| {
+        io_error(
+            "canonicalize certification compiler",
+            compiler_executable,
+            error,
+        )
+    })?;
+    if !compiler.is_file() {
+        return Err(NativeError::ToolIdentity {
+            path: compiler,
+            detail: "compiler is not a regular file".to_owned(),
+        });
+    }
+    let environment = checked_environment(environment_settings)?;
+    let observed_environment = environment_identity(environment_settings)?;
+    if &observed_environment != execution_policy.environment() {
+        return Err(NativeError::InvalidPolicy {
+            detail: "certification toolchain environment differs from the analysis policy"
+                .to_owned(),
+        });
+    }
+    let temporary_parent =
+        fs::canonicalize(execution_policy.temporary_parent()).map_err(|error| {
+            io_error(
+                "canonicalize certification temporary parent",
+                execution_policy.temporary_parent(),
+                error,
+            )
+        })?;
+    if temporary_parent != execution_policy.temporary_parent() {
+        return Err(NativeError::InvalidPolicy {
+            detail: "certification temporary parent must already be canonical".to_owned(),
+        });
+    }
+
+    let observation = identify_compiler(&compiler, &environment, execution_policy.limits())?;
+    if !certified_reported_target_matches(observation.compiler.reported_target(), target.triple()) {
+        return Err(NativeError::CompilerIdentityMismatch {
+            detail: format!(
+                "compiler reports target {}, request requires {}",
+                observation.compiler.reported_target(),
+                target.triple()
+            ),
+        });
+    }
+    if &observation.compiler != target.compiler() {
+        return Err(NativeError::ToolIdentity {
+            path: compiler,
+            detail: "observed compiler family/content/version identity differs from TargetSpec"
+                .to_owned(),
+        });
+    }
+    if target.sysroot().is_some() || observation.sysroot != Path::new("/") {
+        return Err(NativeError::ToolIdentity {
+            path: compiler,
+            detail: "the initial certified profile requires an empty compiler sysroot identity"
+                .to_owned(),
+        });
+    }
+
+    let compiler_arguments = certification_compiler_arguments(target);
+    let source_fingerprint = ContentFingerprint::from_content(source.as_bytes());
+    let temporary = tempfile::Builder::new()
+        .prefix("linc-certify-")
+        .tempdir_in(&temporary_parent)
+        .map_err(|error| {
+            io_error(
+                "create certification probe directory",
+                &temporary_parent,
+                error,
+            )
+        })?;
+    let source_path = temporary.path().join("measure.c");
+    let output_path = temporary.path().join("measure.o");
+    fs::write(&source_path, source.as_bytes())
+        .map_err(|error| io_error("write certification probe source", &source_path, error))?;
+
+    let materialized =
+        materialize_compiler_arguments(&compiler_arguments, &source_path, &output_path);
+    let mut command = Command::new(&compiler);
+    command.args(&materialized);
+    apply_environment(&mut command, &environment);
+    let capture = match run_bounded(
+        command,
+        execution_policy.limits().wall_time_millis(),
+        execution_policy.limits().max_output_bytes(),
+    ) {
+        Ok(capture) => capture,
+        Err(ProcessLimit::Timeout) => {
+            return Err(NativeError::ProbeTimeout {
+                millis: execution_policy.limits().wall_time_millis(),
+            });
+        }
+        Err(ProcessLimit::Output) => {
+            return Err(NativeError::ProbeOutputLimit {
+                limit: execution_policy.limits().max_output_bytes(),
+            });
+        }
+        Err(ProcessLimit::UnsafeStreams) => return Err(NativeError::ProbeUnsafeStreams),
+        Err(ProcessLimit::Io(error)) => {
+            return Err(io_error("run certification compiler", &compiler, error));
+        }
+    };
+    if !capture.status.success() || !output_path.is_file() {
+        let detail = format!(
+            "{}; stderr={}",
+            status_label(capture.status),
+            String::from_utf8_lossy(&capture.stderr)
+        );
+        return Err(NativeError::ProbeNonzero { detail });
+    }
+    let object = read_bounded_file(
+        &output_path,
+        execution_policy.limits().max_memory_bytes(),
+        "read certification measurement object",
+    )?;
+    let output_artifact = ArtifactFingerprint::from_content(&object);
+    let compile_result = process_result(&capture, Some(output_artifact));
+    Ok(OwnedProbeCompilation {
+        compiler: observation.compiler,
+        compiler_executable: compiler,
+        compiler_arguments,
+        source_fingerprint,
+        execution_policy: execution_policy.clone(),
+        compile_result,
+        compiler_resource_dir: observation.resource_dir,
+        object,
+    })
+}
+
+fn certified_reported_target_matches(reported: &str, requested: &str) -> bool {
+    reported == requested
+        || (reported == "x86_64-linux-gnu" && requested == "x86_64-unknown-linux-gnu")
+}
+
+/// Observe the exact compiler identity with the same direct, empty/explicit
+/// environment and bounded process machinery used again by certification.
+pub(super) fn observe_certification_compiler(
+    compiler_executable: &Path,
+    environment_settings: &[EnvironmentSetting],
+    limits: ProbeResourceLimits,
+) -> NativeResult<ObservedCertificationCompiler> {
+    if !compiler_executable.is_absolute() {
+        return Err(NativeError::InvalidPolicy {
+            detail: "certification compiler executable must be absolute".to_owned(),
+        });
+    }
+    let compiler = fs::canonicalize(compiler_executable).map_err(|error| {
+        io_error(
+            "canonicalize certification compiler",
+            compiler_executable,
+            error,
+        )
+    })?;
+    if !compiler.is_file() {
+        return Err(NativeError::ToolIdentity {
+            path: compiler,
+            detail: "compiler is not a regular file".to_owned(),
+        });
+    }
+    let environment = checked_environment(environment_settings)?;
+    // Constructing the durable environment identity here rejects malformed or
+    // duplicate settings before any tool is executed.
+    let _ = environment_identity(environment_settings)?;
+    let observation = identify_compiler(&compiler, &environment, limits)?;
+    Ok(ObservedCertificationCompiler {
+        compiler: observation.compiler,
+        compiler_executable: compiler,
+        sysroot: observation.reported_sysroot,
+        resource_dir: observation.resource_dir,
+    })
+}
+
+fn certification_compiler_arguments(target: &TargetSpec) -> Vec<ProbeCompilerArgument> {
+    let mut arguments = vec![ProbeCompilerArgument::Literal(OsString::from("-std=gnu17"))];
+    arguments.extend(
+        target
+            .abi_flags()
+            .iter()
+            .map(|argument| ProbeCompilerArgument::Literal(OsString::from(argument.as_str()))),
+    );
+    arguments.extend([
+        ProbeCompilerArgument::Literal(OsString::from("-c")),
+        ProbeCompilerArgument::ProbeSource,
+        ProbeCompilerArgument::Literal(OsString::from("-o")),
+        ProbeCompilerArgument::OutputArtifact,
+    ]);
+    arguments
+}
+
 #[derive(Debug)]
 struct CompilerObservation {
     compiler: CompilerIdentity,
     sysroot: PathBuf,
+    reported_sysroot: Option<PathBuf>,
+    resource_dir: Option<PathBuf>,
 }
 
 fn identify_compiler(
@@ -587,10 +826,8 @@ fn identify_compiler(
     )?;
     let version = run_identity_command(compiler, ["--version"], environment, limits)?;
     let target = run_identity_command(compiler, ["-dumpmachine"], environment, limits)?;
-    let sysroot = run_identity_command(compiler, ["-print-sysroot"], environment, limits)?;
     let version_text = text_output(&version, "compiler version")?;
     let reported_target = text_output(&target, "compiler target")?;
-    let sysroot_text = text_output(&sysroot, "compiler sysroot")?;
     let first_line = version_text
         .lines()
         .next()
@@ -612,6 +849,49 @@ fn identify_compiler(
             detail: format!("unrecognized compiler family in {first_line:?}"),
         });
     };
+    let (sysroot, reported_sysroot, resource_dir) = match family {
+        CompilerFamily::Gcc => {
+            let output = run_identity_command(compiler, ["-print-sysroot"], environment, limits)?;
+            let text = text_output(&output, "compiler sysroot")?;
+            if text.trim().is_empty() {
+                (PathBuf::from("/"), None, None)
+            } else {
+                let sysroot = fs::canonicalize(text.trim()).map_err(|error| {
+                    io_error(
+                        "canonicalize compiler sysroot",
+                        Path::new(text.trim()),
+                        error,
+                    )
+                })?;
+                (sysroot.clone(), Some(sysroot), None)
+            }
+        }
+        CompilerFamily::Clang | CompilerFamily::AppleClang => {
+            // Clang does not provide a portable `-print-sysroot` operation;
+            // some supported versions reject both GCC spellings. With no
+            // explicit --sysroot in the certified argument set, its default
+            // sysroot identity is empty. The resource directory is a separate
+            // compiler installation fact and is still observed fail-closed.
+            let output =
+                run_identity_command(compiler, ["-print-resource-dir"], environment, limits)?;
+            let text = text_output(&output, "compiler resource directory")?;
+            let resource_dir = fs::canonicalize(text.trim()).map_err(|error| {
+                io_error(
+                    "canonicalize compiler resource directory",
+                    Path::new(text.trim()),
+                    error,
+                )
+            })?;
+            if !resource_dir.is_dir() {
+                return Err(NativeError::ToolIdentity {
+                    path: resource_dir,
+                    detail: "compiler resource directory is not a directory".to_owned(),
+                });
+            }
+            (PathBuf::from("/"), None, Some(resource_dir))
+        }
+        CompilerFamily::Msvc => unreachable!("MSVC family is not detected by this driver"),
+    };
     let logical_name = compiler
         .file_name()
         .and_then(OsStr::to_str)
@@ -628,20 +908,11 @@ fn identify_compiler(
         path: compiler.to_path_buf(),
         detail: error.to_string(),
     })?;
-    let sysroot = if sysroot_text.trim().is_empty() {
-        PathBuf::from("/")
-    } else {
-        fs::canonicalize(sysroot_text.trim()).map_err(|error| {
-            io_error(
-                "canonicalize compiler sysroot",
-                Path::new(sysroot_text.trim()),
-                error,
-            )
-        })?
-    };
     Ok(CompilerObservation {
         compiler: compiler_identity,
         sysroot,
+        reported_sysroot,
+        resource_dir,
     })
 }
 
@@ -1293,5 +1564,25 @@ mod tests {
             1
         );
         assert!(parse_markers(b"", &expected).is_err());
+    }
+
+    #[test]
+    fn certified_target_alias_is_exact_and_one_way() {
+        assert!(certified_reported_target_matches(
+            "x86_64-unknown-linux-gnu",
+            "x86_64-unknown-linux-gnu"
+        ));
+        assert!(certified_reported_target_matches(
+            "x86_64-linux-gnu",
+            "x86_64-unknown-linux-gnu"
+        ));
+        assert!(!certified_reported_target_matches(
+            "x86_64-unknown-linux-gnu",
+            "x86_64-linux-gnu"
+        ));
+        assert!(!certified_reported_target_matches(
+            "amd64-linux-gnu",
+            "x86_64-unknown-linux-gnu"
+        ));
     }
 }

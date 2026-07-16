@@ -9,9 +9,11 @@ callable-ABI, probe, policy, and diagnostic evidence needed to validate that
 closure.
 
 With the `native-inspection` feature, `linc::native` implements the H3 Linux ELF
-lane. `NativeAnalyzer::analyze` owns resolution, strict declaration validation,
-package construction, and final source validation. Consumers should use that
-operation instead of assembling `LinkAnalysisPackageInput` from native facts.
+lane. `CertificationToolchain::observe` owns bounded compiler observation and
+`NativeAnalyzer::certify` owns resolution, structural measurement, strict
+declaration validation, package construction, and final source validation.
+Production consumers should use those operations instead of assembling native
+evidence. `NativeAnalyzer::analyze` is the advanced lower-level intake.
 
 PARC owns source semantics, LINC owns schema-v2 link analysis, and generation
 belongs downstream.
