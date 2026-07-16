@@ -23,7 +23,10 @@ fn macos_framework_fixture_resolves_declared_framework_and_keeps_system_dependen
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
     assert_eq!(plan.requirements.len(), 1);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
     assert_eq!(
         plan.requirements[0].providers[0].match_kind,
         ProviderMatchKind::FrameworkName
@@ -64,7 +67,10 @@ fn macos_dylib_fixture_resolves_declared_library_and_preserves_macho_identity() 
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
     assert_eq!(plan.requirements.len(), 1);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
     assert_eq!(
         plan.requirements[0].providers[0].match_kind,
         ProviderMatchKind::LibraryName

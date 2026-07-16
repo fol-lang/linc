@@ -210,7 +210,7 @@ pub fn probe_type_layouts_with_fields(
 
     std::fs::write(
         &source_path,
-        build_probe_source(config, type_names, &field_specs),
+        build_probe_source(config, type_names, field_specs),
     )?;
 
     let mut compile = std::process::Command::new(&compiler);
@@ -626,7 +626,9 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn probe_type_layouts_from_header() {
+        eprintln!("RUN: host C compiler layout probe");
         let dir = temp_dir("header");
         let header = dir.join("api.h");
         std::fs::write(
@@ -704,11 +706,7 @@ mod tests {
 
     #[test]
     fn probe_rejects_invalid_config_before_execution() {
-        let err = probe_type_layouts(
-            &ProbeConfig::new().header(""),
-            &["size_t"],
-        )
-        .unwrap_err();
+        let err = probe_type_layouts(&ProbeConfig::new().header(""), &["size_t"]).unwrap_err();
         assert!(matches!(err, LincError::InvalidConfig { .. }));
     }
 
@@ -831,7 +829,10 @@ mod tests {
             enum_is_signed: None,
         };
 
-        assert_eq!(classify_probe_confidence(&plain), ProbeConfidence::MeasuredLayout);
+        assert_eq!(
+            classify_probe_confidence(&plain),
+            ProbeConfidence::MeasuredLayout
+        );
         assert_eq!(
             classify_probe_confidence(&with_fields),
             ProbeConfidence::FieldOffsetsMeasured
@@ -901,7 +902,9 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn probe_type_layouts_reports_enum_underlying_representation() {
+        eprintln!("RUN: host C compiler enum representation probe");
         let dir = temp_dir("enum_header");
         let header = dir.join("api.h");
         std::fs::write(&header, "enum mode { MODE_A = 0, MODE_B = 7 };\n").unwrap();
@@ -921,7 +924,9 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn probe_type_layouts_reports_partial_bitfield_field_data() {
+        eprintln!("RUN: host C compiler bitfield layout probe");
         let dir = temp_dir("bitfield_header");
         let header = dir.join("api.h");
         std::fs::write(
@@ -1084,16 +1089,15 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn probe_incomplete_type_produces_compile_error() {
+        eprintln!("RUN: host C compiler incomplete-type failure evidence");
         let dir = temp_dir("incomplete");
         let header = dir.join("api.h");
         std::fs::write(&header, "struct opaque;\n").unwrap();
 
-        let err = probe_type_layouts(
-            &ProbeConfig::new().header(&header),
-            &["struct opaque"],
-        )
-        .unwrap_err();
+        let err = probe_type_layouts(&ProbeConfig::new().header(&header), &["struct opaque"])
+            .unwrap_err();
         assert!(
             matches!(err, LincError::ProbeCompile { .. }),
             "incomplete type should fail at compilation: {err}"
@@ -1103,7 +1107,9 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn probe_nonexistent_header_produces_compile_error() {
+        eprintln!("RUN: host C compiler missing-header failure evidence");
         let err = probe_type_layouts(
             &ProbeConfig::new().header("/nonexistent/path/to/header.h"),
             &["int"],
@@ -1116,7 +1122,9 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn probe_undeclared_type_produces_compile_error() {
+        eprintln!("RUN: host C compiler undeclared-type failure evidence");
         let dir = temp_dir("undeclared");
         let header = dir.join("api.h");
         std::fs::write(&header, "typedef int known_t;\n").unwrap();

@@ -1,21 +1,32 @@
 [package]
-name = "linc"
+name = "follang-linc"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.89"
 authors = ["Trim Bresilla"]
 description = "Link-surface, symbol-inventory, validation, and ABI-evidence layer for C interop"
 license = "MIT/Apache-2.0"
+repository = "https://github.com/follang/linc"
+homepage = "https://github.com/follang/linc"
+documentation = "https://docs.rs/follang-linc"
+readme = "README.md"
 keywords = ["c", "ffi", "linker", "symbols", "abi"]
 categories = ["development-tools::ffi"]
+include = [
+    "/src/**/*.rs",
+    "/tests/contracts/**",
+    "/Cargo.toml",
+    "/LICENSE-*",
+    "/README.md",
+]
 
-[features]
-default = ["symbols"]
-symbols = ["dep:object"]
+[lib]
+name = "linc"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "=1.0.145"
-object = { version = "0.36", default-features = false, features = ["read", "elf", "macho", "coff", "pe"], optional = true }
+object = { version = "0.36", default-features = false, features = ["read", "elf", "macho", "coff", "pe"] }
 
 [dev-dependencies]
-parc = { path = "../parc" }
+parc = { package = "follang-parc", path = "../parc" }

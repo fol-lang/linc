@@ -1,17 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use linc::raw_headers::{HeaderConfig, RawHeaderResult};
 use linc::LincError;
 
-const HEADER_CANDIDATES: &[&str] = &[
-    "/usr/include/openssl/ssl.h",
-    "/usr/include/x86_64-linux-gnu/openssl/ssl.h",
-];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &[
-    "/usr/include",
-    "/usr/include/openssl",
-    "/usr/include/x86_64-linux-gnu",
-];
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpensslEnvironment {
     pub header: PathBuf,
@@ -19,19 +10,13 @@ pub struct OpensslEnvironment {
 }
 
 pub fn openssl_environment() -> Result<OpensslEnvironment, LincError> {
-    let header = HEADER_CANDIDATES
-        .iter()
-        .find(|path| Path::new(path).exists())
-        .map(PathBuf::from)
-        .ok_or_else(|| LincError::InvalidConfig {
+    let header = super::common::find_system_header("openssl/ssl.h").ok_or_else(|| {
+        LincError::InvalidConfig {
             reason: "openssl example requires openssl headers".into(),
-        })?;
+        }
+    })?;
 
-    let include_dirs = INCLUDE_DIR_CANDIDATES
-        .iter()
-        .filter(|dir| Path::new(dir).exists())
-        .map(PathBuf::from)
-        .collect();
+    let include_dirs = super::common::system_include_dirs();
 
     Ok(OpensslEnvironment {
         header,

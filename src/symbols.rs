@@ -1378,7 +1378,9 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 
     /// Compile a minimal C file to .o and inspect its symbols.
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn inspect_compiled_object() {
+        eprintln!("RUN: host C compiler object inspection evidence");
         let dir = std::env::temp_dir().join("linc_sym_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("test.c");
@@ -1413,7 +1415,9 @@ Dynamic section at offset 0x2de0 contains 3 entries:
 
     /// Compile to .a and inspect.
     #[test]
+    #[ignore = "system prerequisite: host C compiler and archiver"]
     fn inspect_static_library() {
+        eprintln!("RUN: host C compiler and archiver static-library evidence");
         let dir = std::env::temp_dir().join("linc_ar_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("lib.c");
@@ -1454,7 +1458,9 @@ Dynamic section at offset 0x2de0 contains 3 entries:
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler and archiver"]
     fn inspect_static_library_preserves_member_provenance() {
+        eprintln!("RUN: host C compiler and archiver member-provenance evidence");
         let dir = std::env::temp_dir().join("linc_ar_members_test");
         std::fs::create_dir_all(&dir).unwrap();
         let a_c_path = dir.join("alpha.c");
@@ -1508,7 +1514,9 @@ Dynamic section at offset 0x2de0 contains 3 entries:
     }
 
     #[test]
+    #[ignore = "system prerequisite: host C compiler and native libm"]
     fn inspect_shared_library_captures_dependency_edges() {
+        eprintln!("RUN: host C compiler shared-library dependency evidence");
         let dir = std::env::temp_dir().join("linc_shared_dep_test");
         std::fs::create_dir_all(&dir).unwrap();
         let c_path = dir.join("lib.c");

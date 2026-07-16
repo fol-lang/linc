@@ -1,6 +1,6 @@
 //! Adapters for converting between frontend outputs and LINC intake types.
 //!
-//! The primary adapter converts a [`BindingPackage`] (produced by the current
+//! The primary adapter converts a [`crate::ir::BindingPackage`] (produced by the current
 //! extract/preprocess pipeline) into a [`SourcePackage`] for the intake layer.
 //! A reverse adapter converts intake types back to IR types for use by LINC
 //! core logic that still operates on the existing IR.
@@ -8,7 +8,7 @@
 use crate::intake::source::*;
 use crate::ir;
 
-/// Convert a [`BindingPackage`] into a [`SourcePackage`].
+/// Convert a [`crate::ir::BindingPackage`] into a [`SourcePackage`].
 ///
 /// This is the primary intake adapter during the migration period. Once
 /// frontends produce [`SourcePackage`] directly, this adapter becomes
@@ -116,7 +116,7 @@ pub fn from_binding_package(pkg: &ir::BindingPackage) -> SourcePackage {
     }
 }
 
-/// Convert a [`SourcePackage`] into a [`BindingPackage`].
+/// Convert a [`SourcePackage`] into a [`crate::ir::BindingPackage`].
 ///
 /// This is the reverse adapter that allows LINC core logic to operate on
 /// its existing IR types while accepting intake-layer input.
@@ -586,5 +586,4 @@ mod tests {
             _ => panic!("expected FunctionPointer"),
         }
     }
-
 }

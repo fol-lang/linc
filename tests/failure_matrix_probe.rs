@@ -8,14 +8,19 @@ fn temp_root(tag: &str) -> std::path::PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let dir = std::env::temp_dir().join(format!("linc_failure_matrix_{tag}_{}_{}", std::process::id(), nanos));
+    let dir = std::env::temp_dir().join(format!(
+        "linc_failure_matrix_{tag}_{}_{}",
+        std::process::id(),
+        nanos
+    ));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
 
 #[test]
 fn failure_matrix_probe_invalid_config_is_typed_error() {
-    let err = common::process(&HeaderConfig::new().entry_header("")).expect_err("empty entry path should fail validation");
+    let err = common::process(&HeaderConfig::new().entry_header(""))
+        .expect_err("empty entry path should fail validation");
     match err {
         LincError::InvalidConfig { .. } => {}
         other => panic!("expected invalid config error, got {other:?}"),
@@ -23,7 +28,9 @@ fn failure_matrix_probe_invalid_config_is_typed_error() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn failure_matrix_probe_unavailable_and_failed_are_distinct() {
+    eprintln!("RUN: host C compiler probe failure-matrix evidence");
     let dir = temp_root("probe");
     let header = dir.join("probe.h");
     std::fs::write(
@@ -34,10 +41,12 @@ fn failure_matrix_probe_unavailable_and_failed_are_distinct() {
     )
     .unwrap();
 
-    let unavailable = common::process(&HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("struct opaque_widget"))
-        .unwrap();
+    let unavailable = common::process(
+        &HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("struct opaque_widget"),
+    )
+    .unwrap();
     assert_eq!(unavailable.package.probe_unavailable_count(), 1);
     assert_eq!(unavailable.package.probe_failure_count(), 0);
     assert!(unavailable
@@ -46,10 +55,12 @@ fn failure_matrix_probe_unavailable_and_failed_are_distinct() {
         .iter()
         .any(|d| d.kind == DiagnosticKind::ProbeUnavailable));
 
-    let failed = common::process(&HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("struct invalid["))
-        .unwrap();
+    let failed = common::process(
+        &HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("struct invalid["),
+    )
+    .unwrap();
     assert_eq!(failed.package.probe_unavailable_count(), 0);
     assert_eq!(failed.package.probe_failure_count(), 1);
     assert!(failed

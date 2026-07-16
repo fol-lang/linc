@@ -16,7 +16,10 @@ fn hermetic_artifact_fixture_elf_static_archive_stays_consumable() {
     assert_eq!(inventory.format, ArtifactFormat::ElfStaticLibrary);
     assert_eq!(inventory.kind, ArtifactKind::StaticLibrary);
     assert!(inventory.capabilities.exports_symbols);
-    assert_eq!(inventory.symbols[0].archive_member.as_deref(), Some("widget_init.o"));
+    assert_eq!(
+        inventory.symbols[0].archive_member.as_deref(),
+        Some("widget_init.o")
+    );
 
     let mut package = BindingPackage::new();
     package.link = BindingLinkSurface {
@@ -29,8 +32,14 @@ fn hermetic_artifact_fixture_elf_static_archive_stays_consumable() {
     };
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
-    assert_eq!(plan.requirements[0].providers[0].match_kind, ProviderMatchKind::LibraryName);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
+    assert_eq!(
+        plan.requirements[0].providers[0].match_kind,
+        ProviderMatchKind::LibraryName
+    );
 }
 
 #[test]
@@ -43,7 +52,10 @@ fn hermetic_artifact_fixture_macho_framework_binary_stays_consumable() {
     assert_eq!(inventory.platform, ArtifactPlatform::MachO);
     assert_eq!(inventory.format, ArtifactFormat::MachODylib);
     assert_eq!(inventory.kind, ArtifactKind::SharedLibrary);
-    assert_eq!(inventory.symbols[0].raw_name.as_deref(), Some("_SecKeyCreateRandomKey"));
+    assert_eq!(
+        inventory.symbols[0].raw_name.as_deref(),
+        Some("_SecKeyCreateRandomKey")
+    );
 
     let mut package = BindingPackage::new();
     package.link = BindingLinkSurface {
@@ -55,8 +67,14 @@ fn hermetic_artifact_fixture_macho_framework_binary_stays_consumable() {
     };
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
-    assert_eq!(plan.requirements[0].providers[0].match_kind, ProviderMatchKind::FrameworkName);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
+    assert_eq!(
+        plan.requirements[0].providers[0].match_kind,
+        ProviderMatchKind::FrameworkName
+    );
     assert_eq!(
         plan.transitive_dependencies,
         vec!["/usr/lib/libSystem.B.dylib".to_string()]
@@ -86,7 +104,16 @@ fn hermetic_artifact_fixture_windows_pe_dylib_stays_consumable() {
     };
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
-    assert_eq!(plan.requirements[0].providers[0].match_kind, ProviderMatchKind::LibraryName);
-    assert_eq!(plan.transitive_dependencies, vec!["KERNEL32.dll".to_string()]);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
+    assert_eq!(
+        plan.requirements[0].providers[0].match_kind,
+        ProviderMatchKind::LibraryName
+    );
+    assert_eq!(
+        plan.transitive_dependencies,
+        vec!["KERNEL32.dll".to_string()]
+    );
 }

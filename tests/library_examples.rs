@@ -13,7 +13,9 @@ mod zlib;
 use std::path::Path;
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn zlib_vendored_example_is_code_driven_and_consumable() {
+    eprintln!("RUN: host C compiler vendored-zlib analysis evidence");
     let environment = zlib::zlib_vendored_environment().unwrap();
     let config = zlib::zlib_vendored_header_config().unwrap();
     let result = zlib::analyze_zlib_vendored().unwrap();
@@ -34,10 +36,11 @@ fn zlib_vendored_example_is_code_driven_and_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: libpcap development headers"]
 fn libpcap_example_is_code_driven_and_consumable() {
-    let Ok(environment) = libpcap::libpcap_environment() else {
-        return;
-    };
+    eprintln!("RUN: libpcap system evidence");
+    let environment =
+        libpcap::libpcap_environment().expect("FAIL: libpcap development headers are required");
 
     let config = libpcap::libpcap_header_config().unwrap();
     let result = libpcap::analyze_libpcap().unwrap();
@@ -56,10 +59,11 @@ fn libpcap_example_is_code_driven_and_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: libcurl development headers"]
 fn libcurl_example_is_code_driven_and_consumable() {
-    let Ok(environment) = libcurl::libcurl_environment() else {
-        return;
-    };
+    eprintln!("RUN: libcurl system evidence");
+    let environment =
+        libcurl::libcurl_environment().expect("FAIL: libcurl development headers are required");
 
     let config = libcurl::libcurl_header_config().unwrap();
     let result = libcurl::analyze_libcurl().unwrap();
@@ -86,10 +90,11 @@ fn libcurl_example_is_code_driven_and_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: OpenSSL development headers"]
 fn openssl_example_is_code_driven_and_consumable() {
-    let Ok(environment) = openssl::openssl_environment() else {
-        return;
-    };
+    eprintln!("RUN: OpenSSL system evidence");
+    let environment =
+        openssl::openssl_environment().expect("FAIL: OpenSSL development headers are required");
 
     let config = openssl::openssl_header_config().unwrap();
     let result = openssl::analyze_openssl().unwrap();
@@ -125,10 +130,10 @@ fn openssl_example_is_code_driven_and_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: OpenSSL development headers"]
 fn openssl_example_is_deterministic_when_available() {
-    if openssl::openssl_environment().is_err() {
-        return;
-    }
+    eprintln!("RUN: OpenSSL determinism evidence");
+    openssl::openssl_environment().expect("FAIL: OpenSSL development headers are required");
 
     let make = || {
         let result = openssl::analyze_openssl().expect("openssl analysis");
@@ -139,10 +144,10 @@ fn openssl_example_is_deterministic_when_available() {
 }
 
 #[test]
+#[ignore = "system prerequisite: OpenSSL development headers"]
 fn openssl_example_resolves_expected_link_surface_when_available() {
-    if openssl::openssl_environment().is_err() {
-        return;
-    }
+    eprintln!("RUN: OpenSSL link-surface evidence");
+    openssl::openssl_environment().expect("FAIL: OpenSSL development headers are required");
 
     let result = openssl::analyze_openssl().expect("openssl analysis");
     let plan = linc::resolve_link_plan(&result.package);
@@ -156,7 +161,9 @@ fn openssl_example_resolves_expected_link_surface_when_available() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn libpng_vendored_example_is_code_driven_and_consumable() {
+    eprintln!("RUN: host C preprocessor vendored-libpng analysis evidence");
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/full_apps/external/libpng/header");
     let include_dir = root.join("include");
     let entry = root.join("main.c");
@@ -171,7 +178,10 @@ fn libpng_vendored_example_is_code_driven_and_consumable() {
     .unwrap();
     let plan = linc::resolve_link_plan(&result.package);
 
-    assert!(result.package.find_function("png_create_read_struct").is_some());
+    assert!(result
+        .package
+        .find_function("png_create_read_struct")
+        .is_some());
     assert!(result.package.find_function("png_init_io").is_some());
     assert!(result.package.find_type_alias("png_structp").is_some());
     assert!(result
@@ -185,7 +195,9 @@ fn libpng_vendored_example_is_code_driven_and_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn libpng_vendored_example_is_deterministic() {
+    eprintln!("RUN: host C preprocessor vendored-libpng determinism evidence");
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/full_apps/external/libpng/header");
     let include_dir = root.join("include");
     let entry = root.join("main.c");
@@ -206,7 +218,9 @@ fn libpng_vendored_example_is_deterministic() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn libpng_vendored_example_resolves_expected_link_surface() {
+    eprintln!("RUN: host C preprocessor vendored-libpng link-surface evidence");
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/full_apps/external/libpng/header");
     let include_dir = root.join("include");
     let entry = root.join("main.c");
@@ -227,7 +241,9 @@ fn libpng_vendored_example_resolves_expected_link_surface() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn plugin_abi_example_is_code_driven_and_consumable() {
+    eprintln!("RUN: host C compiler plugin-ABI analysis evidence");
     let environment = plugin::plugin_abi_environment().unwrap();
     let config = plugin::plugin_abi_header_config().unwrap();
     let result = plugin::analyze_plugin_abi().unwrap();

@@ -1,10 +1,12 @@
-use linc::symbols::{ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform, SymbolInventory};
-use linc::{
-    resolve_link_plan_with_inventories, MatchStatus, RequirementResolution, ValidationReport,
-};
 use linc::ir::{
     BindingItem, BindingPackage, BindingType, CallingConvention, FunctionBinding, LinkInput,
     LinkLibrary, LinkLibraryKind, LinkRequirementSource,
+};
+use linc::symbols::{
+    ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform, SymbolInventory,
+};
+use linc::{
+    resolve_link_plan_with_inventories, MatchStatus, RequirementResolution, ValidationReport,
 };
 
 #[test]
@@ -18,11 +20,14 @@ fn failure_matrix_link_unresolved_provider_is_explicit_in_link_plan() {
         variadic: false,
         source_offset: None,
     }));
-    package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-        name: "demo".into(),
-        kind: LinkLibraryKind::Default,
-        source: LinkRequirementSource::Declared,
-    }));
+    package
+        .link
+        .ordered_inputs
+        .push(LinkInput::Library(LinkLibrary {
+            name: "demo".into(),
+            kind: LinkLibraryKind::Default,
+            source: LinkRequirementSource::Declared,
+        }));
 
     let inventories = vec![SymbolInventory {
         artifact_path: "/tmp/libother.so".into(),

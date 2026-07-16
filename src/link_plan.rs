@@ -569,11 +569,11 @@ mod tests {
             plan.requirements[0].resolution,
             RequirementResolution::Resolved
         );
+        assert_eq!(plan.requirements[0].providers[0].artifact_path, "demo.lib");
         assert_eq!(
-            plan.requirements[0].providers[0].artifact_path,
-            "demo.lib"
+            plan.transitive_dependencies,
+            vec!["KERNEL32.dll".to_string()]
         );
-        assert_eq!(plan.transitive_dependencies, vec!["KERNEL32.dll".to_string()]);
     }
 
     #[test]

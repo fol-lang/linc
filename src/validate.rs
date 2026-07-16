@@ -2401,7 +2401,9 @@ mod tests {
 
     /// End-to-end: parse C, compile it, validate symbols.
     #[test]
+    #[ignore = "system prerequisite: host C compiler"]
     fn end_to_end_validation() {
+        eprintln!("RUN: host C compiler end-to-end validation evidence");
         let c_src =
             "int add(int a, int b) { return a + b; }\nint mul(int a, int b) { return a * b; }\n";
         let dir = std::env::temp_dir().join("linc_validate_test");

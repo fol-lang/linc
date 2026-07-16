@@ -1,9 +1,9 @@
 mod common;
+use linc::ir::{BindingPackage, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource};
 use linc::{
     resolve_link_plan_for_target, validate, MatchStatus, SourceDeclaration, SourceFunction,
     SourcePackage, SourceType, SymbolInventory,
 };
-use linc::ir::{BindingPackage, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -121,13 +121,17 @@ fn fol_link_plan_is_ready(plan: &FolResolvedLinkPlan) -> bool {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn fol_acceptance_binding_scan_flow_stays_consumable() {
+    eprintln!("RUN: host C compiler FOL binding-scan acceptance evidence");
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_layouts.h");
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("struct packed_flags")
-        .probe_type_layout("enum widget_mode"))
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("struct packed_flags")
+            .probe_type_layout("enum widget_mode"),
+    )
+    .unwrap();
 
     let json = serde_json::to_string(&result.package).unwrap();
     let consumed: FolBindingInput = serde_json::from_str(&json).unwrap();
@@ -157,14 +161,18 @@ fn fol_acceptance_binding_scan_flow_stays_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn fol_acceptance_layout_backed_binding_flow_stays_consumable() {
+    eprintln!("RUN: host C compiler FOL layout-backed acceptance evidence");
     let header =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/typedef_layout_bridge.h");
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("widget_t")
-        .probe_type_layout("mode_t"))
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("widget_t")
+            .probe_type_layout("mode_t"),
+    )
+    .unwrap();
 
     let json = serde_json::to_string(&result.package).unwrap();
     let consumed: FolAbiSensitiveBindingInput = serde_json::from_str(&json).unwrap();

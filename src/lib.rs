@@ -11,7 +11,7 @@
 //! - object/shared-library/archive metadata extraction
 //! - provider matching and link-plan construction
 //! - ABI probe orchestration and retained measurement evidence
-//! - declaration-vs-artifact validation via [`validate`]
+//! - declaration-vs-artifact validation via [`validate()`]
 //! - link and binary evidence reporting
 //!
 //! # What LINC Does Not Own
@@ -28,7 +28,7 @@
 //!   into a [`LinkAnalysisPackage`]
 //! - [`probe_type_layouts`] for compiler-assisted ABI layout probing
 //! - [`inspect_symbols`] for native artifact inventory
-//! - [`validate`] and [`validate_many`] for declaration-vs-artifact validation
+//! - [`validate()`] and [`validate_many`] for declaration-vs-artifact validation
 //!
 //! # Module Organization
 //!
@@ -36,7 +36,7 @@
 //! - [`ir`]: LINC intermediate representation (split into link, types, macros)
 //! - [`probe`]: ABI measurement and evidence
 //! - [`symbols`]: Binary symbol inspection
-//! - [`validate`]: Declaration-vs-artifact validation
+//! - [`validate()`]: Declaration-vs-artifact validation
 //! - [`link_plan`]: Link-plan construction and resolution
 //! - [`raw_headers`]: Transitional raw-header bootstrap kept out of the normal API story
 //! - [`diagnostics`]: Diagnostic types
@@ -112,46 +112,42 @@
 //! 2. if it succeeded, inspect diagnostics, layouts, and validation findings before
 //!    treating the result as generation-ready
 //!
+pub mod analysis;
 pub mod diagnostics;
 pub mod error;
 pub mod intake;
 pub mod ir;
 pub mod line_markers;
-pub mod analysis;
 pub mod link_plan;
 pub mod probe;
 #[doc(hidden)]
 pub mod raw_headers;
 
-#[cfg(feature = "symbols")]
 pub mod symbols;
-#[cfg(feature = "symbols")]
 pub mod validate;
 
+pub use analysis::{LinkAnalysisPackage, RuntimeBoundary, RuntimeBoundaryKind};
 pub use diagnostics::{Diagnostic, DiagnosticKind, Severity};
 pub use error::LincError;
-pub use analysis::{LinkAnalysisPackage, RuntimeBoundary, RuntimeBoundaryKind};
-pub use ir::SCHEMA_VERSION;
 pub use intake::{
-    SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
-    SourceLinkKind, SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter,
-    SourceRecord, SourceType, SourceTypeAlias, SourceVariable,
+    SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction, SourceLinkKind,
+    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord, SourceType,
+    SourceTypeAlias, SourceVariable,
 };
+pub use ir::SCHEMA_VERSION;
 pub use link_plan::{
     resolve_link_plan, resolve_link_plan_for_target, resolve_link_plan_with_inventories,
     ProviderMatchKind, ProviderProvenance, RequirementResolution, ResolvedLinkPlan,
     ResolvedLinkRequirement, ResolvedProvider,
 };
 pub use probe::{
-    probe_type_layouts, AbiProbeReport, ProbeConfig, ProbeConfidence, ProbeSubjectKind,
+    probe_type_layouts, AbiProbeReport, ProbeConfidence, ProbeConfig, ProbeSubjectKind,
     ProbeSubjectReport, ProbedFieldLayout, RecordCompleteness,
 };
-#[cfg(feature = "symbols")]
 pub use symbols::{
     inspect_file as inspect_symbols, FunctionAbiHint, SymbolBinding, SymbolDirection, SymbolEntry,
     SymbolInventory, SymbolVisibility,
 };
-#[cfg(feature = "symbols")]
 pub use validate::{
     validate, validate_many, AbiShapeEvidence, EvidenceKind, FunctionMatch, ItemKind,
     MatchConfidence, MatchStatus, RoutineAbiConfidence, RoutineAbiEvidence, RoutineAbiEvidenceKind,
@@ -170,7 +166,6 @@ pub fn analyze_source_package(source: &SourcePackage) -> LinkAnalysisPackage {
 }
 
 #[cfg(test)]
-#[cfg(feature = "symbols")]
 mod integration_tests {
     use super::*;
 
@@ -367,8 +362,10 @@ mod integration_tests {
 
     #[test]
     fn intake_source_package_to_binding_package() {
-        let mut src_pkg = SourcePackage::default();
-        src_pkg.source_path = Some("demo.h".into());
+        let mut src_pkg = SourcePackage {
+            source_path: Some("demo.h".into()),
+            ..SourcePackage::default()
+        };
         src_pkg
             .declarations
             .push(SourceDeclaration::Function(SourceFunction {
@@ -591,5 +588,4 @@ mod integration_tests {
         let pkg2: ir::BindingPackage = serde_json::from_str(&json).unwrap();
         assert_eq!(pkg.item_count(), pkg2.item_count());
     }
-
 }

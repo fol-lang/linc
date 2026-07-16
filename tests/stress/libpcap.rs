@@ -1,18 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use linc::raw_headers::{HeaderConfig, RawHeaderResult};
 use linc::LincError;
 
-const HEADER_CANDIDATES: &[&str] = &["/usr/include/pcap/pcap.h", "/usr/include/pcap.h"];
-const SUPPORT_HEADER_CANDIDATES: &[&str] = &[
-    "/usr/include/sys/types.h",
-    "/usr/include/x86_64-linux-gnu/sys/types.h",
-];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &[
-    "/usr/include",
-    "/usr/include/pcap",
-    "/usr/include/x86_64-linux-gnu",
-];
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LibpcapEnvironment {
     pub header: PathBuf,
@@ -21,23 +11,15 @@ pub struct LibpcapEnvironment {
 }
 
 pub fn libpcap_environment() -> Result<LibpcapEnvironment, LincError> {
-    let header = HEADER_CANDIDATES
-        .iter()
-        .find(|path| Path::new(path).exists())
-        .map(PathBuf::from)
+    let header = super::common::find_system_header("pcap/pcap.h")
+        .or_else(|| super::common::find_system_header("pcap.h"))
         .ok_or_else(|| LincError::InvalidConfig {
             reason: "libpcap example requires pcap headers".into(),
         })?;
 
-    let include_dirs = INCLUDE_DIR_CANDIDATES
-        .iter()
-        .filter(|dir| Path::new(dir).exists())
-        .map(PathBuf::from)
-        .collect();
-    let support_headers = SUPPORT_HEADER_CANDIDATES
-        .iter()
-        .filter(|path| Path::new(path).exists())
-        .map(PathBuf::from)
+    let include_dirs = super::common::system_include_dirs();
+    let support_headers = super::common::find_system_header("sys/types.h")
+        .into_iter()
         .collect();
 
     Ok(LibpcapEnvironment {

@@ -22,7 +22,9 @@ fn combined_daemon_fixture_files_exist() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn combined_daemon_fixture_is_code_driven_and_consumable() {
+    eprintln!("RUN: host C compiler combined-daemon analysis evidence");
     let environment = max_pain::max_pain_environment().unwrap();
     let config = max_pain::max_pain_header_config().unwrap();
     let result = max_pain::analyze_max_pain().unwrap();
@@ -62,7 +64,9 @@ fn combined_daemon_inventory_fixture_is_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn combined_daemon_fixture_validates_against_daemon_core_inventory() {
+    eprintln!("RUN: host C compiler combined-daemon validation evidence");
     let result = max_pain::analyze_max_pain().unwrap();
     let inventory = max_pain::daemon_core_inventory_fixture();
     let report = validate(&result.package, &inventory);
@@ -88,7 +92,9 @@ fn combined_daemon_fixture_validates_against_daemon_core_inventory() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn combined_daemon_fixture_is_deterministic() {
+    eprintln!("RUN: host C compiler combined-daemon determinism evidence");
     let make = || {
         let result = max_pain::analyze_max_pain().expect("daemon analysis");
         serde_json::to_string(&result.package).expect("daemon package json")

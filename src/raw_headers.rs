@@ -1230,7 +1230,7 @@ pub fn parse_integer_macro_value(body: &str) -> Option<i128> {
         _ => (false, trimmed),
     };
 
-    let digits = unsigned.trim_end_matches(|ch: char| matches!(ch, 'u' | 'U' | 'l' | 'L'));
+    let digits = unsigned.trim_end_matches(['u', 'U', 'l', 'L']);
     if digits.is_empty() {
         return None;
     }
@@ -1564,7 +1564,10 @@ mod tests {
         assert_eq!(summary.declared_link_input_count, 2);
         assert_eq!(summary.probe_type_count, 1);
         assert_eq!(summary.native_surface_kind, NativeSurfaceKind::LibraryNames);
-        assert_eq!(summary.preferred_link_mode, LinkResolutionMode::PreferDynamic);
+        assert_eq!(
+            summary.preferred_link_mode,
+            LinkResolutionMode::PreferDynamic
+        );
         assert!(summary.has_origin_filter);
     }
 
@@ -1805,5 +1808,4 @@ mod tests {
             Some(3)
         );
     }
-
 }

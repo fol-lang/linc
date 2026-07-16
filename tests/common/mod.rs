@@ -7,16 +7,79 @@
 
 #![allow(dead_code)]
 
-use linc::raw_headers::{
-    attach_canonical_alias_resolution, build_effective_macro_environment, build_item_provenance,
-    HeaderConfig, PreprocessingReport, RawHeaderResult, RecoveredParse,
-};
+use std::path::{Path, PathBuf};
+
 use linc::ir::{
     BindingItem, BindingPackage, BindingType, CallingConvention, EnumBinding, EnumVariant,
     FieldBinding, FunctionBinding, MacroBinding, ParameterBinding, RecordBinding, TypeAliasBinding,
     TypeQualifiers, VariableBinding,
 };
+use linc::raw_headers::{
+    attach_canonical_alias_resolution, build_effective_macro_environment, build_item_provenance,
+    HeaderConfig, PreprocessingReport, RawHeaderResult, RecoveredParse,
+};
 use linc::{Diagnostic, DiagnosticKind, LincError};
+
+const CONVENTIONAL_INCLUDE_DIRS: &[&str] = &[
+    "/usr/local/include",
+    "/usr/include",
+    "/usr/include/x86_64-linux-gnu",
+];
+const CONVENTIONAL_LIBRARY_DIRS: &[&str] = &[
+    "/usr/local/lib",
+    "/usr/lib",
+    "/usr/lib/x86_64-linux-gnu",
+    "/lib/x86_64-linux-gnu",
+];
+
+fn search_dirs(environment_variables: &[&str], conventional: &[&str]) -> Vec<PathBuf> {
+    let mut directories = Vec::new();
+
+    for variable in environment_variables {
+        if let Some(value) = std::env::var_os(variable) {
+            for path in std::env::split_paths(&value) {
+                if !path.as_os_str().is_empty() && path.is_dir() && !directories.contains(&path) {
+                    directories.push(path);
+                }
+            }
+        }
+    }
+
+    for path in conventional.iter().map(PathBuf::from) {
+        if path.is_dir() && !directories.contains(&path) {
+            directories.push(path);
+        }
+    }
+
+    directories
+}
+
+/// Header roots declared by the active toolchain, followed by conventional roots.
+pub fn system_include_dirs() -> Vec<PathBuf> {
+    search_dirs(&["CPATH", "C_INCLUDE_PATH"], CONVENTIONAL_INCLUDE_DIRS)
+}
+
+/// Library roots declared by the active toolchain, followed by conventional roots.
+pub fn system_library_dirs() -> Vec<PathBuf> {
+    search_dirs(
+        &["LIBRARY_PATH", "LD_LIBRARY_PATH"],
+        CONVENTIONAL_LIBRARY_DIRS,
+    )
+}
+
+pub fn find_system_header(name: impl AsRef<Path>) -> Option<PathBuf> {
+    system_include_dirs()
+        .into_iter()
+        .map(|directory| directory.join(name.as_ref()))
+        .find(|path| path.is_file())
+}
+
+pub fn find_system_library(name: impl AsRef<Path>) -> Option<PathBuf> {
+    system_library_dirs()
+        .into_iter()
+        .map(|directory| directory.join(name.as_ref()))
+        .find(|path| path.is_file())
+}
 
 // ─── parc adapter functions ───────────────────────────────────────────
 
@@ -265,8 +328,7 @@ fn package_from_recovered_parse(
         .map(|p| p.display().to_string())
         .collect::<Vec<_>>()
         .join(", ");
-    let effective_macro_environment =
-        build_effective_macro_environment(&macros, &macro_provenance);
+    let effective_macro_environment = build_effective_macro_environment(&macros, &macro_provenance);
 
     let mut package = BindingPackage {
         source_path: Some(source_desc),
@@ -390,9 +452,7 @@ pub fn process(config: &HeaderConfig) -> Result<RawHeaderResult, LincError> {
             })
         }
         Err(parc::driver::Error::SyntaxError(e)) => {
-            if let Some(recovered) =
-                try_recover_items_from_preprocessed_source(config, &e.source)
-            {
+            if let Some(recovered) = try_recover_items_from_preprocessed_source(config, &e.source) {
                 let report = PreprocessingReport {
                     command,
                     args,

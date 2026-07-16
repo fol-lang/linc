@@ -12,9 +12,9 @@ pub mod adapters;
 pub mod source;
 
 pub use source::{
-    SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
-    SourceLinkKind, SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter,
-    SourceRecord, SourceType, SourceTypeAlias, SourceVariable,
+    SourceDeclaration, SourceEnum, SourceEnumVariant, SourceField, SourceFunction, SourceLinkKind,
+    SourceLinkRequirement, SourceMacro, SourcePackage, SourceParameter, SourceRecord, SourceType,
+    SourceTypeAlias, SourceVariable,
 };
 
 #[cfg(test)]
@@ -79,8 +79,10 @@ mod tests {
 
     #[test]
     fn source_package_json_roundtrip() {
-        let mut pkg = SourcePackage::default();
-        pkg.source_path = Some("demo.h".into());
+        let mut pkg = SourcePackage {
+            source_path: Some("demo.h".into()),
+            ..SourcePackage::default()
+        };
         pkg.declarations
             .push(SourceDeclaration::Function(SourceFunction {
                 name: "foo".into(),

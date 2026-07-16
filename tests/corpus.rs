@@ -7,8 +7,8 @@
 mod common;
 use std::path::{Path, PathBuf};
 
-use linc::*;
 use linc::ir::{BindingItem, BindingType, TypeQualifiers};
+use linc::*;
 
 /// Path to the vendored test corpus.
 fn corpus_dir() -> PathBuf {
@@ -19,22 +19,11 @@ fn corpus_dir() -> PathBuf {
 }
 
 fn find_system_header(name: &str) -> Option<PathBuf> {
-    let paths = [
-        format!("/usr/include/{}", name),
-        format!("/usr/local/include/{}", name),
-        format!("/usr/include/x86_64-linux-gnu/{}", name),
-    ];
-    paths.iter().map(PathBuf::from).find(|p| p.exists())
+    common::find_system_header(name)
 }
 
 fn find_system_lib(name: &str) -> Option<PathBuf> {
-    let paths = [
-        format!("/usr/lib/{}", name),
-        format!("/usr/lib/x86_64-linux-gnu/{}", name),
-        format!("/usr/local/lib/{}", name),
-        format!("/lib/x86_64-linux-gnu/{}", name),
-    ];
-    paths.iter().map(PathBuf::from).find(|p| p.exists())
+    common::find_system_library(name)
 }
 
 // ============================================================================
@@ -42,15 +31,19 @@ fn find_system_lib(name: &str) -> Option<PathBuf> {
 // ============================================================================
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn zlib_vendored_parse() {
+    eprintln!("RUN: host C preprocessor vendored-zlib parse evidence");
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let main_c = corpus_dir().join("zlib/header/main.c");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&main_c)
-        .include_dir(&zlib_inc)
-        .no_origin_filter()) // include all declarations
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&main_c)
+            .include_dir(&zlib_inc)
+            .no_origin_filter(),
+    ) // include all declarations
+    .unwrap();
 
     let funcs: Vec<&str> = result
         .package
@@ -75,15 +68,19 @@ fn zlib_vendored_parse() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn zlib_vendored_origin_filter() {
+    eprintln!("RUN: host C preprocessor vendored-zlib origin-filter evidence");
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&zlib_h)
-        .include_dir(&zlib_inc))
-        // default filter: exclude system
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&zlib_h)
+            .include_dir(&zlib_inc),
+    )
+    // default filter: exclude system
+    .unwrap();
 
     let funcs: Vec<&str> = result
         .package
@@ -103,15 +100,19 @@ fn zlib_vendored_origin_filter() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn zlib_vendored_types() {
+    eprintln!("RUN: host C preprocessor vendored-zlib type evidence");
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&zlib_h)
-        .include_dir(&zlib_inc)
-        .no_origin_filter())
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&zlib_h)
+            .include_dir(&zlib_inc)
+            .no_origin_filter(),
+    )
+    .unwrap();
 
     let type_names: Vec<&str> = result
         .package
@@ -133,15 +134,19 @@ fn zlib_vendored_types() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn zlib_vendored_package_and_json_roundtrip() {
+    eprintln!("RUN: host C preprocessor vendored-zlib package evidence");
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&zlib_h)
-        .include_dir(&zlib_inc)
-        .no_origin_filter())
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&zlib_h)
+            .include_dir(&zlib_inc)
+            .no_origin_filter(),
+    )
+    .unwrap();
 
     assert!(
         result.package.find_function("deflate").is_some(),
@@ -159,20 +164,26 @@ fn zlib_vendored_package_and_json_roundtrip() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn zlib_vendored_determinism() {
+    eprintln!("RUN: host C preprocessor vendored-zlib determinism evidence");
     let zlib_inc = corpus_dir().join("zlib/header/include");
     let zlib_h = zlib_inc.join("zlib.h");
 
-    let r1 = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&zlib_h)
-        .include_dir(&zlib_inc)
-        .no_origin_filter())
-        .unwrap();
-    let r2 = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&zlib_h)
-        .include_dir(&zlib_inc)
-        .no_origin_filter())
-        .unwrap();
+    let r1 = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&zlib_h)
+            .include_dir(&zlib_inc)
+            .no_origin_filter(),
+    )
+    .unwrap();
+    let r2 = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&zlib_h)
+            .include_dir(&zlib_inc)
+            .no_origin_filter(),
+    )
+    .unwrap();
 
     let json1 = serde_json::to_string_pretty(&r1.package).unwrap();
     let json2 = serde_json::to_string_pretty(&r2.package).unwrap();
@@ -184,15 +195,19 @@ fn zlib_vendored_determinism() {
 // ============================================================================
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn libpng_vendored_parse() {
+    eprintln!("RUN: host C preprocessor vendored-libpng parse evidence");
     let png_inc = corpus_dir().join("libpng/header/include");
     let main_c = corpus_dir().join("libpng/header/main.c");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&main_c)
-        .include_dir(&png_inc)
-        .no_origin_filter())
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&main_c)
+            .include_dir(&png_inc)
+            .no_origin_filter(),
+    )
+    .unwrap();
 
     let funcs: Vec<&str> = result
         .package
@@ -212,15 +227,19 @@ fn libpng_vendored_parse() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn libpng_vendored_package_inspection() {
+    eprintln!("RUN: host C preprocessor vendored-libpng package evidence");
     let png_inc = corpus_dir().join("libpng/header/include");
     let png_h = png_inc.join("png.h");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&png_h)
-        .include_dir(&png_inc)
-        .no_origin_filter())
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&png_h)
+            .include_dir(&png_inc)
+            .no_origin_filter(),
+    )
+    .unwrap();
 
     // Should have at least some png_ functions in the extracted package
     let has_png_func = result
@@ -235,15 +254,19 @@ fn libpng_vendored_package_inspection() {
 // ============================================================================
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn musl_stdint_vendored_parse() {
+    eprintln!("RUN: host C preprocessor vendored-musl parse evidence");
     let musl_inc = corpus_dir().join("musl/stdint/include");
     let main_c = corpus_dir().join("musl/stdint/main.c");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&main_c)
-        .include_dir(&musl_inc)
-        .no_origin_filter())
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .header(&main_c)
+            .include_dir(&musl_inc)
+            .no_origin_filter(),
+    )
+    .unwrap();
 
     let type_names: Vec<&str> = result
         .package
@@ -274,16 +297,13 @@ fn musl_stdint_vendored_parse() {
 // ============================================================================
 
 #[test]
-#[ignore] // Requires gcc/clang
+#[ignore = "system prerequisite: host C compiler and standard headers"]
 fn string_h_parse() {
-    let header = match find_system_header("string.h") {
-        Some(p) => p,
-        None => return,
-    };
+    eprintln!("RUN: string.h system parse evidence");
+    let header = find_system_header("string.h")
+        .expect("FAIL: string.h and a working C development environment are required");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&header))
-        .unwrap();
+    let result = common::process(&linc::raw_headers::HeaderConfig::new().header(&header)).unwrap();
 
     let funcs: Vec<&str> = result
         .package
@@ -302,67 +322,62 @@ fn string_h_parse() {
 }
 
 #[test]
-#[ignore] // Requires gcc/clang
+#[ignore = "system prerequisite: host C compiler and standard headers"]
 fn string_h_const_correctness() {
-    let header = match find_system_header("string.h") {
-        Some(p) => p,
-        None => return,
-    };
+    eprintln!("RUN: string.h qualifier evidence");
+    let header = find_system_header("string.h")
+        .expect("FAIL: string.h and a working C development environment are required");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&header))
-        .unwrap();
+    let result = common::process(&linc::raw_headers::HeaderConfig::new().header(&header)).unwrap();
 
     let strlen = result.package.items.iter().find_map(|i| match i {
         BindingItem::Function(f) if f.name == "strlen" => Some(f),
         _ => None,
     });
 
-    if let Some(f) = strlen {
-        assert_eq!(f.parameters.len(), 1);
-        assert_eq!(
-            f.parameters[0].ty,
-            BindingType::const_ptr(BindingType::Char),
-            "strlen parameter should be const char *"
-        );
-    }
+    let strlen = strlen.expect("strlen must be extracted from string.h");
+    assert_eq!(strlen.parameters.len(), 1);
+    assert_eq!(
+        strlen.parameters[0].ty,
+        BindingType::const_ptr(BindingType::Char),
+        "strlen parameter should be const char *"
+    );
 
     let memcpy = result.package.items.iter().find_map(|i| match i {
         BindingItem::Function(f) if f.name == "memcpy" => Some(f),
         _ => None,
     });
 
-    if let Some(f) = memcpy {
-        assert!(f.parameters.len() >= 3);
-        assert_eq!(
-            f.parameters[0].ty,
-            BindingType::Pointer {
-                pointee: Box::new(BindingType::Void),
-                const_pointee: false,
-                qualifiers: TypeQualifiers {
-                    is_const: false,
-                    is_volatile: false,
-                    is_restrict: true,
-                    is_atomic: false,
-                },
+    let memcpy = memcpy.expect("memcpy must be extracted from string.h");
+    assert!(memcpy.parameters.len() >= 3);
+    assert_eq!(
+        memcpy.parameters[0].ty,
+        BindingType::Pointer {
+            pointee: Box::new(BindingType::Void),
+            const_pointee: false,
+            qualifiers: TypeQualifiers {
+                is_const: false,
+                is_volatile: false,
+                is_restrict: true,
+                is_atomic: false,
             },
-            "memcpy dest should be void *"
-        );
-        assert_eq!(
-            f.parameters[1].ty,
-            BindingType::Pointer {
-                pointee: Box::new(BindingType::Void),
-                const_pointee: true,
-                qualifiers: TypeQualifiers {
-                    is_const: false,
-                    is_volatile: false,
-                    is_restrict: true,
-                    is_atomic: false,
-                },
+        },
+        "memcpy dest should be void *"
+    );
+    assert_eq!(
+        memcpy.parameters[1].ty,
+        BindingType::Pointer {
+            pointee: Box::new(BindingType::Void),
+            const_pointee: true,
+            qualifiers: TypeQualifiers {
+                is_const: false,
+                is_volatile: false,
+                is_restrict: true,
+                is_atomic: false,
             },
-            "memcpy src should be const void *"
-        );
-    }
+        },
+        "memcpy src should be const void *"
+    );
 }
 
 // ============================================================================
@@ -370,16 +385,12 @@ fn string_h_const_correctness() {
 // ============================================================================
 
 #[test]
-#[ignore] // Requires zlib1g-dev: sudo apt install zlib1g-dev
+#[ignore = "system prerequisite: host C compiler and zlib development files"]
 fn zlib_system_parse_filtered() {
-    let header = match find_system_header("zlib.h") {
-        Some(p) => p,
-        None => return,
-    };
+    eprintln!("RUN: zlib system parse evidence");
+    let header = find_system_header("zlib.h").expect("FAIL: zlib development headers are required");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&header))
-        .unwrap();
+    let result = common::process(&linc::raw_headers::HeaderConfig::new().header(&header)).unwrap();
 
     let funcs: Vec<&str> = result
         .package
@@ -420,16 +431,13 @@ fn zlib_system_parse_filtered() {
 }
 
 #[test]
-#[ignore] // Requires libpng-dev: sudo apt install libpng-dev
+#[ignore = "system prerequisite: host C compiler and libpng development files"]
 fn libpng_system_parse() {
-    let header = match find_system_header("png.h") {
-        Some(p) => p,
-        None => return,
-    };
+    eprintln!("RUN: libpng system parse evidence");
+    let header =
+        find_system_header("png.h").expect("FAIL: libpng development headers are required");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&header))
-        .unwrap();
+    let result = common::process(&linc::raw_headers::HeaderConfig::new().header(&header)).unwrap();
 
     let funcs: Vec<&str> = result
         .package
@@ -454,20 +462,16 @@ fn libpng_system_parse() {
 }
 
 #[test]
-#[ignore] // Requires libpng-dev: sudo apt install libpng-dev
+#[ignore = "system prerequisite: host C compiler and libpng development files"]
 fn libpng_system_validate_symbols() {
-    let header = match find_system_header("png.h") {
-        Some(p) => p,
-        None => return,
-    };
-    let lib = match find_system_lib("libpng16.so").or_else(|| find_system_lib("libpng.so")) {
-        Some(p) => p,
-        None => return,
-    };
+    eprintln!("RUN: libpng native symbol evidence");
+    let header =
+        find_system_header("png.h").expect("FAIL: libpng development headers are required");
+    let lib = find_system_lib("libpng16.so")
+        .or_else(|| find_system_lib("libpng.so"))
+        .expect("FAIL: a linkable libpng shared library is required");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&header))
-        .unwrap();
+    let result = common::process(&linc::raw_headers::HeaderConfig::new().header(&header)).unwrap();
 
     let inventory = inspect_symbols(&lib).unwrap();
     let report = validate(&result.package, &inventory);
@@ -489,20 +493,13 @@ fn libpng_system_validate_symbols() {
 }
 
 #[test]
-#[ignore] // Requires zlib1g-dev: sudo apt install zlib1g-dev
+#[ignore = "system prerequisite: host C compiler and zlib development files"]
 fn zlib_system_validate_symbols() {
-    let header = match find_system_header("zlib.h") {
-        Some(p) => p,
-        None => return,
-    };
-    let lib = match find_system_lib("libz.so") {
-        Some(p) => p,
-        None => return,
-    };
+    eprintln!("RUN: zlib native symbol evidence");
+    let header = find_system_header("zlib.h").expect("FAIL: zlib development headers are required");
+    let lib = find_system_lib("libz.so").expect("FAIL: a linkable zlib shared library is required");
 
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .header(&header))
-        .unwrap();
+    let result = common::process(&linc::raw_headers::HeaderConfig::new().header(&header)).unwrap();
 
     let inventory = inspect_symbols(&lib).unwrap();
     let report = validate(&result.package, &inventory);

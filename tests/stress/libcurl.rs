@@ -1,17 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use linc::raw_headers::{HeaderConfig, RawHeaderResult};
 use linc::LincError;
 
-const HEADER_CANDIDATES: &[&str] = &[
-    "/usr/include/curl/curl.h",
-    "/usr/include/x86_64-linux-gnu/curl/curl.h",
-];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &[
-    "/usr/include",
-    "/usr/include/curl",
-    "/usr/include/x86_64-linux-gnu",
-];
 const PROBE_TYPES: &[&str] = &["struct curl_blob"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,19 +12,13 @@ pub struct LibcurlEnvironment {
 }
 
 pub fn libcurl_environment() -> Result<LibcurlEnvironment, LincError> {
-    let header = HEADER_CANDIDATES
-        .iter()
-        .find(|path| Path::new(path).exists())
-        .map(PathBuf::from)
-        .ok_or_else(|| LincError::InvalidConfig {
+    let header = super::common::find_system_header("curl/curl.h").ok_or_else(|| {
+        LincError::InvalidConfig {
             reason: "libcurl example requires curl headers".into(),
-        })?;
+        }
+    })?;
 
-    let include_dirs = INCLUDE_DIR_CANDIDATES
-        .iter()
-        .filter(|dir| Path::new(dir).exists())
-        .map(PathBuf::from)
-        .collect();
+    let include_dirs = super::common::system_include_dirs();
 
     Ok(LibcurlEnvironment {
         header,

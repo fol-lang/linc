@@ -1,19 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use linc::raw_headers::{HeaderConfig, RawHeaderResult};
 use linc::LincError;
 
-const REQUIRED_HEADERS: &[&str] = &[
-    "/usr/include/sys/epoll.h",
-    "/usr/include/sys/timerfd.h",
-    "/usr/include/sys/signalfd.h",
-];
-const MULTIARCH_HEADERS: &[&str] = &[
-    "/usr/include/x86_64-linux-gnu/sys/epoll.h",
-    "/usr/include/x86_64-linux-gnu/sys/timerfd.h",
-    "/usr/include/x86_64-linux-gnu/sys/signalfd.h",
-];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &["/usr/include", "/usr/include/x86_64-linux-gnu"];
+const REQUIRED_HEADERS: &[&str] = &["sys/epoll.h", "sys/timerfd.h", "sys/signalfd.h"];
 const PROBE_TYPES: &[&str] = &["struct epoll_event", "struct signalfd_siginfo"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,25 +13,14 @@ pub struct LinuxEventLoopEnvironment {
 }
 
 pub fn linux_event_loop_environment() -> Result<LinuxEventLoopEnvironment, LincError> {
-    let header_candidates = if REQUIRED_HEADERS.iter().all(|path| Path::new(path).exists()) {
-        REQUIRED_HEADERS
-    } else if MULTIARCH_HEADERS
+    let headers = REQUIRED_HEADERS
         .iter()
-        .all(|path| Path::new(path).exists())
-    {
-        MULTIARCH_HEADERS
-    } else {
-        return Err(LincError::InvalidConfig {
+        .map(super::common::find_system_header)
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| LincError::InvalidConfig {
             reason: "linux event-loop example requires epoll, timerfd, and signalfd headers".into(),
-        });
-    };
-
-    let headers = header_candidates.iter().map(PathBuf::from).collect();
-    let include_dirs = INCLUDE_DIR_CANDIDATES
-        .iter()
-        .filter(|dir| Path::new(dir).exists())
-        .map(PathBuf::from)
-        .collect();
+        })?;
+    let include_dirs = super::common::system_include_dirs();
 
     Ok(LinuxEventLoopEnvironment {
         headers,

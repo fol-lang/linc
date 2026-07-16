@@ -13,10 +13,11 @@ mod socketcan;
 
 #[cfg(target_os = "linux")]
 #[test]
+#[ignore = "system prerequisite: Linux event-loop development headers"]
 fn linux_event_loop_example_combines_multiple_system_headers() {
-    let Ok(environment) = linux_event_loop::linux_event_loop_environment() else {
-        return;
-    };
+    eprintln!("RUN: Linux event-loop system evidence");
+    let environment = linux_event_loop::linux_event_loop_environment()
+        .expect("FAIL: epoll, timerfd, and signalfd headers are required");
 
     let config = linux_event_loop::linux_event_loop_header_config().unwrap();
     let result = linux_event_loop::analyze_linux_event_loop().unwrap();
@@ -56,13 +57,15 @@ fn linux_event_loop_example_combines_multiple_system_headers() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[ignore = "system prerequisite: Linux event-loop development headers"]
 fn linux_event_loop_example_is_deterministic_when_available() {
-    if linux_event_loop::linux_event_loop_environment().is_err() {
-        return;
-    }
+    eprintln!("RUN: Linux event-loop determinism evidence");
+    linux_event_loop::linux_event_loop_environment()
+        .expect("FAIL: epoll, timerfd, and signalfd headers are required");
 
     let make = || {
-        let result = linux_event_loop::analyze_linux_event_loop().expect("linux event-loop analysis");
+        let result =
+            linux_event_loop::analyze_linux_event_loop().expect("linux event-loop analysis");
         serde_json::to_string(&result.package).expect("linux event-loop package json")
     };
 
@@ -71,10 +74,11 @@ fn linux_event_loop_example_is_deterministic_when_available() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn epoll_example_is_code_driven_and_consumable() {
-    let Ok(environment) = epoll::epoll_environment() else {
-        return;
-    };
+    eprintln!("RUN: host C compiler epoll analysis evidence");
+    let environment = epoll::epoll_environment()
+        .expect("repo epoll fixture or system epoll header must be available");
 
     let config = epoll::epoll_header_config().unwrap();
     let result = epoll::analyze_epoll().unwrap();
@@ -109,12 +113,11 @@ fn epoll_example_is_code_driven_and_consumable() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[ignore = "system prerequisite: Linux SocketCAN development headers"]
 fn socketcan_example_environment_is_explicit() {
-    if !socketcan::socketcan_headers_available() {
-        return;
-    }
-
-    let environment = socketcan::socketcan_environment().unwrap();
+    eprintln!("RUN: SocketCAN environment evidence");
+    let environment =
+        socketcan::socketcan_environment().expect("FAIL: Linux SocketCAN headers are required");
     let config = socketcan::socketcan_header_config().unwrap();
 
     assert!(environment
@@ -146,12 +149,8 @@ fn socketcan_example_environment_is_explicit() {
 #[test]
 #[ignore = "system Linux header example"]
 fn socketcan_example_is_code_driven_and_consumable() {
-    if std::env::var_os("BIC_RUN_SYSTEM_SOCKETCAN").is_none() {
-        return;
-    }
-    if !socketcan::socketcan_headers_available() {
-        return;
-    }
+    eprintln!("RUN: SocketCAN compile and runtime evidence");
+    socketcan::socketcan_environment().expect("FAIL: Linux SocketCAN headers are required");
 
     let result = socketcan::analyze_socketcan().unwrap();
     let package = &result.package;

@@ -1,22 +1,28 @@
 mod common;
+use linc::ir::{
+    AbiConfidence, AliasResolution, BindingItem, BindingPackage, BindingTarget, BindingType,
+    CallingConvention, EnumRepresentation, FieldLayout, FunctionBinding, MacroBinding,
+    MacroCategory, MacroForm, MacroKind, MacroValue, ParameterBinding, RecordRepresentation,
+    TypeAliasBinding, TypeLayout, TypeQualifiers,
+};
 use linc::{
     analyze_source_package,
     probe_type_layouts,
     AbiProbeReport,
     EvidenceKind,
-    LinkAnalysisPackage,
     LincError,
+    LinkAnalysisPackage,
     MatchConfidence,
     ProbeConfidence,
     ProbeSubjectKind,
     ProbeSubjectReport,
     ProbedFieldLayout,
     RecordCompleteness,
-    RuntimeBoundary,
-    RuntimeBoundaryKind,
     RoutineAbiConfidence,
     RoutineAbiEvidence,
     RoutineAbiEvidenceKind,
+    RuntimeBoundary,
+    RuntimeBoundaryKind,
     SourceDeclaration,
     SourceEnum,
     SourceFunction,
@@ -34,12 +40,6 @@ use linc::{
     ValidationPhase,
     ValidationPhaseReport,
     ValidationSummary,
-};
-use linc::ir::{
-    AbiConfidence, AliasResolution, BindingItem, BindingPackage, BindingTarget, BindingType,
-    CallingConvention, EnumRepresentation, FieldLayout, FunctionBinding, MacroBinding,
-    MacroCategory, MacroForm, MacroKind, MacroValue, ParameterBinding, RecordRepresentation,
-    TypeAliasBinding, TypeLayout, TypeQualifiers,
 };
 
 #[test]
@@ -93,10 +93,12 @@ fn binding_package_public_helpers_are_available_from_root() {
 
 #[test]
 fn process_rejects_invalid_config_before_execution() {
-    let err = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header("demo.h")
-        .add_include_dir(""))
-        .unwrap_err();
+    let err = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header("demo.h")
+            .add_include_dir(""),
+    )
+    .unwrap_err();
 
     assert!(matches!(err, LincError::InvalidConfig { .. }));
 }
@@ -415,8 +417,10 @@ fn evidence_kind_root_type_roundtrip() {
 
 #[test]
 fn intake_types_reachable_from_root() {
-    let mut src = SourcePackage::default();
-    src.source_path = Some("api.h".to_string());
+    let mut src = SourcePackage {
+        source_path: Some("api.h".to_string()),
+        ..Default::default()
+    };
     src.declarations
         .push(SourceDeclaration::Function(SourceFunction {
             name: "init".into(),

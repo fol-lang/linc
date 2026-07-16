@@ -14,7 +14,7 @@ $(info Project: $(PROJECT_NAME))
 $(info Version: $(CURRENT_VERSION))
 $(info ------------------------------------------)
 
-.PHONY: build b compile c test t help h clean docs release
+.PHONY: build b compile c fmt fmt-check lint check-features test t test-contract test-package test-system docs-check verify help h clean docs release
 
 SHELL := /bin/bash
 
@@ -32,9 +32,61 @@ c: compile
 
 test:
 	@cargo test -- --test-threads=1
-	@cargo test -- --ignored --test-threads=1
+	@cargo test --doc
 
 t: test
+
+fmt:
+	@cargo fmt
+
+fmt-check:
+	@cargo fmt -- --check
+
+lint:
+	@cargo clippy --no-deps --all-targets --all-features -- -D warnings
+
+check-features:
+	@cargo check --all-targets
+	@cargo check --all-targets --all-features
+	@cargo check --all-targets --no-default-features
+
+test-contract:
+	@cargo test --test artifact_boundaries --test public_api -- --test-threads=1
+
+test-package:
+	@tools/test-package.sh follang-linc linc
+
+test-system:
+	@cargo test -- --ignored --nocapture --test-threads=1
+
+docs-check:
+	@command -v mdbook >/dev/null 2>&1 || { echo "mdbook is required"; exit 1; }
+	@mdbook build $(TOP_DIR)/book --dest-dir $(BUILD_DIR)/book
+	@cargo doc --no-deps --all-features
+
+VERIFY_ALLOW_DIRTY ?= 0
+
+verify:
+	@set -eu; \
+		before="$$(mktemp "$${TMPDIR:-/tmp}/linc-verify-before.XXXXXX")"; \
+		after="$$(mktemp "$${TMPDIR:-/tmp}/linc-verify-after.XXXXXX")"; \
+		trap 'rm -f "$$before" "$$after"' EXIT; \
+		git status --porcelain=v1 --untracked-files=all >"$$before"; \
+		if test -s "$$before" && test "$(VERIFY_ALLOW_DIRTY)" != 1; then \
+			echo "verification requires a clean worktree (or VERIFY_ALLOW_DIRTY=1)"; \
+			cat "$$before"; \
+			exit 1; \
+		fi; \
+		$(MAKE) fmt-check; \
+		$(MAKE) lint; \
+		$(MAKE) check-features; \
+		$(MAKE) test; \
+		$(MAKE) test-contract; \
+		$(MAKE) test-package; \
+		$(MAKE) test-system; \
+		$(MAKE) docs-check; \
+		git status --porcelain=v1 --untracked-files=all >"$$after"; \
+		diff -u "$$before" "$$after"
 
 help:
 	@echo
@@ -43,7 +95,16 @@ help:
 	@echo "Available targets:"
 	@echo "  build        Build project"
 	@echo "  compile      Configure and generate build files"
+	@echo "  fmt          Format this package"
+	@echo "  fmt-check    Check Rust formatting"
+	@echo "  lint         Run Clippy with warnings denied"
+	@echo "  check-features  Check default, all, and no-default features"
 	@echo "  test         Run tests"
+	@echo "  test-contract  Run contract tests"
+	@echo "  test-package   Test the package archive and clean consumer"
+	@echo "  test-system    Run required system tests"
+	@echo "  docs-check     Build Rust and mdBook documentation"
+	@echo "  verify         Run the complete non-mutating gate"
 	@echo "  docs         Build documentation (TYPE=mdbook|doxygen)"
 	@echo "  release      Create a new release (TYPE=patch|minor|major)"
 	@echo
@@ -57,9 +118,7 @@ clean:
 
 docs:
 ifeq ($(TYPE),mdbook)
-	@command -v mdbook >/dev/null 2>&1 || { echo "mdbook is not installed. Please install it first."; exit 1; }
-	@mdbook build $(TOP_DIR)/book --dest-dir $(TOP_DIR)/docs
-	@git add --all && git commit -m "docs: building website/mdbook"
+	@$(MAKE) docs-check
 else ifeq ($(TYPE),doxygen)
 	@command -v doxygen >/dev/null 2>&1 || { echo "doxygen is not installed. Please install it first."; exit 1; }
 else

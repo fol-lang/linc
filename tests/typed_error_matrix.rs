@@ -21,7 +21,9 @@ fn typed_error_matrix_plain_text_artifact_is_unsupported_format() {
 
 #[test]
 fn typed_error_matrix_invalid_json_maps_to_serialization() {
-    let err: LincError = serde_json::from_str::<linc::ir::BindingPackage>("not json").unwrap_err().into();
+    let err: LincError = serde_json::from_str::<linc::ir::BindingPackage>("not json")
+        .unwrap_err()
+        .into();
     assert!(matches!(err, LincError::Serialization(_)));
 }
 

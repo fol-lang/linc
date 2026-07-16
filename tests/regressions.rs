@@ -1,14 +1,14 @@
 mod common;
-use linc::symbols::{ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform};
-use linc::{
-    resolve_link_plan_for_target, resolve_link_plan_with_inventories, validate, AbiProbeReport,
-    DiagnosticKind, SymbolBinding, SymbolDirection, SymbolEntry, SymbolInventory,
-    SymbolVisibility, ValidationReport,
-};
 use linc::ir::{
     AbiConfidence, BindingItem, BindingPackage, BindingType, CallingConvention, FunctionBinding,
     LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource, MacroCategory, MacroValue,
     ParameterBinding,
+};
+use linc::symbols::{ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform};
+use linc::{
+    resolve_link_plan_for_target, resolve_link_plan_with_inventories, validate, AbiProbeReport,
+    DiagnosticKind, SymbolBinding, SymbolDirection, SymbolEntry, SymbolInventory, SymbolVisibility,
+    ValidationReport,
 };
 use std::path::PathBuf;
 
@@ -101,7 +101,9 @@ fn regression_probe_record_fixture_keeps_record_and_enum_metadata() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn regression_probe_diagnostics_distinguish_unavailable_and_operational_failures() {
+    eprintln!("RUN: host C compiler probe-diagnostics regression evidence");
     let temp_root = std::env::temp_dir().join(format!(
         "bic_regression_probe_split_{}_{}",
         std::process::id(),
@@ -120,10 +122,12 @@ fn regression_probe_diagnostics_distinguish_unavailable_and_operational_failures
     )
     .unwrap();
 
-    let unavailable = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("struct opaque_widget"))
-        .unwrap();
+    let unavailable = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("struct opaque_widget"),
+    )
+    .unwrap();
     assert_eq!(unavailable.package.probe_unavailable_count(), 1);
     assert_eq!(unavailable.package.probe_failure_count(), 0);
     assert!(unavailable
@@ -132,10 +136,12 @@ fn regression_probe_diagnostics_distinguish_unavailable_and_operational_failures
         .iter()
         .any(|diagnostic| diagnostic.kind == DiagnosticKind::ProbeUnavailable));
 
-    let failed = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("struct invalid["))
-        .unwrap();
+    let failed = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("struct invalid["),
+    )
+    .unwrap();
     assert_eq!(failed.package.probe_unavailable_count(), 0);
     assert_eq!(failed.package.probe_failure_count(), 1);
     assert!(failed
@@ -187,13 +193,17 @@ fn regression_function_abi_questionable_fixture_stays_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn regression_tricky_layout_fixture_stays_consumable() {
+    eprintln!("RUN: host C compiler tricky-layout regression evidence");
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_layouts.h");
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("struct packed_flags")
-        .probe_type_layout("enum widget_mode"))
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("struct packed_flags")
+            .probe_type_layout("enum widget_mode"),
+    )
+    .unwrap();
 
     let alias = result.package.find_type_alias("my_size_ptr").unwrap();
     let resolution = alias.canonical_resolution.as_ref().unwrap();
@@ -216,14 +226,18 @@ fn regression_tricky_layout_fixture_stays_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn regression_typedef_layout_fixture_validates_record_and_enum_aliases() {
+    eprintln!("RUN: host C compiler typedef-layout regression evidence");
     let header =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/typedef_layout_bridge.h");
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("widget_t")
-        .probe_type_layout("mode_t"))
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("widget_t")
+            .probe_type_layout("mode_t"),
+    )
+    .unwrap();
 
     let inventory = SymbolInventory {
         artifact_path: "typedefs.o".into(),
@@ -279,14 +293,18 @@ fn regression_typedef_layout_fixture_validates_record_and_enum_aliases() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C compiler"]
 fn regression_packed_bitfield_fixture_preserves_partial_layout_signal() {
+    eprintln!("RUN: host C compiler packed-bitfield regression evidence");
     let header =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/packed_bitfield_extreme.h");
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header)
-        .probe_type_layout("struct packed_registers")
-        .probe_type_layout("packed_registers_t"))
-        .unwrap();
+    let result = common::process(
+        &linc::raw_headers::HeaderConfig::new()
+            .entry_header(&header)
+            .probe_type_layout("struct packed_registers")
+            .probe_type_layout("packed_registers_t"),
+    )
+    .unwrap();
 
     let record = result.package.find_record("packed_registers").unwrap();
     assert_eq!(
@@ -464,11 +482,12 @@ fn regression_macos_text_stub_provider_resolves_after_name_refinement() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn regression_tricky_macro_fixture_stays_consumable() {
+    eprintln!("RUN: host C preprocessor tricky-macro regression evidence");
     let header = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tricky_macros.h");
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header))
-        .unwrap();
+    let result =
+        common::process(&linc::raw_headers::HeaderConfig::new().entry_header(&header)).unwrap();
 
     let api_level = result
         .package
@@ -504,12 +523,13 @@ fn regression_tricky_macro_fixture_stays_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn regression_macro_public_api_fixture_preserves_configuration_and_abi_macros() {
+    eprintln!("RUN: host C preprocessor macro-public-API regression evidence");
     let header =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/macro_public_api.h");
-    let result = common::process(&linc::raw_headers::HeaderConfig::new()
-        .entry_header(&header))
-        .unwrap();
+    let result =
+        common::process(&linc::raw_headers::HeaderConfig::new().entry_header(&header)).unwrap();
 
     let api_level = result
         .package
@@ -568,10 +588,7 @@ fn regression_linux_elf_mixed_fixture_preserves_versions_and_imports() {
     assert_eq!(inventory.dependency_edges, vec!["libc.so.6", "libm.so.6"]);
     assert_eq!(inventory.symbols.len(), 3);
     assert_eq!(inventory.symbols[0].version.as_deref(), Some("WIDGET_1.0"));
-    assert_eq!(
-        inventory.symbols[1].direction,
-        SymbolDirection::Imported
-    );
+    assert_eq!(inventory.symbols[1].direction, SymbolDirection::Imported);
     assert_eq!(inventory.symbols[1].reexported_via, vec!["libm.so.6"]);
     assert_eq!(inventory.symbols[2].size, Some(4));
 }
@@ -642,10 +659,7 @@ fn regression_macos_dylib_mixed_fixture_preserves_imported_and_exported_symbols(
         inventory.symbols[0].raw_name.as_deref(),
         Some("_widget_init")
     );
-    assert_eq!(
-        inventory.symbols[1].direction,
-        SymbolDirection::Imported
-    );
+    assert_eq!(inventory.symbols[1].direction, SymbolDirection::Imported);
     assert_eq!(
         inventory.symbols[1].reexported_via,
         vec!["/usr/lib/libSystem.B.dylib"]
@@ -677,8 +691,5 @@ fn regression_windows_import_library_fixture_stays_consumable() {
     assert_eq!(inventory.format, ArtifactFormat::CoffImportLibrary);
     assert_eq!(inventory.kind, ArtifactKind::ImportLibrary);
     assert!(inventory.capabilities.imports_symbols);
-    assert_eq!(
-        inventory.symbols[0].direction,
-        SymbolDirection::Imported
-    );
+    assert_eq!(inventory.symbols[0].direction, SymbolDirection::Imported);
 }

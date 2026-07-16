@@ -1,6 +1,9 @@
-use linc::symbols::{ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform, SymbolBinding, SymbolDirection, SymbolEntry, SymbolInventory, SymbolVisibility};
-use linc::{validate, EvidenceKind, MatchStatus, ValidationReport};
 use linc::ir::{BindingItem, BindingPackage, BindingType, VariableBinding};
+use linc::symbols::{
+    ArtifactCapabilities, ArtifactFormat, ArtifactKind, ArtifactPlatform, SymbolBinding,
+    SymbolDirection, SymbolEntry, SymbolInventory, SymbolVisibility,
+};
+use linc::{validate, EvidenceKind, MatchStatus, ValidationReport};
 
 #[test]
 fn failure_matrix_validation_abi_questionable_fixture_stays_explicit() {
@@ -11,7 +14,10 @@ fn failure_matrix_validation_abi_questionable_fixture_stays_explicit() {
 
     assert_eq!(report.summary.abi_shape_mismatches, 1);
     assert_eq!(report.matches[0].status, MatchStatus::AbiShapeMismatch);
-    assert_eq!(report.matches[0].evidence_kind, EvidenceKind::AbiShapeMismatch);
+    assert_eq!(
+        report.matches[0].evidence_kind,
+        EvidenceKind::AbiShapeMismatch
+    );
 }
 
 #[test]

@@ -8,8 +8,7 @@ use linc::{resolve_link_plan_with_inventories, ProviderMatchKind, RequirementRes
 #[test]
 fn macho_provider_policy_matches_declared_framework_inputs() {
     let inventory = SymbolInventory {
-        artifact_path:
-            "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation".into(),
+        artifact_path: "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation".into(),
         format: ArtifactFormat::MachODylib,
         platform: ArtifactPlatform::MachO,
         kind: ArtifactKind::SharedLibrary,
@@ -29,7 +28,10 @@ fn macho_provider_policy_matches_declared_framework_inputs() {
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
     assert_eq!(plan.requirements.len(), 1);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
     assert_eq!(plan.requirements[0].providers.len(), 1);
     assert_eq!(
         plan.requirements[0].providers[0].match_kind,
@@ -60,7 +62,10 @@ fn macho_provider_policy_matches_dylib_library_inputs_and_preserves_dependency_e
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
     assert_eq!(plan.requirements.len(), 1);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
     assert_eq!(plan.requirements[0].providers.len(), 1);
     assert_eq!(
         plan.requirements[0].providers[0].match_kind,

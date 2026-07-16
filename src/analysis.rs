@@ -1,14 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostics::Diagnostic;
-use crate::ir::{BindingInputs, BindingLinkSurface, BindingTarget, BindingPackage, SCHEMA_VERSION};
+use crate::ir::LinkInput;
+use crate::ir::{BindingInputs, BindingLinkSurface, BindingPackage, BindingTarget, SCHEMA_VERSION};
 use crate::link_plan::{resolve_link_plan, ResolvedLinkPlan};
 use crate::probe::AbiProbeReport;
-use crate::ir::LinkInput;
 
-#[cfg(feature = "symbols")]
 use crate::symbols::SymbolInventory;
-#[cfg(feature = "symbols")]
 use crate::validate::ValidationReport;
 
 /// Frontend-agnostic link/binary evidence contract produced by LINC.
@@ -35,10 +33,8 @@ pub struct LinkAnalysisPackage {
     pub resolved_link_plan: Option<ResolvedLinkPlan>,
     #[serde(default)]
     pub abi_probe: Option<AbiProbeReport>,
-    #[cfg(feature = "symbols")]
     #[serde(default)]
     pub symbol_inventories: Vec<SymbolInventory>,
-    #[cfg(feature = "symbols")]
     #[serde(default)]
     pub validation: Option<ValidationReport>,
 }
@@ -55,9 +51,7 @@ impl Default for LinkAnalysisPackage {
             runtime_boundaries: Vec::new(),
             resolved_link_plan: None,
             abi_probe: None,
-            #[cfg(feature = "symbols")]
             symbol_inventories: Vec::new(),
-            #[cfg(feature = "symbols")]
             validation: None,
         }
     }
@@ -80,9 +74,7 @@ impl LinkAnalysisPackage {
             runtime_boundaries: detect_runtime_boundaries(package),
             resolved_link_plan: Some(resolve_link_plan(package)),
             abi_probe: None,
-            #[cfg(feature = "symbols")]
             symbol_inventories: Vec::new(),
-            #[cfg(feature = "symbols")]
             validation: None,
         }
     }
@@ -120,8 +112,9 @@ fn detect_runtime_boundaries(package: &BindingPackage) -> Vec<RuntimeBoundary> {
                 boundaries.push(RuntimeBoundary {
                     kind: RuntimeBoundaryKind::DynamicLoader,
                     trigger: library.name.clone(),
-                    message: "declared dynamic-loader dependency requires downstream runtime policy"
-                        .into(),
+                    message:
+                        "declared dynamic-loader dependency requires downstream runtime policy"
+                            .into(),
                 });
             }
         }
@@ -141,35 +134,40 @@ fn linc_version() -> String {
 mod tests {
     use super::*;
     use crate::ir::{
-        BindingItem, FunctionBinding, LinkArtifact, LinkArtifactKind, LinkInput, LinkLibrary,
-        LinkLibraryKind, LinkRequirementSource, ParameterBinding, CallingConvention, BindingType,
+        BindingItem, BindingType, CallingConvention, FunctionBinding, LinkArtifact,
+        LinkArtifactKind, LinkInput, LinkLibrary, LinkLibraryKind, LinkRequirementSource,
+        ParameterBinding,
     };
 
     fn sample_binding_package() -> BindingPackage {
         let mut package = BindingPackage::new();
+        package.items.push(BindingItem::Function(FunctionBinding {
+            name: "demo_open".into(),
+            calling_convention: CallingConvention::C,
+            parameters: vec![ParameterBinding {
+                name: Some("flags".into()),
+                ty: BindingType::Int,
+            }],
+            return_type: BindingType::Int,
+            variadic: false,
+            source_offset: None,
+        }));
         package
-            .items
-            .push(BindingItem::Function(FunctionBinding {
-                name: "demo_open".into(),
-                calling_convention: CallingConvention::C,
-                parameters: vec![ParameterBinding {
-                    name: Some("flags".into()),
-                    ty: BindingType::Int,
-                }],
-                return_type: BindingType::Int,
-                variadic: false,
-                source_offset: None,
+            .link
+            .ordered_inputs
+            .push(LinkInput::Library(LinkLibrary {
+                name: "demo".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
             }));
-        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-            name: "demo".into(),
-            kind: LinkLibraryKind::Default,
-            source: LinkRequirementSource::Declared,
-        }));
-        package.link.ordered_inputs.push(LinkInput::Artifact(LinkArtifact {
-            path: "/tmp/libdemo.so".into(),
-            kind: LinkArtifactKind::SharedLibrary,
-            source: LinkRequirementSource::Discovered,
-        }));
+        package
+            .link
+            .ordered_inputs
+            .push(LinkInput::Artifact(LinkArtifact {
+                path: "/tmp/libdemo.so".into(),
+                kind: LinkArtifactKind::SharedLibrary,
+                source: LinkRequirementSource::Discovered,
+            }));
         package
     }
 
@@ -216,11 +214,14 @@ mod tests {
     #[test]
     fn analysis_package_marks_dynamic_loader_boundaries_explicitly() {
         let mut package = sample_binding_package();
-        package.link.ordered_inputs.push(LinkInput::Library(LinkLibrary {
-            name: "dl".into(),
-            kind: LinkLibraryKind::Default,
-            source: LinkRequirementSource::Declared,
-        }));
+        package
+            .link
+            .ordered_inputs
+            .push(LinkInput::Library(LinkLibrary {
+                name: "dl".into(),
+                kind: LinkLibraryKind::Default,
+                source: LinkRequirementSource::Declared,
+            }));
 
         let analysis = LinkAnalysisPackage::from_binding_package(&package);
 

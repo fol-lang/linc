@@ -27,7 +27,10 @@ fn windows_native_pe_fixture_resolves_declared_library_and_keeps_kernel_edges() 
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
     assert_eq!(plan.requirements.len(), 1);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
+    assert_eq!(
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
+    );
     assert_eq!(plan.requirements[0].providers.len(), 1);
     assert_eq!(
         plan.requirements[0].providers[0].match_kind,
@@ -37,7 +40,10 @@ fn windows_native_pe_fixture_resolves_declared_library_and_keeps_kernel_edges() 
         plan.requirements[0].providers[0].artifact_path,
         "C:/Windows/System32/bcrypt.dll"
     );
-    assert_eq!(plan.transitive_dependencies, vec!["KERNEL32.dll".to_string()]);
+    assert_eq!(
+        plan.transitive_dependencies,
+        vec!["KERNEL32.dll".to_string()]
+    );
 }
 
 #[test]
@@ -59,11 +65,11 @@ fn windows_native_import_fixture_resolves_declared_library_name() {
 
     let plan = resolve_link_plan_with_inventories(&package, &[inventory]);
     assert_eq!(plan.requirements.len(), 1);
-    assert_eq!(plan.requirements[0].resolution, RequirementResolution::Resolved);
     assert_eq!(
-        plan.requirements[0].providers[0].artifact_path,
-        "demo.lib"
+        plan.requirements[0].resolution,
+        RequirementResolution::Resolved
     );
+    assert_eq!(plan.requirements[0].providers[0].artifact_path, "demo.lib");
 }
 
 #[test]

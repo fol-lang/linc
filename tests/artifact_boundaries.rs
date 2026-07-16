@@ -5,8 +5,8 @@ mod epoll;
 
 use std::path::{Path, PathBuf};
 
-use linc::{analyze_source_package, SourceDeclaration, SourcePackage};
 use linc::ir::LinkInput;
+use linc::{analyze_source_package, SourceDeclaration, SourcePackage};
 
 fn parc_source_artifact(source: &str) -> parc::ir::SourcePackage {
     let package = parc::extract::extract_from_source(source).expect("parc extraction should work");
@@ -21,13 +21,16 @@ fn parc_file_artifact(entry: &Path, include_dirs: &[PathBuf]) -> parc::ir::Sourc
     }
 
     let config = parc::driver::Config {
-        cpp_command: std::env::var("CC").unwrap_or_else(|_| "gcc".into()),
+        cpp_command: "gcc".into(),
         cpp_options,
         flavor: parc::driver::Flavor::GnuC11,
     };
 
     let parsed = parc::driver::parse(&config, entry).expect("parc driver parse should work");
-    let package = parc::extract::extract_from_translation_unit(&parsed.unit, Some(entry.display().to_string()));
+    let package = parc::extract::extract_from_translation_unit(
+        &parsed.unit,
+        Some(entry.display().to_string()),
+    );
     let json = serde_json::to_string_pretty(&package).expect("parc artifact json");
     serde_json::from_str(&json).expect("parc artifact roundtrip")
 }
@@ -60,10 +63,9 @@ fn parc_artifact_roundtrip_can_drive_linc_analysis() {
         .declarations
         .iter()
         .any(|decl| matches!(decl, SourceDeclaration::Record(record) if record.name.as_deref() == Some("point"))));
-    assert!(source
-        .declarations
-        .iter()
-        .any(|decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "demo_init")));
+    assert!(source.declarations.iter().any(
+        |decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "demo_init")
+    ));
 
     let resolved = analysis
         .resolved_link_plan
@@ -82,7 +84,9 @@ fn parc_artifact_roundtrip_can_drive_linc_analysis() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn ugly_system_header_artifact_roundtrip_stays_consumable() {
+    eprintln!("RUN: host C preprocessor system-header artifact evidence");
     let environment = epoll::epoll_environment().expect("epoll fixture should exist");
     let parc_pkg = parc_file_artifact(&environment.header, &environment.include_dirs);
 
@@ -90,10 +94,9 @@ fn ugly_system_header_artifact_roundtrip_stays_consumable() {
     let source: SourcePackage = linc::intake::adapters::from_binding_package(&binding);
     let analysis = analyze_source_package(&source);
 
-    assert!(source
-        .declarations
-        .iter()
-        .any(|decl| matches!(decl, SourceDeclaration::TypeAlias(alias) if alias.name == "epoll_data_t")));
+    assert!(source.declarations.iter().any(
+        |decl| matches!(decl, SourceDeclaration::TypeAlias(alias) if alias.name == "epoll_data_t")
+    ));
     assert!(source
         .declarations
         .iter()
@@ -102,9 +105,10 @@ fn ugly_system_header_artifact_roundtrip_stays_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn vendored_external_library_artifact_roundtrip_stays_consumable() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/full_apps/external/libpng/header");
+    eprintln!("RUN: host C preprocessor vendored libpng artifact evidence");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/full_apps/external/libpng/header");
     let include_dir = root.join("include");
     let entry = root.join("main.c");
     let parc_pkg = parc_file_artifact(&entry, &[include_dir]);
@@ -128,9 +132,10 @@ fn vendored_external_library_artifact_roundtrip_stays_consumable() {
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn vendored_zlib_artifact_roundtrip_stays_consumable() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/full_apps/external/zlib/header");
+    eprintln!("RUN: host C preprocessor vendored zlib artifact evidence");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/full_apps/external/zlib/header");
     let include_dir = root.join("include");
     let entry = root.join("main.c");
     let parc_pkg = parc_file_artifact(&entry, &[include_dir]);
@@ -140,20 +145,20 @@ fn vendored_zlib_artifact_roundtrip_stays_consumable() {
     let analysis = analyze_source_package(&source);
 
     assert!(source.declarations.len() >= 20);
-    assert!(source
-        .declarations
-        .iter()
-        .any(|decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "deflate")));
-    assert!(source
-        .declarations
-        .iter()
-        .any(|decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "inflate")));
+    assert!(source.declarations.iter().any(
+        |decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "deflate")
+    ));
+    assert!(source.declarations.iter().any(
+        |decl| matches!(decl, SourceDeclaration::Function(function) if function.name == "inflate")
+    ));
     assert!(analysis.diagnostics.is_empty());
     assert!(analysis.declared_link_surface.ordered_inputs.is_empty());
 }
 
 #[test]
+#[ignore = "system prerequisite: host C preprocessor"]
 fn failure_fixture_artifact_roundtrip_preserves_bitfield_signal() {
+    eprintln!("RUN: host C preprocessor bitfield artifact evidence");
     let header =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/packed_bitfield_extreme.h");
     let parc_pkg = parc_file_artifact(&header, &[]);

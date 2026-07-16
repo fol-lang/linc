@@ -1,13 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use linc::raw_headers::{HeaderConfig, RawHeaderResult};
 use linc::LincError;
 
-const EPOLL_HEADER_CANDIDATES: &[&str] = &[
-    "/usr/include/sys/epoll.h",
-    "/usr/include/x86_64-linux-gnu/sys/epoll.h",
-];
-const INCLUDE_DIR_CANDIDATES: &[&str] = &["/usr/include", "/usr/include/x86_64-linux-gnu"];
 const EPOLL_PROBE_TYPES: &[&str] = &["struct epoll_event"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,10 +13,7 @@ pub struct EpollEnvironment {
 }
 
 pub fn epoll_environment() -> Result<EpollEnvironment, LincError> {
-    let system_header = EPOLL_HEADER_CANDIDATES
-        .iter()
-        .find(|path| Path::new(path).exists())
-        .map(PathBuf::from);
+    let system_header = super::common::find_system_header("sys/epoll.h");
     let fixture_header =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/linus/epoll_fixture.h");
     let (header, is_fixture) = if let Some(header) = system_header {
@@ -34,11 +26,7 @@ pub fn epoll_environment() -> Result<EpollEnvironment, LincError> {
         });
     };
 
-    let include_dirs = INCLUDE_DIR_CANDIDATES
-        .iter()
-        .filter(|dir| Path::new(dir).exists())
-        .map(PathBuf::from)
-        .collect();
+    let include_dirs = super::common::system_include_dirs();
 
     Ok(EpollEnvironment {
         header,

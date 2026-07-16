@@ -1,4 +1,6 @@
-use linc::symbols::{ArtifactFormat, ArtifactKind, ArtifactPlatform, SymbolDirection, SymbolInventory};
+use linc::symbols::{
+    ArtifactFormat, ArtifactKind, ArtifactPlatform, SymbolDirection, SymbolInventory,
+};
 
 #[test]
 fn confidence_floor_matrix_elf_fixture_stays_structured() {
@@ -45,7 +47,10 @@ fn confidence_floor_matrix_windows_object_fixture_stays_structured() {
     assert_eq!(inventory.kind, ArtifactKind::Object);
     assert!(inventory.capabilities.exports_symbols);
     assert!(!inventory.capabilities.imports_symbols);
-    assert_eq!(inventory.symbols[0].raw_name.as_deref(), Some("_demo_init@4"));
+    assert_eq!(
+        inventory.symbols[0].raw_name.as_deref(),
+        Some("_demo_init@4")
+    );
 }
 
 #[test]
