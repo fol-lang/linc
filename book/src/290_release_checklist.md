@@ -1,11 +1,21 @@
-# Release Checklist
+# Future Release Checklist
 
-Use this checklist before cutting a release candidate.
+Registry publication and version changes are deferred to H6. Use this checklist
+only after the contract and certification milestones are complete; it does not
+describe current release readiness.
 
 ## Build And Test
 
 - run `make build`
+- run `make fmt-check`
+- run `make lint`
+- run `make check-features`
 - run `make test`
+- run `make test-contract`
+- run `make test-package`
+- run the required `make test-system` lane with all prerequisites installed
+- run `make docs-check`
+- run `make verify` from a clean worktree
 
 ## Canonical Hardening Gates
 
@@ -22,8 +32,8 @@ Use this checklist before cutting a release candidate.
   and ABI-questionable cases conservatively
 - confirm plugin-style `dl` surfaces still produce explicit runtime-boundary
   notes instead of over-claiming runtime truth
-- confirm the hermetic ELF static, Mach-O framework, and Windows PE fixture
-  suite still passes
+- confirm the hermetic ELF static and synthetic Mach-O/Windows fixture suite
+  still passes without presenting synthetic coverage as native certification
 - confirm determinism anchors still hold on the canonical large surfaces
 
 ## Contract Surfaces
@@ -47,4 +57,5 @@ Use this checklist before cutting a release candidate.
 ## Release Decision
 
 Do not treat "builds successfully" as sufficient. The code, docs, and fixtures
-all need to match the same boundary.
+all need to match the same boundary. H6 also requires a fresh package/legal/
+publication audit; H0 gates alone are insufficient.

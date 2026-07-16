@@ -1,5 +1,6 @@
 # Summary
 - [Introduction](./linc.md)
+- [Hardening Status](./005_hardening_status.md)
 - [Getting Started](./010_getting_started.md)
 - [Intake Layer](./015_intake.md)
 - [Header Processing](./020_headers.md)

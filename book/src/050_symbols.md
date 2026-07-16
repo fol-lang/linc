@@ -136,12 +136,10 @@ Mach-O support should still be read conservatively:
 
 ## Mach-O Limits And Conservative Provider Policy
 
-Downstream consumers should treat Mach-O provider evidence more conservatively
-than straightforward ELF export evidence.
-
-That is not because the current inventories are weak. It is because Mach-O
-linking and loading semantics often depend on more context than a plain symbol
-table can prove by itself.
+Downstream consumers must treat Mach-O rows as controlled inventory evidence,
+not native platform certification or provider truth. H0 has no native Apple CI,
+and Mach-O linking/loading semantics require more context than a plain symbol
+table can prove.
 
 Important examples:
 

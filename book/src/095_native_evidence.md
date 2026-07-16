@@ -15,8 +15,9 @@ The normal reading order inside this section is:
 2. Link Surface
 3. Validation
 
-Use this path when you are moving from "I have a source contract" to "I trust
-this native surface enough to generate and link against it".
+Use this path when you are moving from "I have a source contract" to "I need
+structured native observations for downstream policy". LINC does not by itself
+certify that generation, linking, loading, or ABI use is safe.
 
 The architectural rule stays the same here too:
 

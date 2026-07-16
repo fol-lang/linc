@@ -1,41 +1,30 @@
-# Readiness Scorecard
+# Hardening Evidence Scorecard
 
 This chapter summarizes current release readiness by subsystem and ties the
 score directly to the current hardening ladder.
 
-## Overall Readiness
+## Overall Evidence
 
-LINC should currently be read as:
-
-- strong on hermetic evidence production
-- strong on ELF-first symbol and validation workflows
-- useful but more conservative on Mach-O and Windows import-library paths
-- meaningfully hardened on vendored and daemon-style fixtures
-- still dependent on host availability for the largest OpenSSL and Linux-system
-  ladders
-
-For whole-pipeline claims, this score is also capped by downstream `gerc`
-anchors that ingest `linc` evidence in tests/examples.
-
-For Level 1 production, this score should be read as Linux/ELF-first. Apple
-and Windows readiness should raise confidence, not redefine the primary
-production envelope.
+LINC is in H0 hardening and is not production-certified. Hermetic and required
+Linux system tests provide useful evidence, while the largest native-library
+fixtures remain prerequisite-dependent. Mach-O and Windows coverage is
+controlled/synthetic and has no native CI gate. Link plans are not filesystem
+resolution, and symbol matches are not full ABI validation.
 
 ## Subsystem Scorecard
 
-- source-shaped intake: high
-- JSON artifact stability: high
-- ABI layout evidence: medium-high
-- symbol inventories: high for ELF, medium-high for Mach-O, medium for Windows
-- validation: medium-high
-- link planning: medium-high
-- hermetic large-surface confidence: high
-- host-dependent large-surface confidence: medium-high
-- consumer integration on the documented artifact boundary: high
+- source-shaped intake: version-1 fixture-backed behavior
+- JSON artifacts: roundtrip evidence, not the frozen H1 schema
+- layout evidence: partial compiler/target observations
+- ELF inventories: hermetic and Linux system evidence
+- Mach-O/Windows inventories: synthetic fixture evidence only
+- validation: symbol/kind plus optional shape observations, not ABI proof
+- link planning: normalized candidate association, not filesystem resolution
+- consumer integration: test/example evidence, not H5 certification
 
 ## Canonical Readiness Anchors
 
-The release posture should be judged against these anchors first:
+The regression baseline should be checked against these anchors first:
 
 - vendored zlib
 - vendored libpng
@@ -45,12 +34,11 @@ The release posture should be judged against these anchors first:
 - OpenSSL when available
 - Linux event-loop analysis when available
 
-If those anchors drift, the scorecard should drop even if many smaller unit
-tests still pass.
+If those anchors drift, confidence in the current baseline should drop even if
+many smaller unit tests still pass. Green anchors do not complete H1-H5.
 
 ## How To Read This Scorecard
 
-High means the subsystem is a reliable contract surface for normal downstream
-use. Medium-high means consumers should still respect the documented limits and
-expect some host/platform asymmetry. Medium means the subsystem is useful but
-should not be oversold as equally mature across all supported environments.
+The labels above describe kinds of evidence rather than numerical readiness.
+Consumers must inspect target identity, provider state, validation phases, and
+optional shape evidence explicitly.

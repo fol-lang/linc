@@ -6,30 +6,26 @@ toolchain.
 It owns evidence: declared native inputs, discovered artifacts, resolved link
 plans, ABI probe results, and validation findings.
 
-## Scoped Production Statement
+## Hardening Status
 
-The current Level 1 production claim for the whole pipeline is:
+LINC is being hardened as the native-evidence and provider-resolution owner for
+the sibling PARC/LINC/GERC pipeline. It is not yet certified for FOL V4.
 
-- Linux/ELF-first
-- canonical-corpus-backed
-- conservative where platform or ABI evidence is still incomplete
+The distribution package is `follang-linc`; the Rust library name remains
+`linc`. Registry publication is deferred until the H6 distribution gate, and
+the crate version remains unchanged during baseline hardening. The declared
+minimum supported Rust version (MSRV) is Rust 1.89.
 
-For LINC specifically, that means:
+## Current Support Boundary
 
-- production-ready as the primary evidence layer for Linux/ELF-first workflows
-- Apple/Mach-O remains a secondary confidence ladder
-- Windows/COFF remains useful and tested, but is not part of the first
-  production envelope
-
-## Level 1 Support Matrix
-
-| Area | Level 1 status | Notes |
+| Area | Current evidence | Boundary |
 |---|---|---|
-| Linux / ELF workflows | primary production scope | Strongest current evidence path. |
-| Apple / Mach-O workflows | secondary confidence scope | Useful, but still more conservative than ELF. |
-| Windows / COFF workflows | non-primary confidence scope | Tested and useful, but not in the first production claim. |
-| difficult layout evidence | partial but explicit | Exact-vs-partial confidence remains part of the contract. |
-| runtime-loader truth | intentionally out of scope | LINC models the boundary, not deployment truth. |
+| Link requirements and plans | Normalization and controlled-inventory tests | `ResolvedLinkPlan` is not a filesystem-resolved linker invocation. A `Resolved` requirement only means one candidate inventory matched the declared artifact or filename shape. |
+| Symbol validation | Symbol name, direction, visibility, kind, and optional shape evidence | A `Matched` symbol is not by itself ABI validation. Full calling convention, aggregate passing, variadics, target ABI, linkability, and runtime loading are not proved. |
+| Layout probing | Compiler-probe reports and fixture coverage | Evidence may be partial and is tied to the compiler/target that produced it. |
+| Linux / ELF | Host and hermetic fixtures exist | The strongest current evidence path, but not yet a certified production tier. |
+| Apple / Mach-O and Windows / COFF | Parser/inventory and synthetic fixtures exist | Neither platform is certified; H0 has no native Apple or Windows CI gate. |
+| Serialized packages | Schema version 1 artifacts are exercised | Current schemas and permissive/defaulted fields are a hardening baseline, not the frozen H1 contract. |
 
 ## What LINC Actually Exposes Today
 
@@ -48,9 +44,9 @@ still exercised by tests.
 - consume source-shaped input through `SourcePackage`
 - analyze declared link requirements
 - inspect native artifacts for symbol evidence
-- resolve provider choices into `ResolvedLinkPlan`
+- associate declared requirements with candidate inventories in `ResolvedLinkPlan`
 - probe ABI-sensitive layouts
-- validate declarations against observed native artifacts
+- report symbol and optional ABI-shape evidence from observed native artifacts
 - serialize evidence products
 
 ## Non-Responsibilities
@@ -110,7 +106,7 @@ The current suite covers:
 - artifact-boundary tests using upstream fixtures
 - large hostile/library surfaces such as zlib, libpng, libcurl, OpenSSL, and epoll
 
-## Hardening Matrix
+## Current Test Evidence
 
 The current hardening ladder is easiest to read in four buckets:
 
@@ -143,38 +139,7 @@ The current hardening ladder is easiest to read in four buckets:
 
 Those are the confidence anchors LINC should be judged against first.
 
-For the Level 1 production claim, read those anchors as Linux/ELF-first. The
-Apple and Windows anchors raise confidence, but they do not redefine the
-primary production scope.
-
-## Release Gates
-
-`linc` should only be treated as release-ready when all of these remain green:
-
-- `make build`
-- `make test`
-- unit and artifact-boundary suites
-- hermetic vendored examples
-- validation/link-plan edge suites
-- typed operational-error matrix
-- ELF/Mach-O/Windows confidence-floor matrix
-- Mach-O framework and dylib provider-policy matrix
-- explicit runtime-loader boundary surfaces
-- at least one OpenSSL-style host-dependent evidence target
-- at least one combined Linux/system evidence target
-- for whole-pipeline production claims, confirm the current downstream `gerc`
-  canonical anchors still ingest `linc` evidence cleanly in tests/examples
-
-The Level 1 production floor is the hermetic subset of those gates:
-
-- vendored zlib
-- vendored libpng
-- plugin ABI
-- combined daemon fixture
-- difficult-record evidence fixtures
-- ELF/Mach-O/Windows confidence-floor matrix
-
-The host-dependent confidence-raise layer is:
+Host-dependent evidence includes:
 
 - OpenSSL
 - Linux event-loop stack
@@ -189,9 +154,7 @@ The current canonical evidence surfaces are:
 - OpenSSL
 - Linux event-loop stack
 
-## Canonical Corpus
-
-The current LINC production corpus is intentionally named:
+The current LINC test corpus is intentionally named:
 
 - hermetic vendored
   - zlib
@@ -209,18 +172,34 @@ The current LINC production corpus is intentionally named:
   - ABI-questionable validation fixtures
   - partial-layout and packed-bitfield fixtures
 
-Those are the evidence surfaces LINC should be judged against first.
+Those are test anchors, not ABI certification, provider truth, or platform
+certification. H1 through H5 of the hardening plan remain future milestones.
 
-Whole-pipeline readiness is stricter than crate-local readiness: downstream
-`gerc` canonical anchors are part of the final production bar even though
-`linc/src/**` must not depend on `gerc`.
-
-## Build And Test
+## Verification
 
 ```sh
 make build
+make fmt-check
+make lint
+make check-features
 make test
+make test-contract
+make test-package
+make test-system
+make docs-check
+make verify
 ```
+
+`make test` is the hermetic required lane. `make test-system` runs the ignored,
+prerequisite-dependent system tests as a required lane; a missing compiler,
+native inspection tool, development header, or library required by a selected
+test is a failure rather than a silent skip. Required CI installs those
+prerequisites. `make docs-check` requires `mdbook` and builds both the book and
+Rust API documentation without staging or committing output.
+
+`make verify` expects a clean worktree, runs the common gates above, and proves
+that validation did not change Git state. During local review of an already
+dirty tree, `VERIFY_ALLOW_DIRTY=1 make verify` retains the before/after check.
 
 ## License
 

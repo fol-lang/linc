@@ -46,6 +46,9 @@ Kinds:
 Provider matching for declared library names is intentionally tolerant of
 ordinary platform naming shapes.
 
+This is filename-shape matching against supplied inventories, not a filesystem
+search or provider-identity proof.
+
 ## Concrete Artifacts
 
 When the binding surface depends on explicit files instead of library names,
@@ -113,18 +116,26 @@ a full filesystem-resolved linker invocation.
 
 When inventories are available, consumers can separate declared requirements
 from candidate providers.
+- `Unresolved`
 - `Resolved`
 - `Ambiguous`
+
+These states count matching candidate inventories: zero, one, or more than
+one. `Resolved` does not mean that a path exists on the consumer's host, that
+the candidate is target-compatible, that linking succeeds, or that a runtime
+loader can find it.
 
 When providers come from inspected shared libraries, their dependency edges are also preserved in
 the plan so downstream tooling can see the current known transitive native surface without losing
 the distinction between declared requirements and discovered dependency evidence.
 
-That means a planning inventory can legitimately resolve against macOS text stubs such as
-`/usr/lib/libSystem.tbd` even when later runtime or deployment policy is handled somewhere else.
+For example, a controlled inventory can associate a requirement with a macOS
+text-stub path such as `/usr/lib/libSystem.tbd`. That remains fixture or
+supplied-inventory evidence; H0 does not certify native Apple resolution.
 
 Requirement and provider provenance are also preserved explicitly:
 
 - requirement source stays attached from the declared package metadata
-- provider provenance distinguishes exact declared-artifact matches from discovered inventory-based
-  matches
+- provider provenance distinguishes exact declared-artifact matches from
+  discovered inventory-based candidate matches; it does not authenticate the
+  provider

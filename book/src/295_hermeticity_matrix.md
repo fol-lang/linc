@@ -14,14 +14,17 @@ These are the first confidence anchors and should remain green everywhere:
 - vendored libpng
 - plugin ABI fixtures
 - combined daemon and max-pain fixtures
-- explicit ELF / Mach-O / Windows inventory confidence-floor fixtures
+- explicit ELF and synthetic Mach-O/Windows inventory fixtures
 
 These surfaces prove that LINC can:
 
 - consume source-shaped input
 - derive declared link surface
-- resolve providers on controlled artifacts
-- emit stable evidence and validation products
+- associate requirements with candidate inventories on controlled artifacts
+- emit deterministic evidence and validation products for those fixtures
+
+This does not prove filesystem resolution, provider identity, link success, or
+native Apple/Windows behavior.
 
 ## Tier 2: Host-Dependent High-Value Ladders
 
@@ -47,7 +50,7 @@ These prove that LINC is refusing or degrading honestly:
 - partial or missing layout evidence
 - typed operational errors for unreadable artifacts, unsupported formats, and
   malformed serialized input
-- explicit Mach-O framework and dylib provider-policy checks
+- explicit synthetic Mach-O framework and dylib candidate-policy checks
 
 Those are release-positive tests when they stay:
 

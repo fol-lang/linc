@@ -7,6 +7,11 @@ It owns evidence, not parsing and not lowering, but the crate surface today is
 broader than the preferred top-level story. Both the contract-first APIs and
 the older low-level IR/bootstrap APIs are still real.
 
+LINC is in H0 hardening and is not production-certified. Its link plans are
+normalized candidate plans, and its validation reports are symbol/shape
+evidence rather than full ABI proof. See
+[Hardening Status](./005_hardening_status.md) for the exact boundary.
+
 ## What LINC Is For
 
 LINC turns normalized source intent into native evidence. It can:
@@ -14,7 +19,7 @@ LINC turns normalized source intent into native evidence. It can:
 - normalize declared link requirements
 - inspect object, archive, and shared-library artifacts
 - probe ABI-relevant layouts
-- validate declarations against binary reality
+- compare declarations with symbol and optional shape observations
 - serialize the resulting evidence for downstream consumers
 
 ## What LINC Produces
@@ -27,7 +32,8 @@ The main outputs are:
 - `ValidationReport`
 - `AbiProbeReport`
 
-Those outputs are transportable evidence artifacts. The preferred modern
+Those version-1 outputs are transportable evidence artifacts, not the frozen
+H1 contract. The preferred modern
 consumer path is `SourcePackage -> LinkAnalysisPackage`, but LINC also still
 exposes `BindingPackage` and lower-level IR for direct inspection and staged
 work.

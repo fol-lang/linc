@@ -3,8 +3,9 @@
 Validation compares a `BindingPackage` against one or more `SymbolInventory`
 values.
 
-It answers a practical question: do the declarations we extracted line up with
-what the native artifacts actually provide?
+It reports how declarations line up with the symbol inventories supplied to
+the call and, when present, limited shape observations. It does not answer the
+broader question of full ABI compatibility.
 
 ## API Entry Points
 
@@ -33,8 +34,8 @@ Current statuses include:
 
 ## How To Read A Report
 
-- `Matched` means the declaration resolved to a visible symbol of the expected
-  kind
+- `Matched` means a visible exported symbol with the same normalized name and
+  expected function/variable kind was found
 - `Missing` means no matching symbol was found and the package did not declare
   native link inputs that might reasonably have provided it
 - `UnresolvedDeclaredLinkInputs` means the package did declare native inputs,
@@ -50,6 +51,19 @@ Current statuses include:
 
 Provider evidence may include plain artifact paths or archive-member provenance
 such as `libfoo.a:bar.o`.
+
+Those strings identify the supplied inventory and are not independent proof of
+provider authenticity, target compatibility, linkability, or runtime
+availability.
+
+## ABI Boundary
+
+A matched name is not ABI validation. Some entries also carry variable-size,
+parameter-count, return-size, or parameter-size comparisons; inspect
+`evidence_kind`, `abi_shape`, `routine_abi`, and the validation phases before
+using those observations. Even the strongest current shape evidence does not
+prove calling conventions, aggregate classification, variadics, every target
+ABI rule, or behavior.
 
 ## Consumer Rule
 

@@ -1,31 +1,22 @@
 # Platform Support
 
-This chapter records the current practical platform-support posture of LINC.
+This chapter records current platform evidence. It is not a production support
+or certification matrix.
 
 ## Current Matrix
 
-| Area | Linux / ELF | Apple / Mach-O | Windows / COFF |
+| Area | Linux / ELF evidence | Apple / Mach-O evidence | Windows / COFF evidence |
 |---|---|---|---|
-| header scanning | usable | usable with Apple-specific link metadata support | limited by missing Windows-native completion work |
-| macro capture | usable | usable | compiler-dependent and not yet fully characterized |
-| layout probing | usable with GCC/Clang-style toolchains | usable with Clang-style toolchains | not yet a completed support target |
-| symbol inventory | usable | partial but present | present for COFF objects, import libraries, and PE binaries, but still not production-ready |
-| validation | usable where symbol inventory is usable | partial | limited; supported inventory classes are tested but the Windows linker model is still incomplete |
-| link-surface metadata | usable | usable, including frameworks | partial, especially around Windows-native link forms |
+| header/bootstrap paths | Linux system fixtures require installed compiler and headers | configuration/fixture paths only | configuration/fixture paths only |
+| layout probing | GCC/Clang-driven host tests and fixtures | no native H0 CI gate | no native H0 CI gate |
+| symbol inventory | ELF fixtures plus required Linux system lanes | controlled/synthetic Mach-O fixtures | controlled/synthetic COFF/import-library/PE fixtures |
+| validation | supplied-inventory symbol and optional shape comparisons | same model on controlled fixtures | same model on controlled fixtures |
+| link metadata | library/artifact inputs | framework metadata fixtures | Windows link-form fixtures |
 
-## What "Usable" Means Here
+## Interpretation
 
-Usable means the feature exists, it has direct test coverage in this
-repository, and it is reasonable for controlled internal use.
-
-## Recommended Production Posture
-
-- prefer Linux/ELF for the most mature end-to-end native validation path
-- treat Apple support as useful but still maturing
-- treat Windows-native linker/artifact support as incomplete
-
-For the Level 1 production claim, interpret that as:
-
-- Linux/ELF = primary production platform
-- Apple/Mach-O = secondary confidence scope
-- Windows/COFF = tested but non-primary confidence scope
+Linux has the strongest current evidence because required system tests run
+there, but H0 is still a verification foundation rather than a production
+certification. Apple and Windows rows describe code paths and controlled
+fixtures only. Neither has native CI evidence, so neither may be advertised as
+a supported production tier.

@@ -14,6 +14,10 @@ validation evidence.
 LINC does not promise final linker invocation, full search-path expansion, or
 runtime loader behavior.
 
+`ResolvedLinkPlan` associates declared requirements with supplied candidate
+inventories. A one-candidate `Resolved` state is not filesystem, provider,
+linker, loader, or deployment truth.
+
 ## Practical Rule For Consumers
 
 Treat `BindingPackage.link` as normalized requirement metadata and keep final
