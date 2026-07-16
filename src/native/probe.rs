@@ -342,7 +342,10 @@ impl ProbeRunner {
                 )?));
             }
         };
-        if identity.compiler.reported_target() != request.target.triple() {
+        if !certified_reported_target_matches(
+            identity.compiler.reported_target(),
+            request.target.triple(),
+        ) {
             return Ok(ProbeRunOutcome::Rejected(rejection(
                 ProbeRejectionKind::CompilerIdentity,
                 "LINC-E3036",
@@ -748,7 +751,8 @@ pub(super) fn compile_owned_probe(
 
 fn certified_reported_target_matches(reported: &str, requested: &str) -> bool {
     reported == requested
-        || (reported == "x86_64-linux-gnu" && requested == "x86_64-unknown-linux-gnu")
+        || (matches!(reported, "x86_64-linux-gnu" | "x86_64-pc-linux-gnu")
+            && requested == "x86_64-unknown-linux-gnu")
 }
 
 /// Observe the exact compiler identity with the same direct, empty/explicit
@@ -1576,12 +1580,20 @@ mod tests {
             "x86_64-linux-gnu",
             "x86_64-unknown-linux-gnu"
         ));
+        assert!(certified_reported_target_matches(
+            "x86_64-pc-linux-gnu",
+            "x86_64-unknown-linux-gnu"
+        ));
         assert!(!certified_reported_target_matches(
             "x86_64-unknown-linux-gnu",
             "x86_64-linux-gnu"
         ));
         assert!(!certified_reported_target_matches(
             "amd64-linux-gnu",
+            "x86_64-unknown-linux-gnu"
+        ));
+        assert!(!certified_reported_target_matches(
+            "x86_64-redhat-linux-gnu",
             "x86_64-unknown-linux-gnu"
         ));
     }

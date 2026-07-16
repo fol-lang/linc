@@ -30,8 +30,8 @@ jobs:
       - name: Check out PARC
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: follang/lang-c
-          ref: ba603cdccc9375473eca0c42e5462cf90b6da249
+          repository: fol-lang/parc
+          ref: 11ca2be6d3dcda7227c0d9eb6c90259838f289fc
           path: parc
 
       - name: Install Rust toolchain

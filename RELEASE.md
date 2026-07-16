@@ -16,7 +16,7 @@ included in every Cargo archive.
 | Certified implementation surface | H5 Linux ELF certification |
 | H5 implementation baseline | `4a2e0fba3aa528b7ba55626fd1ea9c75d153f7b1` |
 | Required PARC package | `follang-parc` exactly 0.16.0 |
-| Required PARC revision | `ba603cdccc9375473eca0c42e5462cf90b6da249` |
+| Required PARC revision | `11ca2be6d3dcda7227c0d9eb6c90259838f289fc` |
 
 The Rust constants `LINK_ANALYSIS_SCHEMA_ID` and
 `LINK_ANALYSIS_SCHEMA_VERSION` are the authority for artifact consumers. The

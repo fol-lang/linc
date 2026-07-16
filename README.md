@@ -79,7 +79,7 @@ The package identity is `follang-linc` 0.1.0 and the Rust import name is
 `linc`. Registry publication is disabled (`publish = false`), so no crates.io
 name ownership or availability is claimed. Candidate archives are tested with
 the exact `follang-parc` 0.16.0 contract at revision
-`ba603cdccc9375473eca0c42e5462cf90b6da249` and with a clean external consumer.
+`11ca2be6d3dcda7227c0d9eb6c90259838f289fc` and with a clean external consumer.
 
 `make release-check` is a non-mutating eligibility check. It never changes a
 version, commits, tags, pushes, uploads, or publishes. SemVer, schema-v2, MSRV,

@@ -694,14 +694,14 @@ fn validate_diagnostic_evidence_reference(
                 });
             }
         }
-        Some(DiagnosticEvidenceRef::Declaration { declaration }) => {
-            if diagnostic.declaration() != Some(*declaration) {
-                return Err(ContractError::InvalidDiagnosticContext {
-                    reason: "declaration evidence identity differs from diagnostic declaration",
-                });
-            }
+        Some(DiagnosticEvidenceRef::Declaration { declaration })
+            if diagnostic.declaration() != Some(*declaration) =>
+        {
+            return Err(ContractError::InvalidDiagnosticContext {
+                reason: "declaration evidence identity differs from diagnostic declaration",
+            });
         }
-        None => {}
+        Some(DiagnosticEvidenceRef::Declaration { .. }) | None => {}
     }
     Ok(())
 }
@@ -970,14 +970,14 @@ fn validate_diagnostics_against_source(
                     });
                 }
             }
-            Some(DiagnosticEvidenceRef::Symbol { provider, .. }) => {
-                if diagnostic.provider() != Some(*provider) {
-                    return Err(ContractError::InvalidDiagnosticContext {
-                        reason: "symbol evidence and diagnostic providers differ",
-                    });
-                }
+            Some(DiagnosticEvidenceRef::Symbol { provider, .. })
+                if diagnostic.provider() != Some(*provider) =>
+            {
+                return Err(ContractError::InvalidDiagnosticContext {
+                    reason: "symbol evidence and diagnostic providers differ",
+                });
             }
-            None => {}
+            Some(DiagnosticEvidenceRef::Symbol { .. }) | None => {}
         }
     }
     Ok(())

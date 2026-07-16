@@ -1,7 +1,7 @@
 PROJECT_NAME := $(shell sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 PROJECT_CAP  := $(shell echo $(PROJECT_NAME) | tr '[:lower:]' '[:upper:]')
 CURRENT_VERSION := $(shell grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
-PARC_RELEASE_REVISION := ba603cdccc9375473eca0c42e5462cf90b6da249
+PARC_RELEASE_REVISION := 11ca2be6d3dcda7227c0d9eb6c90259838f289fc
 LATEST_TAG   ?= $(shell git describe --tags --abbrev=0 2>/dev/null)
 TOP_DIR      := $(CURDIR)
 BUILD_DIR    := $(TOP_DIR)/target
