@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>JSON Artifacts - LINC Reference</title>
+        <title>Native evidence - LINC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -15,8 +15,8 @@
         <link rel="icon" href="favicon-de23e50b.svg">
         <link rel="shortcut icon" href="favicon-8114d1fc.png">
         <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-2459343d.css">
-        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
         <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-96ee6983.js";
+            window.path_to_searchindex_js = "searchindex-87ace6eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-cb0f06eb.js"></script>
+        <script src="toc-95105af9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,58 +174,76 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="json-artifacts"><a class="header" href="#json-artifacts">JSON Artifacts</a></h1>
-<p>This chapter describes how <code>linc</code> treats serialized JSON artifacts.</p>
-<p>The important framing is architectural:</p>
-<ul>
-<li>JSON is an artifact format</li>
-<li>it is not a promise to preserve old pipeline shapes forever</li>
-<li>the only shapes that matter are the ones currently documented and tested</li>
-</ul>
-<p><code>linc</code> does not carry a backward-compatibility burden for discarded designs.</p>
-<h2 id="first-principle"><a class="header" href="#first-principle">First Principle</a></h2>
-<p>Consumers may depend on documented field names, documented field meanings,
-<code>schema_version</code>, and documented defaulting behavior when tests rely on it.</p>
-<p>Consumers must not depend on whitespace, pretty-print layout, incidental field
-ordering, or undocumented fields that happen to be present today.</p>
-<h2 id="main-serialized-artifacts"><a class="header" href="#main-serialized-artifacts">Main Serialized Artifacts</a></h2>
-<p>The main JSON-bearing values are:</p>
-<ul>
-<li><code>LinkAnalysisPackage</code></li>
-<li><code>SymbolInventory</code></li>
-<li><code>ValidationReport</code></li>
-<li><code>ResolvedLinkPlan</code></li>
-</ul>
-<h2 id="version-fields"><a class="header" href="#version-fields">Version Fields</a></h2>
-<p><code>schema_version</code> is the artifact gate. <code>linc_version</code> identifies the producing
-build and is useful for provenance.</p>
-<h2 id="change-policy"><a class="header" href="#change-policy">Change Policy</a></h2>
-<ul>
-<li>do not preserve obsolete artifact envelopes just because they existed earlier</li>
-<li>do not keep old field layouts alive unless current tests still need them</li>
-<li>do make semantic changes explicit in docs and fixtures</li>
-<li>do update <code>schema_version</code> when consumers would otherwise misread the
-artifact</li>
-</ul>
-<h2 id="maintenance-rule"><a class="header" href="#maintenance-rule">Maintenance Rule</a></h2>
-<p>When artifact shapes change:</p>
+                        <h1 id="native-evidence"><a class="header" href="#native-evidence">Native evidence</a></h1>
+<p>Enable <code>native-inspection</code> for LINC’s initial certified Linux ELF lane. The
+lane accepts ELF relocatable objects, static archives, and shared libraries.
+It does not infer support for Mach-O, COFF/import libraries, or frameworks.</p>
+<h2 id="authoritative-operation"><a class="header" href="#authoritative-operation">Authoritative operation</a></h2>
+<p>First call bounded <code>CertificationToolchain::observe</code>; its compiler identity is
+the compiler fact used to construct the PARC target. Construct an
+<code>AnalysisRequest</code> from the complete PARC closure, strict compile-only policy,
+and exact-path <code>NativeInput</code> values. Then call <code>NativeAnalyzer::certify</code>.
+Production callers do not provide probes, layouts, callable shapes, or
+declaration evidence. <code>NativeAnalyzer::analyze</code> remains a lower-level boundary
+for advanced evidence producers.</p>
+<p>The analyzer:</p>
 <ol>
-<li>update the docs</li>
-<li>update or replace the relevant fixtures</li>
-<li>update consumers in tests/examples/harnesses</li>
-<li>do not carry a dead compatibility layer just to keep an obsolete shape
-deserializable</li>
+<li>resolves and inspects every provider without ambient loader lookup;</li>
+<li>renders a header-free translation unit from the checked PARC closure;</li>
+<li>re-observes the compiler and decodes compiler-produced layout facts;</li>
+<li>derives and independently revalidates x86-64 SysV callable classification
+bound to compiler-lowered witness functions;</li>
+<li>constructs the durable schema-v2 package; and</li>
+<li>returns only after <code>ValidatedLinkAnalysis::try_new</code> succeeds.</li>
 </ol>
+<p>This prevents downstream generators from constructing apparently valid native
+packages from uninspected or partially checked facts.</p>
+<h2 id="inspection-and-resolution"><a class="header" href="#inspection-and-resolution">Inspection and resolution</a></h2>
+<p>Inspection records the canonical path and digest, artifact kind and format,
+machine/architecture, pointer width, endianness, requested and observed target,
+parser identity, raw and normalized symbol spellings, direction, kind,
+binding, visibility, decoration, version, size/address/section/member, and
+ordered dynamic dependencies.</p>
+<p>Resolution preserves native-input order, repetition, groups, and object
+placement. Exact-path mode can bind a transitive <code>DT_NEEDED</code> name only to an
+already explicit provider identity (canonical filename, explicit alias, or
+<code>DT_SONAME</code>); it never performs ambient lookup. Search mode consults only the
+declared roots, chooses the configured static/dynamic kind before checking
+same-name ambiguity, and rejects the same candidate name found in distinct
+roots. Dependency providers must follow their parent without reordering the
+explicit plan.</p>
+<p>ELF versioned symbols, local/hidden/imported symbols, duplicate providers, and
+weak providers retain distinct evidence. Strict analysis rejects local,
+hidden, imported, ambiguous, or policy-forbidden weak providers rather than
+guessing.</p>
+<h2 id="abi-probes"><a class="header" href="#abi-probes">ABI probes</a></h2>
+<p><code>ProbeRunner</code> renders only checked include names and explicit source, invokes
+the compiler and optional runner using direct argument vectors, clears the
+inherited environment, and records compiler executable identity, arguments,
+sysroot, target, source fingerprint, execution policy, and exact subject
+outcomes.</p>
+<p>Probe files live in a secure temporary directory under an absolute caller-owned
+parent. The Linux lane bounds wall time, captured output, and file reads and
+kills/reaps the invocation process group when a limit is exceeded. A child that
+keeps inherited output pipes open is rejected. Foreign targets use compile-only
+evidence unless an explicit absolute runner is supplied. Contract
+memory/process-count values are recorded but are not described as a portable OS
+sandbox.</p>
+<h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
+<p><code>make test-native</code> builds real ELF fixtures and exercises successful and
+negative inspection, resolution, symbol, ABI, stale-evidence, probe-bound, and
+cross-target cases. <code>make verify</code> also runs feature, schema, package-consumer,
+documentation, and frozen-corpus gates.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="115_contracts_and_policy.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="contract.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="130_error_surface.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="corpus.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -235,11 +253,11 @@ deserializable</li>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="115_contracts_and_policy.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="contract.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="130_error_surface.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="corpus.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -261,11 +279,11 @@ deserializable</li>
 
         <script src="elasticlunr-ef4e11c1.min.js"></script>
         <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-c2a407aa.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
         <script src="clipboard-1626706a.min.js"></script>
         <script src="highlight-abc7f01d.js"></script>
-        <script src="book-a0b12cfe.js"></script>
+        <script src="book-c22b7243.js"></script>
 
         <!-- Custom JS scripts -->
 

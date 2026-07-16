@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>API Contract - LINC Reference</title>
+        <title>Contract - LINC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -15,8 +15,8 @@
         <link rel="icon" href="favicon-de23e50b.svg">
         <link rel="shortcut icon" href="favicon-8114d1fc.png">
         <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-2459343d.css">
-        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
         <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-96ee6983.js";
+            window.path_to_searchindex_js = "searchindex-87ace6eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-cb0f06eb.js"></script>
+        <script src="toc-95105af9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,69 +174,50 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="api-contract"><a class="header" href="#api-contract">API Contract</a></h1>
-<p>This chapter defines the intended public library surface of LINC as it exists
-today, not as we might wish it already looked.</p>
-<h2 id="first-principle"><a class="header" href="#first-principle">First Principle</a></h2>
-<p>LINC is a library crate. The intended downstream pattern is:</p>
-<ol>
-<li>call the crate from Rust</li>
-<li>obtain structured values such as <code>LinkAnalysisPackage</code>,
-<code>SymbolInventory</code>, and <code>ValidationReport</code></li>
-<li>serialize those values only when another tool or process boundary needs them</li>
-</ol>
-<h2 id="preferred-public-surface"><a class="header" href="#preferred-public-surface">Preferred Public Surface</a></h2>
-<p>The crate root is still the preferred consumer boundary, but there are two
-real layers inside it:</p>
-<ol>
-<li>preferred contract-first APIs</li>
-<li>lower-level IR/bootstrap APIs that remain public</li>
-</ol>
-<h2 id="normative-rules-for-consumers"><a class="header" href="#normative-rules-for-consumers">Normative Rules For Consumers</a></h2>
-<p>If you are building on top of LINC:</p>
-<ol>
-<li>prefer crate-root re-exports over deep module imports</li>
-<li>use <code>analyze_source_package</code> as the normal contract-first entry point</li>
-<li>treat <code>LinkAnalysisPackage</code>, <code>SymbolInventory</code>, and <code>ValidationReport</code> as
-the primary transport-level contracts</li>
-<li>treat diagnostics and validation results as normal structured output, not as
-ad hoc log text</li>
-<li>do not rely on exact <code>String</code> error text for durable control flow</li>
-<li>do not treat extracted declarations alone as sufficient ABI proof for
-layout-sensitive generation</li>
-</ol>
-<h2 id="public-surface-tiers"><a class="header" href="#public-surface-tiers">Public Surface Tiers</a></h2>
-<ul>
-<li>Tier 1: <code>analyze_source_package</code>, <code>inspect_symbols</code>, <code>probe_type_layouts</code>,
-<code>validate</code>, <code>validate_many</code>, and <code>LinkAnalysisPackage</code></li>
-<li>Tier 2: <code>BindingPackage</code>, root-level IR re-exports, and modules such as
-<code>probe</code>, <code>symbols</code>, <code>validate</code>, and <code>raw_headers</code></li>
-<li>Tier 3: support-oriented modules such as <code>diagnostics</code>, <code>error</code>, and
-<code>line_markers</code></li>
-</ul>
-<p>Tier 2 and Tier 3 are real and tested. They are just not the first story the
-book wants new downstream users to build around.</p>
-<h2 id="explicit-non-goals"><a class="header" href="#explicit-non-goals">Explicit Non-Goals</a></h2>
-<p>The current contract does not yet guarantee typed operational errors across the
-whole crate, full ABI completeness for all C constructs, or full cross-platform
-parity across ELF, Mach-O, and Windows-native artifact formats.</p>
-<p>It also does not guarantee that repo-local bootstrap flows are the preferred
-architecture, even though they are public.</p>
-<h2 id="artifact-boundary-reminder"><a class="header" href="#artifact-boundary-reminder">Artifact Boundary Reminder</a></h2>
-<p>LINC owns evidence, not universal pipeline state. Cross-package translation
-belongs only in tests/examples/harnesses.</p>
-<p>If another chapter sounds broader than this one, treat this chapter as the
-normative boundary.</p>
+                        <h1 id="contract"><a class="header" href="#contract">Contract</a></h1>
+<p>Use <code>linc::contract</code> directly:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use linc::contract::{decode_link_analysis, ValidatedLinkAnalysis};
+
+<span class="boring">fn check(
+</span><span class="boring">  source: &amp;parc::contract::CompleteSourcePackage,
+</span><span class="boring">  bytes: &amp;[u8],
+</span><span class="boring">) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+</span>let package = decode_link_analysis(bytes)?;
+let validated = ValidatedLinkAnalysis::try_new(source, package)?;
+assert_eq!(validated.package().source_fingerprint(), source.source().fingerprint());
+<span class="boring">Ok(())
+</span><span class="boring">}
+</span><span class="boring">}</span></code></pre>
+<p><code>LinkAnalysisPackage</code> is immutable and constructed through checked APIs. Its
+schema-v2 decoder rejects unknown fields, noncanonical collections, forged
+identities, incoherent evidence dimensions, and resource-limit violations.
+<code>ValidatedLinkAnalysis</code> additionally proves exact coverage of a complete PARC
+declaration closure.</p>
+<p><code>LinkAnalysisPackageInput</code> remains public for corpus decoding and low-level
+contract construction. Native consumers must not treat it as the authoritative
+inspection boundary: enable <code>native-inspection</code> and call
+<code>NativeAnalyzer::certify</code>, which accepts no caller-authored ABI facts and
+returns a <code>ValidatedLinkAnalysis</code> only after resolution, measurement, and all
+evidence dimensions pass. <code>NativeAnalyzer::analyze</code> remains available only as
+the advanced typed-evidence intake.</p>
+<p>Native inputs and resolved link atoms are sequences: order and repetition are
+semantic. Inventories, probes, layouts, declaration evidence, and diagnostics
+use their documented canonical order.</p>
+<p>Build the contract-only surface with:</p>
+<pre><code class="language-text">cargo check --no-default-features --features contracts
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="090_validation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="linc.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="115_contracts_and_policy.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="native.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -246,11 +227,11 @@ normative boundary.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="090_validation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="linc.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="115_contracts_and_policy.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="native.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -272,11 +253,11 @@ normative boundary.</p>
 
         <script src="elasticlunr-ef4e11c1.min.js"></script>
         <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-c2a407aa.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
         <script src="clipboard-1626706a.min.js"></script>
         <script src="highlight-abc7f01d.js"></script>
-        <script src="book-a0b12cfe.js"></script>
+        <script src="book-c22b7243.js"></script>
 
         <!-- Custom JS scripts -->
 

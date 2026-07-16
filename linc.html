@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - LINC Reference</title>
+        <title>LINC - LINC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -15,8 +15,8 @@
         <link rel="icon" href="favicon-de23e50b.svg">
         <link rel="shortcut icon" href="favicon-8114d1fc.png">
         <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-2459343d.css">
-        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
         <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-96ee6983.js";
+            window.path_to_searchindex_js = "searchindex-87ace6eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-cb0f06eb.js"></script>
+        <script src="toc-95105af9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,102 +174,33 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="linc-reference"><a class="header" href="#linc-reference">LINC Reference</a></h1>
-<p>LINC is the link and binary evidence layer in the <code>parc -&gt; linc -&gt; gerc</code>
-toolchain.</p>
-<p>It owns evidence, not parsing and not lowering, but the crate surface today is
-broader than the preferred top-level story. Both the contract-first APIs and
-the older low-level IR/bootstrap APIs are still real.</p>
-<h2 id="what-linc-is-for"><a class="header" href="#what-linc-is-for">What LINC Is For</a></h2>
-<p>LINC turns normalized source intent into native evidence. It can:</p>
-<ul>
-<li>normalize declared link requirements</li>
-<li>inspect object, archive, and shared-library artifacts</li>
-<li>probe ABI-relevant layouts</li>
-<li>validate declarations against binary reality</li>
-<li>serialize the resulting evidence for downstream consumers</li>
-</ul>
-<h2 id="what-linc-produces"><a class="header" href="#what-linc-produces">What LINC Produces</a></h2>
-<p>The main outputs are:</p>
-<ul>
-<li><code>LinkAnalysisPackage</code></li>
-<li><code>SymbolInventory</code></li>
-<li><code>ResolvedLinkPlan</code></li>
-<li><code>ValidationReport</code></li>
-<li><code>AbiProbeReport</code></li>
-</ul>
-<p>Those outputs are transportable evidence artifacts. The preferred modern
-consumer path is <code>SourcePackage -&gt; LinkAnalysisPackage</code>, but LINC also still
-exposes <code>BindingPackage</code> and lower-level IR for direct inspection and staged
-work.</p>
-<h2 id="data-flow"><a class="header" href="#data-flow">Data Flow</a></h2>
-<pre><code class="language-text">normalized source input
-  -&gt; linc analysis
-  -&gt; link/binary evidence artifacts
-  -&gt; downstream consumer
-</code></pre>
-<p>In practice the preferred input is <code>SourcePackage</code>, the preferred analysis
-entrypoint is <code>analyze_source_package</code>, and symbol/probe/validation are layered
-evidence on top.</p>
-<h2 id="ownership-boundary"><a class="header" href="#ownership-boundary">Ownership Boundary</a></h2>
-<p>LINC owns:</p>
-<ul>
-<li>the evidence model</li>
-<li>the link surface</li>
-<li>the validation story</li>
-<li>the ABI probe story</li>
-</ul>
-<p>LINC does not own:</p>
-<ul>
-<li>parser internals</li>
-<li>source preprocessing internals</li>
-<li>Rust code generation</li>
-<li>library-level composition with <code>parc</code> or <code>gerc</code></li>
-</ul>
-<p>Composition across packages belongs in tests, examples, or external harnesses.</p>
-<h2 id="modules-and-apis"><a class="header" href="#modules-and-apis">Modules And APIs</a></h2>
-<p>The root APIs are:</p>
-<ul>
-<li><code>analyze_source_package</code></li>
-<li><code>inspect_symbols</code></li>
-<li><code>probe_type_layouts</code></li>
-<li><code>resolve_link_plan</code></li>
-<li><code>validate</code></li>
-</ul>
-<p>The root also still re-exports many low-level IR and report types, and tests
-exercise those paths directly.</p>
-<p>The important modules are:</p>
-<ul>
-<li><code>intake</code></li>
-<li><code>analysis</code></li>
-<li><code>link_plan</code></li>
-<li><code>probe</code></li>
-<li><code>symbols</code></li>
-<li><code>validate</code></li>
-<li><code>diagnostics</code></li>
-<li><code>error</code></li>
-</ul>
-<p><code>raw_headers</code> still exists for repo-local bootstrap and fixture work. It is not
-the architectural center of the crate, but it is still a public low-level
-surface that the book needs to acknowledge honestly.</p>
-<h2 id="reading-order"><a class="header" href="#reading-order">Reading Order</a></h2>
-<ol>
-<li><a href="./010_getting_started.html">Getting Started</a></li>
-<li><a href="./015_intake.html">Intake Layer</a></li>
-<li><a href="./020_headers.html">Header Processing</a></li>
-<li><a href="./030_ir.html">IR Model</a></li>
-<li><a href="./095_native_evidence.html">Native Evidence</a></li>
-<li><a href="./100_api_contract.html">API Contract</a></li>
-<li><a href="./110_workflows.html">End-To-End Workflows</a></li>
-<li><a href="./205_operations_and_release.html">Operations And Release</a></li>
-</ol>
+                        <h1 id="linc"><a class="header" href="#linc">LINC</a></h1>
+<p>LINC is the checked native-link and ABI-evidence boundary between PARC source
+packages and downstream generators.</p>
+<p>The durable API is <code>linc::contract</code>. It accepts a complete PARC source closure,
+preserves native-input and resolved-link order, and carries the symbol, layout,
+callable-ABI, probe, policy, and diagnostic evidence needed to validate that
+closure.</p>
+<p>With the <code>native-inspection</code> feature, <code>linc::native</code> implements the initial
+certified Linux ELF lane. <code>CertificationToolchain::observe</code> owns bounded
+compiler observation and <code>NativeAnalyzer::certify</code> owns resolution, structural
+measurement, strict declaration validation, package construction, and final
+source validation. Production consumers should use those operations instead
+of assembling native evidence. <code>NativeAnalyzer::analyze</code> is the advanced
+lower-level intake.</p>
+<p>PARC owns source semantics, LINC owns schema-v2 link analysis, and generation
+belongs downstream.</p>
+<p>The preservation corpus continues to establish the schema-v2 contract pair.
+The native lane certifies LINC’s own source-bound link and ABI-evidence
+responsibilities; complete PARC -&gt; LINC -&gt; GERC certification remains a system
+concern.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
-                            <a rel="next prefetch" href="010_getting_started.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="contract.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -280,7 +211,7 @@ surface that the book needs to acknowledge honestly.</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
-                    <a rel="next prefetch" href="010_getting_started.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="contract.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -302,11 +233,11 @@ surface that the book needs to acknowledge honestly.</p>
 
         <script src="elasticlunr-ef4e11c1.min.js"></script>
         <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-c2a407aa.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
         <script src="clipboard-1626706a.min.js"></script>
         <script src="highlight-abc7f01d.js"></script>
-        <script src="book-a0b12cfe.js"></script>
+        <script src="book-c22b7243.js"></script>
 
         <!-- Custom JS scripts -->
 

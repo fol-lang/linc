@@ -16,8 +16,8 @@
         <link rel="icon" href="favicon-de23e50b.svg">
         <link rel="shortcut icon" href="favicon-8114d1fc.png">
         <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-2459343d.css">
-        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
         <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-96ee6983.js";
+            window.path_to_searchindex_js = "searchindex-87ace6eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-cb0f06eb.js"></script>
+        <script src="toc-95105af9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,1957 +175,189 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="linc-reference"><a class="header" href="#linc-reference">LINC Reference</a></h1>
-<p>LINC is the link and binary evidence layer in the <code>parc -&gt; linc -&gt; gerc</code>
-toolchain.</p>
-<p>It owns evidence, not parsing and not lowering, but the crate surface today is
-broader than the preferred top-level story. Both the contract-first APIs and
-the older low-level IR/bootstrap APIs are still real.</p>
-<h2 id="what-linc-is-for"><a class="header" href="#what-linc-is-for">What LINC Is For</a></h2>
-<p>LINC turns normalized source intent into native evidence. It can:</p>
-<ul>
-<li>normalize declared link requirements</li>
-<li>inspect object, archive, and shared-library artifacts</li>
-<li>probe ABI-relevant layouts</li>
-<li>validate declarations against binary reality</li>
-<li>serialize the resulting evidence for downstream consumers</li>
-</ul>
-<h2 id="what-linc-produces"><a class="header" href="#what-linc-produces">What LINC Produces</a></h2>
-<p>The main outputs are:</p>
-<ul>
-<li><code>LinkAnalysisPackage</code></li>
-<li><code>SymbolInventory</code></li>
-<li><code>ResolvedLinkPlan</code></li>
-<li><code>ValidationReport</code></li>
-<li><code>AbiProbeReport</code></li>
-</ul>
-<p>Those outputs are transportable evidence artifacts. The preferred modern
-consumer path is <code>SourcePackage -&gt; LinkAnalysisPackage</code>, but LINC also still
-exposes <code>BindingPackage</code> and lower-level IR for direct inspection and staged
-work.</p>
-<h2 id="data-flow"><a class="header" href="#data-flow">Data Flow</a></h2>
-<pre><code class="language-text">normalized source input
-  -&gt; linc analysis
-  -&gt; link/binary evidence artifacts
-  -&gt; downstream consumer
+                        <h1 id="linc"><a class="header" href="#linc">LINC</a></h1>
+<p>LINC is the checked native-link and ABI-evidence boundary between PARC source
+packages and downstream generators.</p>
+<p>The durable API is <code>linc::contract</code>. It accepts a complete PARC source closure,
+preserves native-input and resolved-link order, and carries the symbol, layout,
+callable-ABI, probe, policy, and diagnostic evidence needed to validate that
+closure.</p>
+<p>With the <code>native-inspection</code> feature, <code>linc::native</code> implements the initial
+certified Linux ELF lane. <code>CertificationToolchain::observe</code> owns bounded
+compiler observation and <code>NativeAnalyzer::certify</code> owns resolution, structural
+measurement, strict declaration validation, package construction, and final
+source validation. Production consumers should use those operations instead
+of assembling native evidence. <code>NativeAnalyzer::analyze</code> is the advanced
+lower-level intake.</p>
+<p>PARC owns source semantics, LINC owns schema-v2 link analysis, and generation
+belongs downstream.</p>
+<p>The preservation corpus continues to establish the schema-v2 contract pair.
+The native lane certifies LINC’s own source-bound link and ABI-evidence
+responsibilities; complete PARC -&gt; LINC -&gt; GERC certification remains a system
+concern.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="contract"><a class="header" href="#contract">Contract</a></h1>
+<p>Use <code>linc::contract</code> directly:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use linc::contract::{decode_link_analysis, ValidatedLinkAnalysis};
+
+<span class="boring">fn check(
+</span><span class="boring">  source: &amp;parc::contract::CompleteSourcePackage,
+</span><span class="boring">  bytes: &amp;[u8],
+</span><span class="boring">) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+</span>let package = decode_link_analysis(bytes)?;
+let validated = ValidatedLinkAnalysis::try_new(source, package)?;
+assert_eq!(validated.package().source_fingerprint(), source.source().fingerprint());
+<span class="boring">Ok(())
+</span><span class="boring">}
+</span><span class="boring">}</span></code></pre>
+<p><code>LinkAnalysisPackage</code> is immutable and constructed through checked APIs. Its
+schema-v2 decoder rejects unknown fields, noncanonical collections, forged
+identities, incoherent evidence dimensions, and resource-limit violations.
+<code>ValidatedLinkAnalysis</code> additionally proves exact coverage of a complete PARC
+declaration closure.</p>
+<p><code>LinkAnalysisPackageInput</code> remains public for corpus decoding and low-level
+contract construction. Native consumers must not treat it as the authoritative
+inspection boundary: enable <code>native-inspection</code> and call
+<code>NativeAnalyzer::certify</code>, which accepts no caller-authored ABI facts and
+returns a <code>ValidatedLinkAnalysis</code> only after resolution, measurement, and all
+evidence dimensions pass. <code>NativeAnalyzer::analyze</code> remains available only as
+the advanced typed-evidence intake.</p>
+<p>Native inputs and resolved link atoms are sequences: order and repetition are
+semantic. Inventories, probes, layouts, declaration evidence, and diagnostics
+use their documented canonical order.</p>
+<p>Build the contract-only surface with:</p>
+<pre><code class="language-text">cargo check --no-default-features --features contracts
 </code></pre>
-<p>In practice the preferred input is <code>SourcePackage</code>, the preferred analysis
-entrypoint is <code>analyze_source_package</code>, and symbol/probe/validation are layered
-evidence on top.</p>
-<h2 id="ownership-boundary"><a class="header" href="#ownership-boundary">Ownership Boundary</a></h2>
-<p>LINC owns:</p>
-<ul>
-<li>the evidence model</li>
-<li>the link surface</li>
-<li>the validation story</li>
-<li>the ABI probe story</li>
-</ul>
-<p>LINC does not own:</p>
-<ul>
-<li>parser internals</li>
-<li>source preprocessing internals</li>
-<li>Rust code generation</li>
-<li>library-level composition with <code>parc</code> or <code>gerc</code></li>
-</ul>
-<p>Composition across packages belongs in tests, examples, or external harnesses.</p>
-<h2 id="modules-and-apis"><a class="header" href="#modules-and-apis">Modules And APIs</a></h2>
-<p>The root APIs are:</p>
-<ul>
-<li><code>analyze_source_package</code></li>
-<li><code>inspect_symbols</code></li>
-<li><code>probe_type_layouts</code></li>
-<li><code>resolve_link_plan</code></li>
-<li><code>validate</code></li>
-</ul>
-<p>The root also still re-exports many low-level IR and report types, and tests
-exercise those paths directly.</p>
-<p>The important modules are:</p>
-<ul>
-<li><code>intake</code></li>
-<li><code>analysis</code></li>
-<li><code>link_plan</code></li>
-<li><code>probe</code></li>
-<li><code>symbols</code></li>
-<li><code>validate</code></li>
-<li><code>diagnostics</code></li>
-<li><code>error</code></li>
-</ul>
-<p><code>raw_headers</code> still exists for repo-local bootstrap and fixture work. It is not
-the architectural center of the crate, but it is still a public low-level
-surface that the book needs to acknowledge honestly.</p>
-<h2 id="reading-order"><a class="header" href="#reading-order">Reading Order</a></h2>
-<ol>
-<li><a href="#getting-started">Getting Started</a></li>
-<li><a href="#intake-layer">Intake Layer</a></li>
-<li><a href="#header-processing">Header Processing</a></li>
-<li><a href="#ir-model">IR Model</a></li>
-<li><a href="#native-evidence">Native Evidence</a></li>
-<li><a href="#api-contract">API Contract</a></li>
-<li><a href="#end-to-end-workflows">End-To-End Workflows</a></li>
-<li><a href="#operations-and-release">Operations And Release</a></li>
-</ol>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
-<p>This chapter shows the shortest path from a normalized source contract to
-machine-readable evidence.</p>
-<p>Read <code>linc</code> as an analysis library. It produces evidence artifacts. It does
-not promise that every successful analysis is safe for final build execution
-or Rust generation.</p>
-<p>In the toolchain split:</p>
+<h1 id="native-evidence"><a class="header" href="#native-evidence">Native evidence</a></h1>
+<p>Enable <code>native-inspection</code> for LINC’s initial certified Linux ELF lane. The
+lane accepts ELF relocatable objects, static archives, and shared libraries.
+It does not infer support for Mach-O, COFF/import libraries, or frameworks.</p>
+<h2 id="authoritative-operation"><a class="header" href="#authoritative-operation">Authoritative operation</a></h2>
+<p>First call bounded <code>CertificationToolchain::observe</code>; its compiler identity is
+the compiler fact used to construct the PARC target. Construct an
+<code>AnalysisRequest</code> from the complete PARC closure, strict compile-only policy,
+and exact-path <code>NativeInput</code> values. Then call <code>NativeAnalyzer::certify</code>.
+Production callers do not provide probes, layouts, callable shapes, or
+declaration evidence. <code>NativeAnalyzer::analyze</code> remains a lower-level boundary
+for advanced evidence producers.</p>
+<p>The analyzer:</p>
+<ol>
+<li>resolves and inspects every provider without ambient loader lookup;</li>
+<li>renders a header-free translation unit from the checked PARC closure;</li>
+<li>re-observes the compiler and decodes compiler-produced layout facts;</li>
+<li>derives and independently revalidates x86-64 SysV callable classification
+bound to compiler-lowered witness functions;</li>
+<li>constructs the durable schema-v2 package; and</li>
+<li>returns only after <code>ValidatedLinkAnalysis::try_new</code> succeeds.</li>
+</ol>
+<p>This prevents downstream generators from constructing apparently valid native
+packages from uninspected or partially checked facts.</p>
+<h2 id="inspection-and-resolution"><a class="header" href="#inspection-and-resolution">Inspection and resolution</a></h2>
+<p>Inspection records the canonical path and digest, artifact kind and format,
+machine/architecture, pointer width, endianness, requested and observed target,
+parser identity, raw and normalized symbol spellings, direction, kind,
+binding, visibility, decoration, version, size/address/section/member, and
+ordered dynamic dependencies.</p>
+<p>Resolution preserves native-input order, repetition, groups, and object
+placement. Exact-path mode can bind a transitive <code>DT_NEEDED</code> name only to an
+already explicit provider identity (canonical filename, explicit alias, or
+<code>DT_SONAME</code>); it never performs ambient lookup. Search mode consults only the
+declared roots, chooses the configured static/dynamic kind before checking
+same-name ambiguity, and rejects the same candidate name found in distinct
+roots. Dependency providers must follow their parent without reordering the
+explicit plan.</p>
+<p>ELF versioned symbols, local/hidden/imported symbols, duplicate providers, and
+weak providers retain distinct evidence. Strict analysis rejects local,
+hidden, imported, ambiguous, or policy-forbidden weak providers rather than
+guessing.</p>
+<h2 id="abi-probes"><a class="header" href="#abi-probes">ABI probes</a></h2>
+<p><code>ProbeRunner</code> renders only checked include names and explicit source, invokes
+the compiler and optional runner using direct argument vectors, clears the
+inherited environment, and records compiler executable identity, arguments,
+sysroot, target, source fingerprint, execution policy, and exact subject
+outcomes.</p>
+<p>Probe files live in a secure temporary directory under an absolute caller-owned
+parent. The Linux lane bounds wall time, captured output, and file reads and
+kills/reaps the invocation process group when a limit is exceeded. A child that
+keeps inherited output pipes open is rejected. Foreign targets use compile-only
+evidence unless an explicit absolute runner is supplied. Contract
+memory/process-count values are recorded but are not described as a portable OS
+sandbox.</p>
+<h2 id="verification"><a class="header" href="#verification">Verification</a></h2>
+<p><code>make test-native</code> builds real ELF fixtures and exercises successful and
+negative inspection, resolution, symbol, ABI, stale-evidence, probe-bound, and
+cross-target cases. <code>make verify</code> also runs feature, schema, package-consumer,
+documentation, and frozen-corpus gates.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="preservation-corpus"><a class="header" href="#preservation-corpus">Preservation corpus</a></h1>
+<p><code>linc::contract::corpus</code> embeds the checked schema-v2 link-analysis artifact
+paired with PARC’s complete preservation source package.</p>
+<p>The normal downstream flow is:</p>
+<ol>
+<li>decode <code>parc::contract::corpus::COMPLETE_SOURCE_PACKAGE_JSON</code>;</li>
+<li>complete it with <code>linc::contract::corpus::preservation_selection()</code>;</li>
+<li>call <code>validated_preservation_link_analysis()</code>;</li>
+<li>consume the validated package and its ordered, repeated resolved link plan.</li>
+</ol>
+<p>The frozen link-analysis identity is available through
+<code>preservation_link_analysis_fingerprint()</code>. The package test extracts both PARC
+and LINC archives and verifies this flow from a clean contract-only consumer.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="release-policy-and-checklist"><a class="header" href="#release-policy-and-checklist">Release policy and checklist</a></h1>
+<p>The root <code>RELEASE.md</code>, which is included in the package archive, is the
+normative distribution policy. This chapter summarizes the repository checks.</p>
+<h2 id="identity-and-compatibility"><a class="header" href="#identity-and-compatibility">Identity and compatibility</a></h2>
+<p>The current identities are:</p>
 <ul>
-<li><code>parc</code> owns source meaning</li>
-<li><code>linc</code> owns link and binary meaning</li>
-<li><code>gerc</code> owns lowering and emitted build metadata</li>
+<li>package <code>follang-linc</code> 0.1.0, imported as <code>linc</code>;</li>
+<li>MSRV Rust 1.89;</li>
+<li>link-analysis schema <code>follang.linc.link-analysis</code> version 2;</li>
+<li>H5 implementation baseline
+<code>4a2e0fba3aa528b7ba55626fd1ea9c75d153f7b1</code>; and</li>
+<li>exact upstream <code>follang-parc</code> 0.16.0 revision
+<code>ba603cdccc9375473eca0c42e5462cf90b6da249</code>.</li>
 </ul>
-<p>The boundary rule is strict: <code>linc/src/**</code> must not depend on <code>parc</code> or
-<code>gerc</code>, and cross-package translation belongs only in tests, examples, or
-external harnesses.</p>
-<h2 id="add-the-crate"><a class="header" href="#add-the-crate">Add The Crate</a></h2>
-<p>Use a local path dependency while developing in the workspace:</p>
-<pre><code class="language-toml">[dependencies]
-linc = { path = "../linc" }
+<p>Registry publication is disabled. The project does not claim crates.io name
+ownership or availability. Distribution uses an exact Git tag and its tested
+self-contained Cargo archive.</p>
+<p>Rust API and behavior changes follow SemVer. Before 1.0, breaking changes
+require a minor bump. Frozen schema v2 is never changed in place: incompatible
+artifact shape, meaning, canonicalization, or fingerprint changes require a
+new schema and corpus plus a breaking SemVer bump. A patch release does not
+raise the MSRV. Detailed rules are in <code>RELEASE.md</code>.</p>
+<h2 id="certified-boundary"><a class="header" href="#certified-boundary">Certified boundary</a></h2>
+<p>The production certifier covers the explicitly checked C17 GNU x86-64 Linux
+ELF LP64/SysV profile with GCC or Clang, exact native inputs, measured layouts,
+and the source-type subset accepted by <code>NativeAnalyzer::certify</code>. Unsupported
+targets, ABIs, source types, provider states, and compiler observations fail at
+the owning boundary. No distribution metadata broadens that tested matrix.</p>
+<h2 id="candidate-gate"><a class="header" href="#candidate-gate">Candidate gate</a></h2>
+<p>The operator must first fetch and review the tracked upstream and tags in both
+LINC and PARC. On clean branches whose <code>HEAD</code>s exactly equal their tracked
+upstreams, run:</p>
+<pre><code class="language-sh">make release-check
 </code></pre>
-<p>If you need symbol inspection or validation, enable the <code>symbols</code> feature.</p>
-<h2 id="minimal-example"><a class="header" href="#minimal-example">Minimal Example</a></h2>
-<pre class="playground"><code class="language-rust">use linc::{
-    analyze_source_package,
-    SourceDeclaration,
-    SourceFunction,
-    SourcePackage,
-    SourceType,
-};
-
-fn main() {
-    let mut source = SourcePackage::default();
-    source.declarations.push(SourceDeclaration::Function(SourceFunction {
-        name: "mylib_init".into(),
-        parameters: vec![],
-        return_type: SourceType::Int,
-        variadic: false,
-        source_offset: None,
-    }));
-
-    let analysis = analyze_source_package(&amp;source);
-    println!(
-        "declared link inputs: {}",
-        analysis.declared_link_surface.ordered_inputs.len()
-    );
-    println!(
-        "has resolved plan: {}",
-        analysis.resolved_link_plan.is_some()
-    );
-}</code></pre>
-<p>The preferred output contract is <code>LinkAnalysisPackage</code>.</p>
-<h2 id="json-round-trip"><a class="header" href="#json-round-trip">JSON Round Trip</a></h2>
-<p><code>LinkAnalysisPackage</code> is the contract intended to be exchanged across tools.</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use linc::{analyze_source_package, LinkAnalysisPackage, SourcePackage};
-
-let analysis = analyze_source_package(&amp;SourcePackage::default());
-let json = serde_json::to_string_pretty(&amp;analysis).unwrap();
-let restored: LinkAnalysisPackage = serde_json::from_str(&amp;json).unwrap();
-assert_eq!(analysis, restored);
-<span class="boring">}</span></code></pre>
-<h2 id="common-integration-pattern"><a class="header" href="#common-integration-pattern">Common Integration Pattern</a></h2>
-<p>The common pattern is:</p>
-<ol>
-<li>produce a <code>SourcePackage</code> in <code>parc</code> or another frontend</li>
-<li>call <code>analyze_source_package</code></li>
-<li>optionally inspect artifacts with <code>inspect_symbols</code></li>
-<li>optionally validate against those artifacts</li>
-<li>pass <code>SourcePackage</code> plus <code>LinkAnalysisPackage</code> to downstream tooling</li>
-</ol>
-<p>If <code>parc</code> emits a serialized source artifact, a test, example, or external
-harness should decode and translate it before calling <code>linc</code>.</p>
-<h2 id="first-things-to-inspect"><a class="header" href="#first-things-to-inspect">First Things To Inspect</a></h2>
-<p>When an analysis result does not look right, inspect these fields first:</p>
-<ul>
-<li><code>analysis.declared_link_surface</code></li>
-<li><code>analysis.resolved_link_plan</code></li>
-<li><code>analysis.diagnostics</code></li>
-<li><code>analysis.abi_probe</code></li>
-<li><code>analysis.validation</code></li>
-<li><code>analysis.symbol_inventories</code></li>
-</ul>
-<p>Those surfaces usually tell you whether the problem is source intake, ABI
-probing, link metadata declaration, provider discovery, or validation.</p>
-<h2 id="library-only-design"><a class="header" href="#library-only-design">Library-Only Design</a></h2>
-<p><code>linc</code> is intended to be consumed as a Rust library that owns only link and
-binary evidence concerns.</p>
-<p>That means:</p>
-<ol>
-<li>call <code>analyze_source_package()</code> or other public APIs directly</li>
-<li>serialize the resulting values if another tool needs artifacts</li>
-<li>keep cross-package translation in tests/examples/harnesses</li>
-<li>keep final generation and build policy in downstream tools rather than in
-<code>linc</code></li>
-</ol>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="intake-layer"><a class="header" href="#intake-layer">Intake Layer</a></h1>
-<p>The intake layer is LINC’s frontend-neutral source contract.</p>
-<p>It defines what LINC needs from an upstream frontend without coupling to any
-specific parser AST or source extraction implementation.</p>
-<h2 id="sourcepackage"><a class="header" href="#sourcepackage">SourcePackage</a></h2>
-<p>The primary intake type is <code>SourcePackage</code>.</p>
-<p>An upstream frontend such as <code>parc</code> produces this after scanning and
-extracting source-level information.</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use linc::{
-    analyze_source_package,
-    SourceDeclaration,
-    SourceFunction,
-    SourcePackage,
-    SourceType,
-};
-
-let mut source = SourcePackage::default();
-source.source_path = Some("mylib.h".into());
-source.declarations.push(SourceDeclaration::Function(SourceFunction {
-    name: "init".into(),
-    parameters: vec![],
-    return_type: SourceType::Int,
-    variadic: false,
-    source_offset: None,
-}));
-
-let analysis = analyze_source_package(&amp;source);
-assert!(analysis.resolved_link_plan.is_some() || analysis.diagnostics.len() &gt;= 0);
-<span class="boring">}</span></code></pre>
-<h2 id="declaration-types"><a class="header" href="#declaration-types">Declaration Types</a></h2>
-<p>The intake layer supports these declaration kinds:</p>
-<ul>
-<li><code>SourceFunction</code> for function declarations</li>
-<li><code>SourceRecord</code> for struct/union declarations</li>
-<li><code>SourceEnum</code> for enum declarations with variants</li>
-<li><code>SourceTypeAlias</code> for typedef and alias declarations</li>
-<li><code>SourceVariable</code> for external variable declarations</li>
-</ul>
-<p>Records may be opaque when <code>fields</code> is <code>None</code>.</p>
-<h2 id="type-model"><a class="header" href="#type-model">Type Model</a></h2>
-<p><code>SourceType</code> is a simplified, language-neutral type representation. It is not
-a full lossless C type system.</p>
-<p>It covers:</p>
-<ul>
-<li>primitive types such as <code>Void</code>, <code>Bool</code>, <code>Char</code>, <code>Int</code>, <code>UInt</code>, and <code>Long</code></li>
-<li>pointers and const pointers</li>
-<li>arrays</li>
-<li>function pointers</li>
-<li>references to typedefs, records, and enums</li>
-<li><code>Const</code> and <code>Volatile</code> wrappers</li>
-</ul>
-<h2 id="intake-contract"><a class="header" href="#intake-contract">Intake Contract</a></h2>
-<p>The intended intake path is:</p>
-<ol>
-<li>produce <code>SourcePackage</code></li>
-<li>call <code>analyze_source_package</code></li>
-<li>consume <code>LinkAnalysisPackage</code></li>
-</ol>
-<p>Any adapter code that converts a serialized source artifact into <code>SourcePackage</code>
-belongs in tests, examples, or an external harness.</p>
-<h2 id="design-principles"><a class="header" href="#design-principles">Design Principles</a></h2>
-<ol>
-<li>LINC core logic should say “analyze this normalized source surface”, not
-“parse this”</li>
-<li>adapter code is separate from core analysis logic</li>
-<li><code>parc</code> may be used in tests, but not as a library-level dependency of LINC</li>
-<li>another frontend should be able to replace <code>parc</code> without rewriting LINC</li>
-</ol>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="header-processing"><a class="header" href="#header-processing">Header Processing</a></h1>
-<p><code>HeaderConfig</code> is a repo-local bootstrap utility for turning raw header sets
-into a <code>BindingPackage</code>.</p>
-<p>It exists because the repository still needs a way to start from real headers
-in difficult test and bootstrap scenarios. It is not the architectural center
-of LINC, but it is still real public API and still covered by tests.</p>
-<p>The intended architecture is:</p>
-<ul>
-<li>an upstream frontend such as <code>parc</code> owns preprocessing, parsing, and
-declaration extraction</li>
-<li>LINC consumes normalized source input and produces evidence</li>
-<li>cross-package translation belongs outside <code>linc/src/**</code></li>
-</ul>
-<h2 id="what-headerconfig-is-good-for"><a class="header" href="#what-headerconfig-is-good-for">What <code>HeaderConfig</code> Is Good For</a></h2>
-<p>Use <code>HeaderConfig</code> when you need to:</p>
-<ul>
-<li>bootstrap the repository from real system or vendored headers</li>
-<li>drive difficult header fixtures without teaching another frontend every edge
-case first</li>
-<li>gather preprocessing output, extracted declarations, native link metadata,
-and probe evidence in one local pass</li>
-</ul>
-<p>It is not the preferred downstream boundary.</p>
-<h2 id="conceptual-domains"><a class="header" href="#conceptual-domains">Conceptual Domains</a></h2>
-<p>Even though <code>HeaderConfig</code> is one builder, it carries several distinct
-domains:</p>
-<ol>
-<li>preprocessing environment</li>
-<li>entry-header selection</li>
-<li>declared native-link intent</li>
-<li>ABI probe requests</li>
-<li>origin-filtering policy</li>
-</ol>
-<h2 id="configuration-surface"><a class="header" href="#configuration-surface">Configuration Surface</a></h2>
-<p>The most important builder methods are:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Method</th><th>Purpose</th></tr>
-</thead>
-<tbody>
-<tr><td><code>header(path)</code></td><td>Add an entry header</td></tr>
-<tr><td><code>include_dir(path)</code></td><td>Add an include search path</td></tr>
-<tr><td><code>framework_dir(path)</code></td><td>Add a framework search path</td></tr>
-<tr><td><code>library_dir(path)</code></td><td>Add a native library search path</td></tr>
-<tr><td><code>define(name, value)</code></td><td>Add a preprocessor define</td></tr>
-<tr><td><code>compiler(cmd)</code></td><td>Override the driver used for preprocessing or probing</td></tr>
-<tr><td><code>flavor(f)</code></td><td>Select dialect handling</td></tr>
-<tr><td><code>origin_filter(f)</code></td><td>Keep only declarations from selected origins</td></tr>
-<tr><td><code>no_origin_filter()</code></td><td>Keep declarations from every origin</td></tr>
-<tr><td><code>probe_type_layout(name)</code></td><td>Request compiler-probed layout data</td></tr>
-</tbody>
-</table>
-</div>
-<p>Repeated path, define, link, constraint, and probe calls append in order.
-The builder does not deduplicate for you.</p>
-<h2 id="validation-before-execution"><a class="header" href="#validation-before-execution">Validation Before Execution</a></h2>
-<p>The bootstrap path validates its inputs before it executes. Treat invalid
-configuration as an operational error, not as a diagnostic hidden inside a
-usable result.</p>
-<h2 id="what-the-bootstrap-path-does"><a class="header" href="#what-the-bootstrap-path-does">What The Bootstrap Path Does</a></h2>
-<p>The bootstrap helpers are for local repository work and test fixtures:</p>
-<ol>
-<li>synthesize a temporary translation unit from the configured entry headers</li>
-<li>preprocess it with the configured compiler and dialect settings</li>
-<li>capture macros from the same environment</li>
-<li>extract declarations and attached metadata</li>
-<li>attach target, input, and declared link provenance</li>
-<li>optionally probe requested layouts</li>
-<li>optionally filter by origin</li>
-</ol>
-<p>The resulting package is a bootstrap artifact built around <code>BindingPackage</code>,
-not the preferred downstream boundary.</p>
-<h2 id="policy"><a class="header" href="#policy">Policy</a></h2>
-<p>If you are writing new downstream code:</p>
-<ul>
-<li>do not treat <code>HeaderConfig</code> as the pipeline contract</li>
-<li>do not move cross-package translation into <code>linc/src/**</code></li>
-<li>do not build new docs or examples around this path unless the point is
-specifically repository bootstrap</li>
-</ul>
-<p>Use it when it helps the repository analyze difficult headers.
-Do not mistake it for the long-term boundary between packages.</p>
-<h2 id="compiler-and-flavor"><a class="header" href="#compiler-and-flavor">Compiler And Flavor</a></h2>
-<p>LINC uses the compiler as a preprocessor and ABI probe driver.</p>
-<p>Flavor affects parsing expectations and extension handling:</p>
-<ul>
-<li><code>GnuC11</code></li>
-<li><code>ClangC11</code></li>
-<li><code>StdC11</code></li>
-</ul>
-<p>In general:</p>
-<ul>
-<li>use <code>ClangC11</code> when the header stack is written for Clang tooling</li>
-<li>use <code>GnuC11</code> when the project assumes GCC-style C extensions</li>
-<li>use <code>StdC11</code> only when you want a stricter source profile</li>
-</ul>
-<h2 id="native-link-inputs-during-scan"><a class="header" href="#native-link-inputs-during-scan">Native Link Inputs During Scan</a></h2>
-<p>The bootstrap path can record the native inputs that the extracted API expects.
-These declarations are preserved in the resulting package. The bootstrap path
-does not link anything by itself; it records intent and normalized link
-surface.</p>
-<h2 id="layout-probing-during-scan"><a class="header" href="#layout-probing-during-scan">Layout Probing During Scan</a></h2>
-<p>You can request ABI layout facts directly in the bootstrap configuration. The
-resulting package will include layout evidence when probe requests succeed.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="ir-model"><a class="header" href="#ir-model">IR Model</a></h1>
-<p>The primary internal data model in LINC is <code>BindingPackage</code>.</p>
-<p>This is the durable evidence artifact used for:</p>
-<ul>
-<li>JSON serialization</li>
-<li>validation against native artifacts</li>
-<li>link-plan construction</li>
-<li>evidence hand-off to downstream tools</li>
-</ul>
-<h2 id="module-organization"><a class="header" href="#module-organization">Module Organization</a></h2>
-<p>The IR is split into focused submodules:</p>
-<ul>
-<li><code>ir::types</code> for declarations, functions, records, enums, typedefs, and variables</li>
-<li><code>ir::link</code> for native link surfaces and provider matching</li>
-<li><code>ir::macros</code> for preprocessor macro capture and classification</li>
-</ul>
-<p>The crate root intentionally stays narrower and exposes workflow-facing entry
-points plus the small cross-crate contracts. Consumers that need the detailed
-binding IR should import it from <code>linc::ir</code> directly.</p>
-<h2 id="top-level-shape"><a class="header" href="#top-level-shape">Top-Level Shape</a></h2>
-<p>At a high level, a <code>BindingPackage</code> contains:</p>
-<ul>
-<li><code>schema_version</code></li>
-<li><code>linc_version</code></li>
-<li><code>target</code></li>
-<li><code>inputs</code></li>
-<li><code>macros</code></li>
-<li><code>layouts</code></li>
-<li><code>link</code></li>
-<li><code>provenance</code></li>
-<li><code>macro_provenance</code></li>
-<li><code>effective_macro_environment</code></li>
-<li><code>source_path</code></li>
-<li><code>items</code></li>
-<li><code>diagnostics</code></li>
-</ul>
-<p>This matters because the package is not just “the declarations”. It is the
-declaration surface plus the environment needed to interpret it.</p>
-<h2 id="target"><a class="header" href="#target"><code>target</code></a></h2>
-<p><code>target</code> stores information about the scan environment:</p>
-<ul>
-<li>target triple</li>
-<li>compiler command</li>
-<li>compiler version</li>
-<li>flavor</li>
-</ul>
-<p>These fields are descriptive rather than prescriptive. They help downstream
-tooling understand what environment produced the package.</p>
-<h2 id="inputs"><a class="header" href="#inputs"><code>inputs</code></a></h2>
-<p><code>inputs</code> records the source-side configuration of the scan:</p>
-<ul>
-<li><code>entry_headers</code></li>
-<li><code>include_dirs</code></li>
-<li><code>defines</code></li>
-</ul>
-<p>That is useful for reproducibility, debugging, downstream rebuild decisions,
-and comparing packages produced from different header environments.</p>
-<h2 id="link"><a class="header" href="#link"><code>link</code></a></h2>
-<p><code>BindingLinkSurface</code> is the normalized native-link surface attached to the
-package. It preserves:</p>
-<ul>
-<li>preferred link mode</li>
-<li>native surface kind</li>
-<li>platform constraints</li>
-<li>include, framework, and library paths</li>
-<li>declared libraries, frameworks, and artifacts</li>
-<li>original ordered inputs</li>
-</ul>
-<p>This is evidence about the native surface, not a build system of its own.</p>
-<h2 id="items"><a class="header" href="#items"><code>items</code></a></h2>
-<p><code>items</code> is the core declaration surface.</p>
-<p>Supported variants:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Variant</th><th>Meaning</th></tr>
-</thead>
-<tbody>
-<tr><td><code>Function</code></td><td>C function declaration</td></tr>
-<tr><td><code>Record</code></td><td><code>struct</code> or <code>union</code></td></tr>
-<tr><td><code>Enum</code></td><td>C enum with named variants</td></tr>
-<tr><td><code>TypeAlias</code></td><td><code>typedef</code></td></tr>
-<tr><td><code>Variable</code></td><td>extern/global variable</td></tr>
-<tr><td><code>Unsupported</code></td><td>recognized but not fully representable construct</td></tr>
-</tbody>
-</table>
-</div>
-<p>Downstream tools should not ignore <code>Unsupported</code> blindly. Those entries are
-signals that the source surface contains shapes LINC saw but could not
-faithfully lower.</p>
-<h2 id="bindingtype"><a class="header" href="#bindingtype"><code>BindingType</code></a></h2>
-<p><code>BindingType</code> represents the type graph used throughout functions, fields,
-typedefs, and variables.</p>
-<p>Primitive types include:</p>
-<ul>
-<li><code>Void</code></li>
-<li><code>Bool</code></li>
-<li><code>Char</code></li>
-<li><code>SChar</code></li>
-<li><code>UChar</code></li>
-<li><code>Short</code></li>
-<li><code>UShort</code></li>
-<li><code>Int</code></li>
-<li><code>UInt</code></li>
-<li><code>Long</code></li>
-<li><code>ULong</code></li>
-<li><code>LongLong</code></li>
-<li><code>ULongLong</code></li>
-<li><code>Float</code></li>
-<li><code>Double</code></li>
-<li><code>LongDouble</code></li>
-</ul>
-<p>Compound/reference forms include:</p>
-<ul>
-<li><code>Pointer</code></li>
-<li><code>Array</code></li>
-<li><code>FunctionPointer</code></li>
-<li><code>TypedefRef</code></li>
-<li><code>RecordRef</code></li>
-<li><code>EnumRef</code></li>
-<li><code>Opaque</code></li>
-</ul>
-<p>Pointer constness is modeled on the pointee so the IR can distinguish
-<code>char *</code>, <code>const char *</code>, and <code>char * const</code> without pretending to be a full C
-semantic model.</p>
-<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
-<p><code>FunctionBinding</code> contains:</p>
-<ul>
-<li><code>name</code></li>
-<li><code>calling_convention</code></li>
-<li><code>parameters</code></li>
-<li><code>return_type</code></li>
-<li><code>variadic</code></li>
-<li><code>source_offset</code></li>
-</ul>
-<p>Current calling convention coverage is conservative. When the extractor sees
-recognized declaration attributes such as <code>stdcall</code>, <code>cdecl</code>, <code>fastcall</code>,
-<code>vectorcall</code>, or <code>thiscall</code>, <code>FunctionBinding.calling_convention</code> preserves
-that evidence instead of flattening everything to plain <code>C</code>.</p>
-<h2 id="records"><a class="header" href="#records">Records</a></h2>
-<p><code>RecordBinding</code> represents both <code>struct</code> and <code>union</code>.</p>
-<p>It carries:</p>
-<ul>
-<li><code>kind</code></li>
-<li><code>name</code></li>
-<li><code>fields</code></li>
-<li>optional representation evidence</li>
-<li><code>source_offset</code></li>
-</ul>
-<p>Opaque records are represented by <code>fields: None</code>. That means the type exists
-by name but layout and fields are intentionally unavailable.</p>
-<p>Each <code>FieldBinding</code> may also carry <code>bit_width</code>. When <code>bit_width</code> is present,
-the field is a bitfield and LINC preserved that width as partial evidence even
-if full ABI placement is not yet available.</p>
-<p><code>FieldBinding.layout</code> is the companion ABI-evidence slot for compiler-probed
-field placement. It mainly carries <code>offset_bytes</code> when record field probing has
-been requested and succeeded.</p>
-<p>When available from compiler probing, <code>RecordBinding.representation</code> preserves
-size, align, and completeness.</p>
-<p><code>RecordBinding.abi_confidence</code> is the higher-level summary of how much ABI
-evidence was attached.</p>
-<h2 id="enums"><a class="header" href="#enums">Enums</a></h2>
-<p><code>EnumBinding</code> stores:</p>
-<ul>
-<li>enum name</li>
-<li>variants</li>
-<li>optional representation evidence</li>
-<li>source offset</li>
-</ul>
-<p>Each variant carries <code>name</code> and optional <code>value</code>. If a value is absent,
-downstream tooling should not invent one without understanding the original
-source and evaluation context.</p>
-<p>When available from compiler probing, <code>EnumBinding.representation</code> preserves
-underlying size and signedness.</p>
-<h2 id="macros-and-provenance"><a class="header" href="#macros-and-provenance">Macros And Provenance</a></h2>
-<p>The IR also carries supporting evidence:</p>
-<ul>
-<li>macro capture and classification</li>
-<li>compiler-probed type layouts</li>
-<li>provenance for declarations and macros</li>
-<li>effective macro environment snapshots</li>
-</ul>
-<p>Do not think of the IR as “just declarations”. It is the full analysis record.</p>
-<h2 id="serialization-rules"><a class="header" href="#serialization-rules">Serialization Rules</a></h2>
-<ul>
-<li>keep container fields defaultable</li>
-<li>preserve declaration order where the contract depends on it</li>
-<li>treat additive fields as the normal evolution path</li>
-<li>serialize deterministic JSON in tests and fixtures</li>
-</ul>
-<h2 id="what-the-ir-is-not"><a class="header" href="#what-the-ir-is-not">What The IR Is Not</a></h2>
-<p>The IR is not:</p>
-<ul>
-<li>a parser AST</li>
-<li>a Rust codegen AST</li>
-<li>a shared ABI crate</li>
-<li>a build graph</li>
-</ul>
-<p>It is the LINC evidence model.
-evidence.</p>
-<p>For typedef-style named types, <code>TypeAliasBinding.abi_confidence</code> records whether the alias remains
-declaration-only or now has compiler-probed layout evidence attached.</p>
-<p><code>TypeAliasBinding.canonical_resolution</code> is the alias-normalization slot.
-When present, it preserves:</p>
-<ul>
-<li>the typedef names crossed during alias chasing</li>
-<li>the terminal non-alias <code>BindingType</code> that downstream consumers can treat as the canonical shape</li>
-</ul>
-<p><code>BindingType</code> now also carries explicit qualifier metadata beyond the old pointer-const shortcut:</p>
-<ul>
-<li>pointer nodes preserve pointer-self qualifiers</li>
-<li><code>BindingType::Qualified</code> preserves top-level const / volatile / restrict / atomic evidence</li>
-</ul>
-<p>The current Rust codegen layer still lowers most qualifiers conservatively, but downstream library
-consumers no longer need to reconstruct that evidence from diagnostics alone.</p>
-<h2 id="json-transport"><a class="header" href="#json-transport">JSON Transport</a></h2>
-<p><code>BindingPackage</code> remains the durable transport artifact, but LINC no longer wraps JSON transport in
-crate-specific helper functions.</p>
-<p>Use <code>serde_json</code> directly at the tool boundary:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use linc::ir::BindingPackage;
-
-let json = serde_json::to_string_pretty(&amp;package)?;
-let restored: BindingPackage = serde_json::from_str(&amp;json)?;
-<span class="boring">}</span></code></pre>
-<p>That keeps the artifact story centered on the data contract itself rather than convenience
-helpers.</p>
-<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
-<p><code>VariableBinding</code> captures global variables and extern declarations with:</p>
-<ul>
-<li><code>name</code></li>
-<li><code>ty</code></li>
-<li><code>source_offset</code></li>
-</ul>
-<p>These are validated separately from functions because symbol-kind mismatches matter.</p>
-<h2 id="unsupported-items"><a class="header" href="#unsupported-items">Unsupported Items</a></h2>
-<p><code>UnsupportedItem</code> should be treated as a first-class signal.</p>
-<p>It usually means one of these:</p>
-<ul>
-<li>the syntax was recognized</li>
-<li>extraction could not preserve enough structure</li>
-<li>a diagnostic was emitted</li>
-<li>the binding package is partial, not complete</li>
-</ul>
-<p>This is a safer design than silently dropping source constructs.</p>
-<h2 id="macros-layouts-and-link-data-are-part-of-the-ir"><a class="header" href="#macros-layouts-and-link-data-are-part-of-the-ir">Macros, Layouts, And Link Data Are Part Of The IR</a></h2>
-<p>Even though declarations are the center of the package, three other surfaces often matter just as much:</p>
-<ul>
-<li><code>macros</code></li>
-<li><code>layouts</code></li>
-<li><code>link</code></li>
-</ul>
-<p>That is why they live at the package level.
-They are package-wide evidence, not per-item add-ons.</p>
-<h2 id="declaration-provenance"><a class="header" href="#declaration-provenance">Declaration Provenance</a></h2>
-<p><code>provenance</code> is a package-level list aligned with <code>items</code>.</p>
-<p>Each entry may currently carry:</p>
-<ul>
-<li><code>item_name</code></li>
-<li><code>item_kind</code></li>
-<li><code>source_offset</code></li>
-<li><code>source_origin</code></li>
-<li><code>source_location</code></li>
-</ul>
-<p>This is intentionally additive evidence.
-It gives downstream tooling a stable way to talk about where a declaration came from without
-rewriting the declaration IR around source metadata.</p>
-<h2 id="serialization-rules-1"><a class="header" href="#serialization-rules-1">Serialization Rules</a></h2>
-<p>The entire package is <code>serde</code> serializable.</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use linc::ir::BindingPackage;
-
-let json = serde_json::to_string_pretty(&amp;package)?;
-let restored: BindingPackage = serde_json::from_str(&amp;json)?;
-<span class="boring">}</span></code></pre>
-<p>Important artifact behavior:</p>
-<ul>
-<li>the package carries a <code>schema_version</code></li>
-<li>unknown future schema versions are rejected</li>
-<li>older JSON missing newer optional fields generally deserializes with defaults</li>
-</ul>
-<p>That makes the package suitable for machine-to-machine contracts.</p>
-<h2 id="what-the-ir-is-not-1"><a class="header" href="#what-the-ir-is-not-1">What The IR Is Not</a></h2>
-<p>The IR is useful, but it is intentionally not:</p>
-<ul>
-<li>a full semantic C type system</li>
-<li>a full ABI proof</li>
-<li>a final link plan</li>
-<li>a final code generation contract for every target</li>
-</ul>
-<p>Use it as the normalized source of truth for downstream decisions, not as a claim that all C semantics have been solved.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="origin-filtering"><a class="header" href="#origin-filtering">Origin Filtering</a></h1>
-<p>By default, LINC does not blindly keep every declaration found after
-preprocessing. It uses source-origin information to keep the extracted surface
-focused on the headers you asked for.</p>
-<p>This behavior is one of the reasons scans stay usable on real systems with
-deep transitive header trees.</p>
-<h2 id="the-problem-filtering-solves"><a class="header" href="#the-problem-filtering-solves">The Problem Filtering Solves</a></h2>
-<p>A normal header often pulls in:</p>
-<ul>
-<li>C runtime headers</li>
-<li>platform SDK headers</li>
-<li>project-local support headers</li>
-<li>unrelated transitive declarations</li>
-</ul>
-<p>If all of that were kept by default, a scan of one library header could
-explode into a large, noisy package dominated by system declarations.</p>
-<h2 id="how-origin-tracking-works"><a class="header" href="#how-origin-tracking-works">How Origin Tracking Works</a></h2>
-<p>The C preprocessor emits line markers such as:</p>
-<pre><code class="language-text"># 42 "/usr/include/stdio.h" 3
-</code></pre>
-<p>LINC parses those markers into a <code>FileOriginMap</code>. That map is then used to
-classify declaration offsets.</p>
-<p>Current origin classes are:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Origin</th><th>Meaning</th></tr>
-</thead>
-<tbody>
-<tr><td><code>Entry</code></td><td>From an entry header explicitly requested by the user</td></tr>
-<tr><td><code>UserInclude</code></td><td>From a non-system header included by an entry header</td></tr>
-<tr><td><code>System</code></td><td>From a system header</td></tr>
-<tr><td><code>Unknown</code></td><td>The origin could not be determined reliably</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="default-behavior"><a class="header" href="#default-behavior">Default Behavior</a></h2>
-<p>The default <code>OriginFilter</code> keeps entry-header declarations and user-include
-declarations, and excludes system-header declarations.</p>
-<p>This is usually the right tradeoff for evidence generation because it
-preserves the API surface while avoiding C runtime clutter.</p>
-<h2 id="disable-filtering-entirely"><a class="header" href="#disable-filtering-entirely">Disable Filtering Entirely</a></h2>
-<p>Disable filtering when you want the complete preprocessed declaration world.
-That is useful for debugging missing declarations or validating whether a
-declaration really exists after preprocessing.</p>
-<h2 id="custom-filters"><a class="header" href="#custom-filters">Custom Filters</a></h2>
-<p>Custom filters are useful when system declarations are intentionally part of
-the bindable contract.</p>
-<h2 id="practical-advice"><a class="header" href="#practical-advice">Practical Advice</a></h2>
-<p>If a declaration seems to be missing:</p>
-<ol>
-<li>rerun with <code>.no_origin_filter()</code></li>
-<li>inspect the preprocessing report</li>
-<li>confirm the declaration was not removed by macro conditions</li>
-<li>confirm the declaration still maps cleanly to a known origin</li>
-</ol>
-<p>Most missing-item surprises come from one of those four causes.</p>
-<h2 id="why-filtering-happens-after-extraction"><a class="header" href="#why-filtering-happens-after-extraction">Why Filtering Happens After Extraction</a></h2>
-<p>LINC first extracts from the parsed translation unit and then filters by
-origin.</p>
-<p>That design has two benefits:</p>
-<ul>
-<li>extraction logic sees the same full parse tree the compiler saw</li>
-<li>filtering policy stays configurable and separate from parsing</li>
-</ul>
-<p>It also means you can inspect the same source through multiple origin policies
-without changing preprocessing itself.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="macros-and-layouts"><a class="header" href="#macros-and-layouts">Macros And Layouts</a></h1>
-<p>Two of the most important “not just declarations” surfaces in LINC are macro
-inventory and compiler-probed type layouts.</p>
-<p>Together they close a large part of the gap between syntax-only header
-extraction and ABI-aware analysis.</p>
-<h2 id="macro-inventory"><a class="header" href="#macro-inventory">Macro Inventory</a></h2>
-<p><code>BindingPackage.macros</code> captures macro definitions seen during raw-header or
-bootstrap scans.</p>
-<p>Each <code>MacroBinding</code> carries:</p>
-<ul>
-<li><code>name</code></li>
-<li><code>body</code></li>
-<li><code>function_like</code></li>
-<li><code>form</code></li>
-<li><code>kind</code></li>
-<li><code>category</code></li>
-<li>optional parsed <code>value</code> for bindable integer/string constants</li>
-</ul>
-<p><code>BindingPackage.macro_provenance</code> carries package-level provenance entries for
-captured macros, including origin classification and source location where
-line-marker evidence is available.</p>
-<h3 id="macro-kind"><a class="header" href="#macro-kind">Macro Kind</a></h3>
-<p>Current kinds are:</p>
-<ul>
-<li><code>Integer</code></li>
-<li><code>String</code></li>
-<li><code>Expression</code></li>
-<li><code>Other</code></li>
-</ul>
-<p>This is a structural classification of the macro body.</p>
-<h3 id="macro-category"><a class="header" href="#macro-category">Macro Category</a></h3>
-<p>Current categories are:</p>
-<ul>
-<li><code>BindableConstant</code></li>
-<li><code>ConfigurationFlag</code></li>
-<li><code>AbiAffecting</code></li>
-<li><code>Unsupported</code></li>
-</ul>
-<p>This is a higher-level classification intended to help downstream consumers
-decide which macros are relevant.</p>
-<h2 id="why-macro-capture-matters"><a class="header" href="#why-macro-capture-matters">Why Macro Capture Matters</a></h2>
-<p>Many real C APIs encode essential information in macros:</p>
-<ul>
-<li>integer constants</li>
-<li>version identifiers</li>
-<li>feature toggles</li>
-<li>calling-convention selectors</li>
-<li>export/import annotations</li>
-<li>ABI-affecting packing or configuration knobs</li>
-</ul>
-<p>Without macros, a binding package is often incomplete even if declaration
-extraction succeeded.</p>
-<h2 id="practical-macro-interpretation"><a class="header" href="#practical-macro-interpretation">Practical Macro Interpretation</a></h2>
-<p>Downstream tools should usually treat categories differently:</p>
-<ul>
-<li><code>BindableConstant</code>: good candidates for generated constants</li>
-<li><code>ConfigurationFlag</code>: environment and availability signals</li>
-<li><code>AbiAffecting</code>: do not ignore; these may change layout or calling behavior</li>
-<li><code>Unsupported</code>: evidence worth reporting, not blindly generating</li>
-</ul>
-<h2 id="layout-probing"><a class="header" href="#layout-probing">Layout Probing</a></h2>
-<p><code>TypeLayout</code> currently stores:</p>
-<ul>
-<li><code>name</code></li>
-<li><code>size</code></li>
-<li><code>align</code></li>
-</ul>
-<p>The layouts are produced by compiler-assisted probing. That means they reflect
-the configured compiler environment rather than guessed sizes.</p>
-<p><code>AbiProbeReport</code> also preserves target/compiler identity metadata alongside the
-layouts. That makes probe evidence auditable and safer to hand across process
-or repo boundaries.</p>
-<h2 id="probe-subjects"><a class="header" href="#probe-subjects">Probe Subjects</a></h2>
-<p>The report also carries <code>subjects</code>. Each <code>ProbeSubjectReport</code> keeps:</p>
-<ul>
-<li>the requested subject name</li>
-<li>its broad subject kind (<code>Type</code>, <code>Record</code>, or <code>Enum</code>)</li>
-<li>probe confidence</li>
-<li>record completeness when the subject is a record</li>
-<li>the measured <code>TypeLayout</code></li>
-</ul>
-<p>For record subjects, <code>fields</code> may also preserve named field offsets as
-compiler-measured evidence.</p>
-<p>For bitfields, the current probe surface is intentionally partial:</p>
-<ul>
-<li><code>bit_width</code> may be present</li>
-<li><code>offset_bytes</code> may remain absent</li>
-</ul>
-<p>That is deliberate. LINC preserves width evidence where it can, but does not
-guess a byte offset for bitfields when the probe path cannot establish one
-safely.</p>
-<h2 id="probe-degradation-semantics"><a class="header" href="#probe-degradation-semantics">Probe Degradation Semantics</a></h2>
-<p>Probe requests do not all fail for the same reason.</p>
-<ul>
-<li><code>ProbeUnavailable</code> means the requested subject did not have a safely
-probeable layout in the current compilation model</li>
-<li><code>ProbeFailed</code> means the probe mechanism itself failed operationally or
-compiled invalid probe input</li>
-</ul>
-<p>That split lets a downstream generator apply a policy such as:</p>
-<ul>
-<li>tolerate <code>ProbeUnavailable</code> for explicitly opaque inputs</li>
-<li>require layouts for by-value ABI-sensitive records and typedef-backed value
-types</li>
-<li>treat any <code>ProbeFailed</code> result as suspicious until the probe path is fixed or
-explicitly waived</li>
-</ul>
-<p>Enum subjects also preserve:</p>
-<ul>
-<li><code>enum_underlying_size</code></li>
-<li><code>enum_is_signed</code></li>
-</ul>
-<p>This gives downstream generators a concrete representation hint even before
-field-level enum analysis exists in the declaration IR.</p>
-<h2 id="what-layouts-solve"><a class="header" href="#what-layouts-solve">What Layouts Solve</a></h2>
-<p>Compiler-probed layouts are especially useful for:</p>
-<ul>
-<li>checking that opaque vs non-opaque modeling matches reality</li>
-<li>proving <code>sizeof</code> and <code>alignof</code> for important structs</li>
-<li>gating generation on ABI-sensitive records</li>
-<li>preserving ABI evidence in a transportable JSON package</li>
-</ul>
-<h2 id="what-layouts-do-not-yet-solve"><a class="header" href="#what-layouts-do-not-yet-solve">What Layouts Do Not Yet Solve</a></h2>
-<p>Current layout data is intentionally small. It does not yet provide a full
-field-offset or bitfield-layout model.</p>
-<p>So treat <code>TypeLayout</code> as stronger than guessing, but not yet a complete ABI
-proof for all record shapes.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="native-evidence"><a class="header" href="#native-evidence">Native Evidence</a></h1>
-<p>This section groups the parts of LINC that compare source-side intent against
-native artifact-side evidence.</p>
-<p>Read this section when you care about:</p>
-<ul>
-<li>what symbols an artifact exports or imports</li>
-<li>what native link inputs a package declares</li>
-<li>whether declarations and artifacts agree strongly enough for downstream use</li>
-</ul>
-<p>The normal reading order inside this section is:</p>
-<ol>
-<li>Symbol Inventories</li>
-<li>Link Surface</li>
-<li>Validation</li>
-</ol>
-<p>Use this path when you are moving from “I have a source contract” to “I trust
-this native surface enough to generate and link against it”.</p>
-<p>The architectural rule stays the same here too:</p>
-<ul>
-<li>LINC consumes source-shaped input</li>
-<li>LINC emits evidence artifacts</li>
-<li>downstream generation still happens elsewhere</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="symbol-inventories"><a class="header" href="#symbol-inventories">Symbol Inventories</a></h1>
-<p>When the <code>symbols</code> feature is enabled, LINC can inspect native artifacts and
-produce a <code>SymbolInventory</code>.</p>
-<p>This is the artifact-side counterpart to the source-side evidence package.</p>
-<h2 id="why-symbol-inventories-matter"><a class="header" href="#why-symbol-inventories-matter">Why Symbol Inventories Matter</a></h2>
-<p>Header extraction tells you what the C surface claims exists. Artifact
-inspection tells you what a native file actually exports or imports.</p>
-<p>You need both when you want to answer questions such as:</p>
-<ul>
-<li>does this library really provide the declarations I scanned?</li>
-<li>which artifact satisfies a symbol?</li>
-<li>is the symbol hidden, weak, or duplicated?</li>
-<li>what shared-library dependencies does this artifact declare?</li>
-</ul>
-<h2 id="entry-point"><a class="header" href="#entry-point">Entry Point</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use linc::inspect_symbols;
-
-let inventory = inspect_symbols("build/libdemo.so").unwrap();
-<span class="boring">}</span></code></pre>
-<h2 id="supported-artifact-shapes"><a class="header" href="#supported-artifact-shapes">Supported Artifact Shapes</a></h2>
-<p>Current artifact coverage includes:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Platform format</th><th>Typical files</th><th>Kinds</th></tr>
-</thead>
-<tbody>
-<tr><td>ELF</td><td><code>.o</code>, <code>.a</code>, <code>.so</code></td><td>object, static library, shared library</td></tr>
-<tr><td>Mach-O</td><td><code>.o</code>, <code>.a</code>, <code>.dylib</code></td><td>object, static library, dynamic library</td></tr>
-</tbody>
-</table>
-</div>
-<p>The inventory also classifies the artifact at a higher level.</p>
-<p>Current metadata includes:</p>
-<ul>
-<li><code>format</code></li>
-<li><code>platform</code></li>
-<li><code>kind</code></li>
-<li><code>capabilities</code></li>
-<li><code>dependency_edges</code></li>
-<li><code>symbols</code></li>
-</ul>
-<h2 id="artifact-capabilities"><a class="header" href="#artifact-capabilities">Artifact Capabilities</a></h2>
-<p><code>capabilities</code> currently capture whether an artifact exports symbols or imports
-symbols.</p>
-<p>That distinction matters for differentiating linkable providers from
-dependency-only inputs.</p>
-<h2 id="symbol-entries"><a class="header" href="#symbol-entries">Symbol Entries</a></h2>
-<p>Each <code>SymbolEntry</code> carries:</p>
-<ul>
-<li>normalized <code>name</code></li>
-<li>optional <code>raw_name</code></li>
-<li><code>direction</code></li>
-<li><code>visibility</code></li>
-<li>whether it is a function or variable-like symbol</li>
-<li><code>binding</code></li>
-<li>optional <code>size</code></li>
-<li>optional <code>section</code></li>
-<li>optional <code>archive_member</code></li>
-<li>optional <code>reexported_via</code></li>
-<li>optional <code>alias_of</code></li>
-</ul>
-<h3 id="normalized-vs-raw-name"><a class="header" href="#normalized-vs-raw-name">Normalized vs Raw Name</a></h3>
-<p>The normalized name is used for matching declarations. The raw name preserves
-the original artifact spelling.</p>
-<p><code>direction</code> is also important: only exported symbols are candidate providers
-during validation. Imported symbols are still preserved because they matter for
-shared-library and link-planning analysis.</p>
-<p><code>alias_of</code> is preserved when LINC can see more than one exported symbol name
-resolving to the same section or address identity.</p>
-<h2 id="elf-symbol-versions"><a class="header" href="#elf-symbol-versions">ELF Symbol Versions</a></h2>
-<p>On ELF artifacts, <code>SymbolEntry.version</code> preserves symbol-version evidence when
-the object reader can see it.</p>
-<p>Downstream consumers should read that evidence conservatively:</p>
-<ul>
-<li>version presence is useful provider metadata</li>
-<li>version absence is not proof that the symbol is unversioned everywhere</li>
-<li>version equality helps distinguish exports that share a base symbol name</li>
-<li>version differences should be treated as a reason to avoid collapsing
-providers too aggressively</li>
-</ul>
-<p>LINC does not implement a full ELF linker/version-script resolver. It keeps the
-version strings as evidence and leaves policy to downstream consumers.</p>
-<h2 id="archive-member-provenance"><a class="header" href="#archive-member-provenance">Archive Member Provenance</a></h2>
-<p>For static libraries, LINC preserves the member path or name that provided each
-symbol when available.</p>
-<p>That lets downstream validation report a provider more precisely than just the
-archive path.</p>
-<h2 id="shared-library-dependency-edges"><a class="header" href="#shared-library-dependency-edges">Shared-Library Dependency Edges</a></h2>
-<p>On ELF shared libraries and executables, LINC captures <code>DT_NEEDED</code>
-dependencies into <code>dependency_edges</code>.</p>
-<p>This is not a full dynamic-loader model. It is still useful because it exposes
-artifact-declared native dependencies in the inventory itself.</p>
-<p>When LINC sees imported symbols inside a shared library or executable, it also
-preserves symbol-local <code>reexported_via</code> evidence using those dependency edges.</p>
-<h2 id="platform-behavior-notes"><a class="header" href="#platform-behavior-notes">Platform Behavior Notes</a></h2>
-<p>Mach-O commonly prefixes external symbols with <code>_</code>.
-LINC normalizes those names so C declarations and native symbols compare more
-naturally.</p>
-<p>That normalization is intentionally paired with <code>raw_name</code> preservation so no
-spelling evidence is lost.</p>
-<p>Mach-O support should still be read conservatively:</p>
-<ul>
-<li>imported symbols are useful dependency evidence, not proof of final loader
-behavior</li>
-<li>re-export inferences are narrower than a full dyld model</li>
-<li>framework and install-name semantics remain downstream policy concerns</li>
-<li>normalized names are for matching, while <code>raw_name</code> stays the authoritative
-original spelling</li>
-</ul>
-<h2 id="mach-o-limits-and-conservative-provider-policy"><a class="header" href="#mach-o-limits-and-conservative-provider-policy">Mach-O Limits And Conservative Provider Policy</a></h2>
-<p>Downstream consumers should treat Mach-O provider evidence more conservatively
-than straightforward ELF export evidence.</p>
-<p>That is not because the current inventories are weak. It is because Mach-O
-linking and loading semantics often depend on more context than a plain symbol
-table can prove by itself.</p>
-<p>Important examples:</p>
-<ul>
-<li>install names are loader identity, not just filenames</li>
-<li>frameworks are resolved through a different search model than plain libraries</li>
-<li>re-export chains can involve dependency structure outside the immediate
-artifact</li>
-<li>symbol spelling and visibility evidence are useful, but not a complete dyld
-decision procedure</li>
-</ul>
-<h2 id="when-to-use-inventories-directly"><a class="header" href="#when-to-use-inventories-directly">When To Use Inventories Directly</a></h2>
-<p>Use <code>inspect_symbols(...)</code> directly when:</p>
-<ul>
-<li>you want to debug a native artifact before validating bindings</li>
-<li>you need artifact metadata without having headers available</li>
-<li>you want to compare two builds of the same native library</li>
-<li>you need archive-member or dependency-edge evidence for a linker-oriented
-workflow</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="link-surface"><a class="header" href="#link-surface">Link Surface</a></h1>
-<p><code>BindingPackage.link</code> is the normalized native-link surface attached to a
-scan.</p>
-<p>This is one of the most important pieces of LINC because evidence generation
-alone is not enough. Downstream tools also need to know what native inputs are
-expected at link time.</p>
-<h2 id="what-the-link-surface-contains"><a class="header" href="#what-the-link-surface-contains">What The Link Surface Contains</a></h2>
-<p><code>BindingLinkSurface</code> currently carries:</p>
-<ul>
-<li><code>preferred_mode</code></li>
-<li><code>native_surface_kind</code></li>
-<li><code>platform_constraints</code></li>
-<li><code>include_paths</code></li>
-<li><code>framework_paths</code></li>
-<li><code>library_paths</code></li>
-<li><code>libraries</code></li>
-<li><code>frameworks</code></li>
-<li><code>artifacts</code></li>
-<li><code>ordered_inputs</code></li>
-</ul>
-<p>This deliberately preserves both normalized buckets, such as <code>libraries</code>, and
-original ordering information, via <code>ordered_inputs</code>.</p>
-<h2 id="why-ordered-inputs-matter"><a class="header" href="#why-ordered-inputs-matter">Why Ordered Inputs Matter</a></h2>
-<p>Link order can be semantically significant, especially with static archives,
-mixed object/archive inputs, and linkers that resolve left-to-right.</p>
-<p>If LINC only preserved deduplicated buckets, a downstream tool could lose the
-original intended order and silently produce a different result.</p>
-<h2 id="declared-libraries"><a class="header" href="#declared-libraries">Declared Libraries</a></h2>
-<p>Library-name inputs are recorded with a name, a kind, and a source.</p>
-<p>Kinds:</p>
-<ul>
-<li><code>Default</code></li>
-<li><code>Static</code></li>
-<li><code>Dynamic</code></li>
-</ul>
-<p>Provider matching for declared library names is intentionally tolerant of
-ordinary platform naming shapes.</p>
-<h2 id="concrete-artifacts"><a class="header" href="#concrete-artifacts">Concrete Artifacts</a></h2>
-<p>When the binding surface depends on explicit files instead of library names,
-use artifact inputs.</p>
-<p>Each artifact preserves path, kind, and source. That is important for vendored
-or generated native inputs that are not discoverable through a generic
-<code>-lfoo</code> model.</p>
-<h2 id="framework-inputs"><a class="header" href="#framework-inputs">Framework Inputs</a></h2>
-<p>For Apple-style native dependencies, frameworks are preserved separately from
-ordinary library names because they are resolved differently by downstream
-toolchains.</p>
-<h2 id="preferred-link-mode"><a class="header" href="#preferred-link-mode">Preferred Link Mode</a></h2>
-<p><code>preferred_mode</code> captures the scan-time preference between default, preferred
-static, and preferred dynamic.</p>
-<p>This is not the same as hard pinning every input. It is a policy hint attached
-to the package.</p>
-<h2 id="native-surface-kind"><a class="header" href="#native-surface-kind">Native Surface Kind</a></h2>
-<p><code>native_surface_kind</code> classifies the package at a higher level:</p>
-<ul>
-<li><code>HeaderOnly</code></li>
-<li><code>LibraryNames</code></li>
-<li><code>ConcreteArtifacts</code></li>
-<li><code>Mixed</code></li>
-</ul>
-<p>This gives downstream consumers a quick decision point.</p>
-<h2 id="requirement-provenance"><a class="header" href="#requirement-provenance">Requirement Provenance</a></h2>
-<p>Link requirements preserve a source:</p>
-<ul>
-<li><code>Declared</code></li>
-<li><code>Inferred</code></li>
-<li><code>Discovered</code></li>
-</ul>
-<p>That distinction matters because downstream tooling often wants to trust user
-declarations more than inferred guesses while still preserving discovered
-evidence for reporting and future planning.</p>
-<h2 id="platform-constraints"><a class="header" href="#platform-constraints">Platform Constraints</a></h2>
-<p><code>platform_constraints</code> are package-level target applicability hints.</p>
-<p>Today they are strings rather than a rich constraint language. That still makes
-them useful for simple target gating, downstream filtering, and build-graph
-selection.</p>
-<h2 id="reading-the-link-surface-programmatically"><a class="header" href="#reading-the-link-surface-programmatically">Reading The Link Surface Programmatically</a></h2>
-<p>Most consumers should read the link surface directly from <code>BindingPackage</code>.
-That keeps link-planning policy in the downstream library or tool that consumes
-LINC.</p>
-<h2 id="normalized-plan-artifact"><a class="header" href="#normalized-plan-artifact">Normalized Plan Artifact</a></h2>
-<p><code>ResolvedLinkPlan</code> is the normalized planning artifact. It is intentionally not
-a full filesystem-resolved linker invocation.</p>
-<p>When inventories are available, consumers can separate declared requirements
-from candidate providers.</p>
-<ul>
-<li><code>Resolved</code></li>
-<li><code>Ambiguous</code></li>
-</ul>
-<p>When providers come from inspected shared libraries, their dependency edges are also preserved in
-the plan so downstream tooling can see the current known transitive native surface without losing
-the distinction between declared requirements and discovered dependency evidence.</p>
-<p>That means a planning inventory can legitimately resolve against macOS text stubs such as
-<code>/usr/lib/libSystem.tbd</code> even when later runtime or deployment policy is handled somewhere else.</p>
-<p>Requirement and provider provenance are also preserved explicitly:</p>
-<ul>
-<li>requirement source stays attached from the declared package metadata</li>
-<li>provider provenance distinguishes exact declared-artifact matches from discovered inventory-based
-matches</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="validation"><a class="header" href="#validation">Validation</a></h1>
-<p>Validation compares a <code>BindingPackage</code> against one or more <code>SymbolInventory</code>
-values.</p>
-<p>It answers a practical question: do the declarations we extracted line up with
-what the native artifacts actually provide?</p>
-<h2 id="api-entry-points"><a class="header" href="#api-entry-points">API Entry Points</a></h2>
-<p>Use <code>validate</code> for one artifact and <code>validate_many</code> for several.</p>
-<h2 id="what-validation-looks-at"><a class="header" href="#what-validation-looks-at">What Validation Looks At</a></h2>
-<p>Validation focuses on symbol presence, symbol kind, visibility, binding
-strength, decorated names, and conservative ABI-shape evidence where the
-artifact can prove something honestly.</p>
-<h2 id="common-statuses"><a class="header" href="#common-statuses">Common Statuses</a></h2>
-<p>Current statuses include:</p>
-<ul>
-<li><code>Matched</code></li>
-<li><code>AbiShapeMismatch</code></li>
-<li><code>Missing</code></li>
-<li><code>UnresolvedDeclaredLinkInputs</code></li>
-<li><code>DecorationMismatch</code></li>
-<li><code>NotAFunction</code></li>
-<li><code>NotAVariable</code></li>
-<li><code>Hidden</code></li>
-<li><code>WeakMatch</code></li>
-<li><code>DuplicateProviders</code></li>
-</ul>
-<h2 id="how-to-read-a-report"><a class="header" href="#how-to-read-a-report">How To Read A Report</a></h2>
-<ul>
-<li><code>Matched</code> means the declaration resolved to a visible symbol of the expected
-kind</li>
-<li><code>Missing</code> means no matching symbol was found and the package did not declare
-native link inputs that might reasonably have provided it</li>
-<li><code>UnresolvedDeclaredLinkInputs</code> means the package did declare native inputs,
-but validation still found no provider</li>
-<li><code>DecorationMismatch</code> means a decorated or raw spelling normalized to the
-declaration name</li>
-<li><code>Hidden</code> and <code>WeakMatch</code> should usually be treated more conservatively than a
-strong export</li>
-<li><code>DuplicateProviders</code> usually blocks promotion until the consumer chooses a
-policy</li>
-</ul>
-<h2 id="provider-evidence"><a class="header" href="#provider-evidence">Provider Evidence</a></h2>
-<p>Provider evidence may include plain artifact paths or archive-member provenance
-such as <code>libfoo.a:bar.o</code>.</p>
-<h2 id="consumer-rule"><a class="header" href="#consumer-rule">Consumer Rule</a></h2>
-<p>Validation findings are structured evidence, not hard execution errors. Treat
-them as policy input for the next stage.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="api-contract"><a class="header" href="#api-contract">API Contract</a></h1>
-<p>This chapter defines the intended public library surface of LINC as it exists
-today, not as we might wish it already looked.</p>
-<h2 id="first-principle"><a class="header" href="#first-principle">First Principle</a></h2>
-<p>LINC is a library crate. The intended downstream pattern is:</p>
-<ol>
-<li>call the crate from Rust</li>
-<li>obtain structured values such as <code>LinkAnalysisPackage</code>,
-<code>SymbolInventory</code>, and <code>ValidationReport</code></li>
-<li>serialize those values only when another tool or process boundary needs them</li>
-</ol>
-<h2 id="preferred-public-surface"><a class="header" href="#preferred-public-surface">Preferred Public Surface</a></h2>
-<p>The crate root is still the preferred consumer boundary, but there are two
-real layers inside it:</p>
-<ol>
-<li>preferred contract-first APIs</li>
-<li>lower-level IR/bootstrap APIs that remain public</li>
-</ol>
-<h2 id="normative-rules-for-consumers"><a class="header" href="#normative-rules-for-consumers">Normative Rules For Consumers</a></h2>
-<p>If you are building on top of LINC:</p>
-<ol>
-<li>prefer crate-root re-exports over deep module imports</li>
-<li>use <code>analyze_source_package</code> as the normal contract-first entry point</li>
-<li>treat <code>LinkAnalysisPackage</code>, <code>SymbolInventory</code>, and <code>ValidationReport</code> as
-the primary transport-level contracts</li>
-<li>treat diagnostics and validation results as normal structured output, not as
-ad hoc log text</li>
-<li>do not rely on exact <code>String</code> error text for durable control flow</li>
-<li>do not treat extracted declarations alone as sufficient ABI proof for
-layout-sensitive generation</li>
-</ol>
-<h2 id="public-surface-tiers"><a class="header" href="#public-surface-tiers">Public Surface Tiers</a></h2>
-<ul>
-<li>Tier 1: <code>analyze_source_package</code>, <code>inspect_symbols</code>, <code>probe_type_layouts</code>,
-<code>validate</code>, <code>validate_many</code>, and <code>LinkAnalysisPackage</code></li>
-<li>Tier 2: <code>BindingPackage</code>, root-level IR re-exports, and modules such as
-<code>probe</code>, <code>symbols</code>, <code>validate</code>, and <code>raw_headers</code></li>
-<li>Tier 3: support-oriented modules such as <code>diagnostics</code>, <code>error</code>, and
-<code>line_markers</code></li>
-</ul>
-<p>Tier 2 and Tier 3 are real and tested. They are just not the first story the
-book wants new downstream users to build around.</p>
-<h2 id="explicit-non-goals"><a class="header" href="#explicit-non-goals">Explicit Non-Goals</a></h2>
-<p>The current contract does not yet guarantee typed operational errors across the
-whole crate, full ABI completeness for all C constructs, or full cross-platform
-parity across ELF, Mach-O, and Windows-native artifact formats.</p>
-<p>It also does not guarantee that repo-local bootstrap flows are the preferred
-architecture, even though they are public.</p>
-<h2 id="artifact-boundary-reminder"><a class="header" href="#artifact-boundary-reminder">Artifact Boundary Reminder</a></h2>
-<p>LINC owns evidence, not universal pipeline state. Cross-package translation
-belongs only in tests/examples/harnesses.</p>
-<p>If another chapter sounds broader than this one, treat this chapter as the
-normative boundary.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="contracts-and-policy"><a class="header" href="#contracts-and-policy">Contracts And Policy</a></h1>
-<p>This section groups the durable contract and policy chapters.</p>
-<p>The most important policy rule is architectural:</p>
-<ul>
-<li><code>linc/src/**</code> must not depend on <code>parc</code> or <code>gerc</code></li>
-<li>cross-package translation belongs in tests/examples/harnesses</li>
-<li><code>linc</code> owns its own internal model and its own evidence artifacts</li>
-<li>there is no shared ABI crate</li>
-<li>there is no backward-compatibility burden for old pipeline shapes</li>
-<li>bootstrap utilities and repo-local shortcuts must never be mistaken for the
-public contract</li>
-</ul>
-<p>Read these chapters as the narrow contract surface.
-If another chapter sounds broader than this section, trust this section.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="json-artifacts"><a class="header" href="#json-artifacts">JSON Artifacts</a></h1>
-<p>This chapter describes how <code>linc</code> treats serialized JSON artifacts.</p>
-<p>The important framing is architectural:</p>
-<ul>
-<li>JSON is an artifact format</li>
-<li>it is not a promise to preserve old pipeline shapes forever</li>
-<li>the only shapes that matter are the ones currently documented and tested</li>
-</ul>
-<p><code>linc</code> does not carry a backward-compatibility burden for discarded designs.</p>
-<h2 id="first-principle-1"><a class="header" href="#first-principle-1">First Principle</a></h2>
-<p>Consumers may depend on documented field names, documented field meanings,
-<code>schema_version</code>, and documented defaulting behavior when tests rely on it.</p>
-<p>Consumers must not depend on whitespace, pretty-print layout, incidental field
-ordering, or undocumented fields that happen to be present today.</p>
-<h2 id="main-serialized-artifacts"><a class="header" href="#main-serialized-artifacts">Main Serialized Artifacts</a></h2>
-<p>The main JSON-bearing values are:</p>
-<ul>
-<li><code>LinkAnalysisPackage</code></li>
-<li><code>SymbolInventory</code></li>
-<li><code>ValidationReport</code></li>
-<li><code>ResolvedLinkPlan</code></li>
-</ul>
-<h2 id="version-fields"><a class="header" href="#version-fields">Version Fields</a></h2>
-<p><code>schema_version</code> is the artifact gate. <code>linc_version</code> identifies the producing
-build and is useful for provenance.</p>
-<h2 id="change-policy"><a class="header" href="#change-policy">Change Policy</a></h2>
-<ul>
-<li>do not preserve obsolete artifact envelopes just because they existed earlier</li>
-<li>do not keep old field layouts alive unless current tests still need them</li>
-<li>do make semantic changes explicit in docs and fixtures</li>
-<li>do update <code>schema_version</code> when consumers would otherwise misread the
-artifact</li>
-</ul>
-<h2 id="maintenance-rule"><a class="header" href="#maintenance-rule">Maintenance Rule</a></h2>
-<p>When artifact shapes change:</p>
-<ol>
-<li>update the docs</li>
-<li>update or replace the relevant fixtures</li>
-<li>update consumers in tests/examples/harnesses</li>
-<li>do not carry a dead compatibility layer just to keep an obsolete shape
-deserializable</li>
-</ol>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="error-surface"><a class="header" href="#error-surface">Error Surface</a></h1>
-<p>This chapter inventories the current public error surface of LINC.</p>
-<h2 id="current-state"><a class="header" href="#current-state">Current State</a></h2>
-<p>LINC exposes typed errors via <code>LincError</code> and structured diagnostics inside
-returned data.</p>
-<h2 id="typed-error-surface-today"><a class="header" href="#typed-error-surface-today">Typed Error Surface Today</a></h2>
-<p>The clearest typed error boundary today is around the explicit workflow APIs
-such as <code>probe_type_layouts(...)</code> and <code>inspect_symbols(...)</code>.</p>
-<h2 id="what-consumers-should-do-right-now"><a class="header" href="#what-consumers-should-do-right-now">What Consumers Should Do Right Now</a></h2>
-<p>Downstream users should:</p>
-<ul>
-<li>treat successful return values as stable enough to consume</li>
-<li>treat diagnostics in returned data structures as first-class signals</li>
-<li>avoid matching exact error strings for durable control flow</li>
-<li>wrap stringly errors at their own boundary if they need structured handling
-immediately</li>
-</ul>
-<h2 id="what-counts-as-an-error-vs-a-diagnostic"><a class="header" href="#what-counts-as-an-error-vs-a-diagnostic">What Counts As An Error vs A Diagnostic</a></h2>
-<ul>
-<li>hard operational failures generally return an error</li>
-<li>partially understood source constructs often become diagnostics attached to a
-returned package</li>
-<li>validation findings are reported as structured match results, not thrown as
-errors</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="error-taxonomy"><a class="header" href="#error-taxonomy">Error Taxonomy</a></h1>
-<p>This chapter defines the intended typed error taxonomy that later
-implementation slices should converge on.</p>
-<h2 id="goal"><a class="header" href="#goal">Goal</a></h2>
-<p><code>LincError</code> should be the crate-wide typed failure surface for operational
-failures.</p>
-<p>The design target is to separate configuration and scan execution failures,
-preprocessing and parse failures, ABI probe failures, artifact inspection
-failures, and serialization or schema failures.</p>
-<p>Validation findings are deliberately different. They should remain structured
-report output, not thrown as operational errors.</p>
-<h2 id="current-coverage"><a class="header" href="#current-coverage">Current Coverage</a></h2>
-<p>The current enum already contains variants for missing headers, preprocessor
-failure, parse failure, I/O failure, serialization failure, symbol-read
-failure, unsupported artifact format, and schema-version mismatch.</p>
-<h2 id="intended-category-boundaries"><a class="header" href="#intended-category-boundaries">Intended Category Boundaries</a></h2>
-<ul>
-<li>configuration failure should be distinguishable from compiler failure</li>
-<li>consumers should be able to distinguish toolchain invocation failure from
-source parse failure</li>
-<li>probe failures should not be collapsed into generic scan or I/O text</li>
-<li>path and context should be preserved in typed artifact errors</li>
-</ul>
-<h2 id="validation-is-not-an-error-channel"><a class="header" href="#validation-is-not-an-error-channel">Validation Is Not An Error Channel</a></h2>
-<p>Validation mismatches should not be encoded as <code>LincError</code>.
-Validation should keep returning <code>ValidationReport</code>.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="field-stability"><a class="header" href="#field-stability">Field Stability</a></h1>
-<p>This chapter classifies the current <code>BindingPackage</code> artifact by stability
-expectations.</p>
-<h2 id="top-level-bindingpackage"><a class="header" href="#top-level-bindingpackage">Top-Level <code>BindingPackage</code></a></h2>
-<p>The top-level package fields fall into three practical groups:</p>
-<ul>
-<li>contract identity fields</li>
-<li>stable container fields</li>
-<li>evolving evidence fields</li>
-</ul>
-<h2 id="contract-identity-fields"><a class="header" href="#contract-identity-fields">Contract Identity Fields</a></h2>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Field</th><th>Current classification</th><th>Notes</th></tr>
-</thead>
-<tbody>
-<tr><td><code>schema_version</code></td><td>required contract field</td><td>artifact-shape gate</td></tr>
-<tr><td><code>linc_version</code></td><td>stable provenance field</td><td>producer version, not the main shape gate</td></tr>
-<tr><td><code>source_path</code></td><td>useful provenance field</td><td>helpful, but not the primary artifact anchor</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="stable-container-fields"><a class="header" href="#stable-container-fields">Stable Container Fields</a></h2>
-<p>The major package sections downstream tools can reasonably depend on existing
-are <code>target</code>, <code>inputs</code>, <code>macros</code>, <code>layouts</code>, <code>link</code>, <code>items</code>, and
-<code>diagnostics</code>.</p>
-<h2 id="practical-rule-for-downstream-consumers"><a class="header" href="#practical-rule-for-downstream-consumers">Practical Rule For Downstream Consumers</a></h2>
-<p>Rely on top-level package sections and documented meanings, treat nested
-metadata as additive/defaultable unless explicitly documented otherwise, and
-use <code>schema_version</code> as the hard artifact boundary.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="failure-model"><a class="header" href="#failure-model">Failure Model</a></h1>
-<p>This chapter defines the intended boundary between hard failures, diagnostics,
-and validation findings.</p>
-<h2 id="the-three-outcome-classes"><a class="header" href="#the-three-outcome-classes">The Three Outcome Classes</a></h2>
-<ol>
-<li>hard operational failure</li>
-<li>successful analysis with diagnostics</li>
-<li>successful validation with findings</li>
-</ol>
-<h2 id="consumer-rule-1"><a class="header" href="#consumer-rule-1">Consumer Rule</a></h2>
-<ul>
-<li><code>Err(...)</code> means the requested operation itself failed</li>
-<li>diagnostics mean the operation succeeded, but the returned analysis may be
-partial or lossy</li>
-<li>validation findings mean the operation succeeded and produced evidence that
-the native surface does not match expectations cleanly</li>
-</ul>
-<p>That means a robust downstream integration should not collapse everything into
-a single boolean “success” value.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="schema-version-review"><a class="header" href="#schema-version-review">Schema Version Review</a></h1>
-<p>This chapter records the current review decision for <code>SCHEMA_VERSION</code>.</p>
-<h2 id="current-decision"><a class="header" href="#current-decision">Current Decision</a></h2>
-<p>The schema version remains:</p>
-<pre><code class="language-text">SCHEMA_VERSION = 1
-</code></pre>
-<h2 id="why-it-has-not-been-bumped-yet"><a class="header" href="#why-it-has-not-been-bumped-yet">Why It Has Not Been Bumped Yet</a></h2>
-<p>The recent changes have mostly been additive fields, additive nested metadata,
-serde-defaultable structures, and richer evidence attached to existing
-top-level containers.</p>
-<h2 id="current-review-standard"><a class="header" href="#current-review-standard">Current Review Standard</a></h2>
-<p>A future bump to <code>2</code> should happen when an existing field changes meaning in a
-way old consumers would misread, a representation changes in a non-defaultable
-way, or the project decides the current shape can no longer evolve safely
-within <code>v1</code>.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="stable-usage-patterns"><a class="header" href="#stable-usage-patterns">Stable Usage Patterns</a></h1>
-<p>This chapter describes the usage patterns that are most likely to remain
-stable for downstream library consumers.</p>
-<h2 id="pattern-1-prefer-root-level-entry-points"><a class="header" href="#pattern-1-prefer-root-level-entry-points">Pattern 1: Prefer Root-Level Entry Points</a></h2>
-<p>Prefer <code>HeaderConfig</code>, <code>probe_type_layouts</code>, <code>inspect_symbols</code>, <code>validate</code>,
-<code>validate_many</code>, and <code>analyze_source_package</code>.</p>
-<h2 id="pattern-2-treat-bindingpackage-as-the-primary-product"><a class="header" href="#pattern-2-treat-bindingpackage-as-the-primary-product">Pattern 2: Treat <code>BindingPackage</code> As The Primary Product</a></h2>
-<p>A typical flow is:</p>
-<ol>
-<li>analyze or bootstrap source input</li>
-<li>inspect <code>package.diagnostics</code></li>
-<li>optionally attach or compare native evidence</li>
-<li>serialize the package only when crossing a tool boundary</li>
-</ol>
-<h2 id="pattern-3-treat-diagnostics-as-contractual-data"><a class="header" href="#pattern-3-treat-diagnostics-as-contractual-data">Pattern 3: Treat Diagnostics As Contractual Data</a></h2>
-<p>Read <code>package.diagnostics</code>, classify which diagnostic kinds are blocking for
-your downstream generator, and make the decision explicit in your consumer.</p>
-<h2 id="pattern-4-gate-artifact-consumption-on-schema_version"><a class="header" href="#pattern-4-gate-artifact-consumption-on-schema_version">Pattern 4: Gate Artifact Consumption On <code>schema_version</code></a></h2>
-<p>Gate on <code>schema_version</code>, treat <code>linc_version</code> as provenance, and keep fixture
-coverage for the payload shapes you rely on.</p>
-<h2 id="pattern-5-preserve-native-metadata-instead-of-re-deriving-it"><a class="header" href="#pattern-5-preserve-native-metadata-instead-of-re-deriving-it">Pattern 5: Preserve Native Metadata Instead Of Re-Deriving It</a></h2>
-<p>When <code>package.link</code>, <code>package.layouts</code>, or symbol inventories are available,
-prefer using them.</p>
-<h2 id="pattern-6-keep-validation-separate-from-transport-failure"><a class="header" href="#pattern-6-keep-validation-separate-from-transport-failure">Pattern 6: Keep Validation Separate From Transport Failure</a></h2>
-<p>Execution failure should be handled as <code>Err(...)</code>. Successful validation with
-mismatches should be handled as structured evidence.</p>
-<h2 id="anti-patterns"><a class="header" href="#anti-patterns">Anti-Patterns</a></h2>
-<ul>
-<li>matching on exact free-form error strings</li>
-<li>treating pretty JSON formatting as a semantic contract</li>
-<li>assuming every successful scan is generation-ready</li>
-<li>inferring link intent only from declarations when package-level link evidence
-already exists</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="linc-vs-bindgen"><a class="header" href="#linc-vs-bindgen">LINC vs bindgen</a></h1>
-<p>This document compares two different approaches to C interop from the point of
-view of the current toolchain split.</p>
-<h2 id="the-short-version"><a class="header" href="#the-short-version">The Short Version</a></h2>
-<ul>
-<li>bindgen is a header-to-Rust transpiler</li>
-<li>LINC is an evidence engine</li>
-</ul>
-<p>bindgen answers “what does this header say?”
-LINC answers “what does the source say, what does the artifact say, and do
-they agree?”</p>
-<h2 id="parsing"><a class="header" href="#parsing">Parsing</a></h2>
-<p>bindgen depends on libclang and the Clang frontend. LINC keeps parsing and
-source extraction upstream of its own evidence layer and does not depend on
-libclang.</p>
-<h2 id="internal-representation"><a class="header" href="#internal-representation">Internal Representation</a></h2>
-<p>bindgen’s IR is transient and internal to one code generation run. LINC’s
-<code>BindingPackage</code> is a durable, serialized evidence contract.</p>
-<h2 id="abi-discovery"><a class="header" href="#abi-discovery">ABI Discovery</a></h2>
-<p>bindgen reads ABI information from libclang. LINC can attach compiler-probed
-layout evidence and keep that evidence alongside the rest of the analysis
-package.</p>
-<h2 id="symbol-inspection-and-validation"><a class="header" href="#symbol-inspection-and-validation">Symbol Inspection And Validation</a></h2>
-<p>bindgen does not own native artifact inspection or validation.
-LINC does.</p>
-<h2 id="code-generation"><a class="header" href="#code-generation">Code Generation</a></h2>
-<p>bindgen’s job ends in generated Rust. LINC’s job ends in evidence. A downstream
-tool such as <code>gerc</code> can consume LINC’s evidence and emit Rust or build
-metadata.</p>
-<h2 id="when-to-use-which"><a class="header" href="#when-to-use-which">When To Use Which</a></h2>
-<p>Use bindgen when you want a direct header-to-Rust generator and are willing to
-pay the libclang cost. Use LINC when you want analysis, evidence, link
-metadata, validation, and downstream policy separation.</p>
-<p>That is the real split:</p>
-<ul>
-<li>bindgen centers immediate Rust emission</li>
-<li>LINC centers analysis and evidence that another tool can consume later</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="end-to-end-workflows"><a class="header" href="#end-to-end-workflows">End-To-End Workflows</a></h1>
-<p>This chapter ties the separate surfaces together into practical workflows.</p>
-<h2 id="workflow-1-analyze-a-source-contract-and-save-json"><a class="header" href="#workflow-1-analyze-a-source-contract-and-save-json">Workflow 1: Analyze A Source Contract And Save JSON</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use linc::{analyze_source_package, SourcePackage};
-
-let analysis = analyze_source_package(&amp;SourcePackage::default());
-let json = serde_json::to_string_pretty(&amp;analysis).unwrap();
-std::fs::write("link-analysis.json", json).unwrap();
-<span class="boring">}</span></code></pre>
-<h2 id="workflow-2-translate-parc-artifacts-in-tests-or-harnesses"><a class="header" href="#workflow-2-translate-parc-artifacts-in-tests-or-harnesses">Workflow 2: Translate PARC Artifacts In Tests Or Harnesses</a></h2>
-<p>The intended cross-package architecture is artifact-based, not shared-type
-based. Library code should not import <code>parc</code>; translation belongs in tests,
-examples, or external harnesses.</p>
-<h2 id="workflow-3-inspect-a-native-artifact"><a class="header" href="#workflow-3-inspect-a-native-artifact">Workflow 3: Inspect A Native Artifact</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use linc::inspect_symbols;
-
-let inventory = inspect_symbols("build/libdemo.so")?;
-let json = serde_json::to_string_pretty(&amp;inventory).unwrap();
-std::fs::write("symbols.json", json).unwrap();
-<span class="boring">}</span></code></pre>
-<h2 id="workflow-4-validate-source-derived-bindings-against-artifacts"><a class="header" href="#workflow-4-validate-source-derived-bindings-against-artifacts">Workflow 4: Validate Source-Derived Bindings Against Artifacts</a></h2>
-<p>Validation currently compares a <code>BindingPackage</code> against one or more
-inventories. That lower-level path is still part of the crate surface, even if
-the preferred intake story starts from <code>SourcePackage</code>.</p>
-<h2 id="workflow-5-extract-just-the-link-surface"><a class="header" href="#workflow-5-extract-just-the-link-surface">Workflow 5: Extract Just The Link Surface</a></h2>
-<p>Use <code>analysis.declared_link_surface</code> and <code>analysis.resolved_link_plan</code> when a
-downstream tool only wants link names, artifact inputs, framework inputs,
-platform constraints, or ordering metadata.</p>
-<h2 id="workflow-6-downstream-fol--gerc-consumption"><a class="header" href="#workflow-6-downstream-fol--gerc-consumption">Workflow 6: Downstream <code>fol</code> / <code>gerc</code> Consumption</a></h2>
-<ol>
-<li><code>parc</code> produces a source artifact</li>
-<li>tests/examples/harnesses translate that artifact into <code>linc</code> input</li>
-<li><code>linc</code> produces <code>LinkAnalysisPackage</code></li>
-<li>downstream generation reads source and link analysis in parallel</li>
-</ol>
-<h2 id="workflow-7-repo-local-bootstrap"><a class="header" href="#workflow-7-repo-local-bootstrap">Workflow 7: Repo-Local Bootstrap</a></h2>
-<p>The raw-header bootstrap path exists for difficult fixtures and repository
-self-hosting. It is public, tested, and useful. It is just not the package
-boundary that new downstream tools should center first.</p>
-<h2 id="workflow-8-abi-sensitive-packages"><a class="header" href="#workflow-8-abi-sensitive-packages">Workflow 8: ABI-Sensitive Packages</a></h2>
-<p>For packages with important struct ABI, attach layout evidence, inspect
-symbols, and validate before generation.</p>
-<p>This is the right pattern when a downstream generator wants stronger evidence
-without turning LINC into the generator itself.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="operations-and-release"><a class="header" href="#operations-and-release">Operations And Release</a></h1>
-<p>This section covers the operational and release posture of LINC.</p>
-<h2 id="operations"><a class="header" href="#operations">Operations</a></h2>
-<p>LINC is a library-first analysis tool. It is meant to be embedded, tested,
-and serialized, not launched as a separate end-user service.</p>
-<h2 id="release"><a class="header" href="#release">Release</a></h2>
-<p>A release should be judged on build and test health, JSON contract stability,
-documentation alignment, fixture coverage, and platform support posture.</p>
-<p>The practical release split is:</p>
-<ul>
-<li>hermetic vendored baselines must stay green everywhere</li>
-<li>host-dependent large evidence ladders should stay green where available</li>
-<li>failure suites must keep proving conservative behavior instead of optimistic
-guessing</li>
-</ul>
-<p>The grouped failure suites now live in:</p>
-<ul>
-<li><code>failure_matrix_link</code> for unresolved and duplicate provider outcomes</li>
-<li><code>failure_matrix_validation</code> for hidden, kind-mismatch, and ABI-mismatch
-validation states</li>
-<li><code>failure_matrix_probe</code> for invalid bootstrap config and probe
-unavailable-vs-failed separation</li>
-</ul>
-<p>The architectural rule remains the same here too:</p>
-<ul>
-<li>LINC owns evidence and analysis</li>
-<li>downstream build and generation policy still belongs outside LINC</li>
-<li>tests/examples/harnesses are where cross-package composition is proven</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="platform-support"><a class="header" href="#platform-support">Platform Support</a></h1>
-<p>This chapter records the current practical platform-support posture of LINC.</p>
-<h2 id="current-matrix"><a class="header" href="#current-matrix">Current Matrix</a></h2>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Area</th><th>Linux / ELF</th><th>Apple / Mach-O</th><th>Windows / COFF</th></tr>
-</thead>
-<tbody>
-<tr><td>header scanning</td><td>usable</td><td>usable with Apple-specific link metadata support</td><td>limited by missing Windows-native completion work</td></tr>
-<tr><td>macro capture</td><td>usable</td><td>usable</td><td>compiler-dependent and not yet fully characterized</td></tr>
-<tr><td>layout probing</td><td>usable with GCC/Clang-style toolchains</td><td>usable with Clang-style toolchains</td><td>not yet a completed support target</td></tr>
-<tr><td>symbol inventory</td><td>usable</td><td>partial but present</td><td>present for COFF objects, import libraries, and PE binaries, but still not production-ready</td></tr>
-<tr><td>validation</td><td>usable where symbol inventory is usable</td><td>partial</td><td>limited; supported inventory classes are tested but the Windows linker model is still incomplete</td></tr>
-<tr><td>link-surface metadata</td><td>usable</td><td>usable, including frameworks</td><td>partial, especially around Windows-native link forms</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="what-usable-means-here"><a class="header" href="#what-usable-means-here">What “Usable” Means Here</a></h2>
-<p>Usable means the feature exists, it has direct test coverage in this
-repository, and it is reasonable for controlled internal use.</p>
-<h2 id="recommended-production-posture"><a class="header" href="#recommended-production-posture">Recommended Production Posture</a></h2>
-<ul>
-<li>prefer Linux/ELF for the most mature end-to-end native validation path</li>
-<li>treat Apple support as useful but still maturing</li>
-<li>treat Windows-native linker/artifact support as incomplete</li>
-</ul>
-<p>For the Level 1 production claim, interpret that as:</p>
-<ul>
-<li>Linux/ELF = primary production platform</li>
-<li>Apple/Mach-O = secondary confidence scope</li>
-<li>Windows/COFF = tested but non-primary confidence scope</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="fol-integration-guide"><a class="header" href="#fol-integration-guide"><code>fol</code> Integration Guide</a></h1>
-<p>This chapter describes the intended producer/consumer contract between LINC
-and <code>fol</code>.</p>
-<h2 id="division-of-responsibility"><a class="header" href="#division-of-responsibility">Division Of Responsibility</a></h2>
-<ul>
-<li>LINC extracts declarations, metadata, diagnostics, layouts, and native
-evidence</li>
-<li><code>fol</code> consumes that evidence to generate bindings and apply policy</li>
-</ul>
-<h2 id="what-fol-should-expect"><a class="header" href="#what-fol-should-expect">What <code>fol</code> Should Expect</a></h2>
-<ul>
-<li><code>BindingPackage</code> as the primary declaration and metadata contract</li>
-<li><code>BindingPackage.diagnostics</code> as explicit extraction warnings and
-partial-fidelity signals</li>
-<li><code>BindingPackage.layouts</code> when ABI-sensitive types need compiler-probed
-evidence</li>
-<li><code>BindingPackage.link</code> as the normalized native dependency surface</li>
-<li><code>SymbolInventory</code> and <code>ValidationReport</code> when native artifact matching matters</li>
-</ul>
-<h2 id="recommended-end-to-end-flow"><a class="header" href="#recommended-end-to-end-flow">Recommended End-To-End Flow</a></h2>
-<ol>
-<li>run LINC header scanning or source analysis</li>
-<li>inspect <code>BindingPackage.diagnostics</code></li>
-<li>require layout probes for ABI-sensitive types</li>
-<li>inspect native artifacts and run validation when linkable symbols matter</li>
-<li>pass the resulting structured values to <code>fol</code></li>
-<li>let <code>fol</code> decide what to generate, reject, or gate behind policy</li>
-</ol>
-<h2 id="contract-boundaries"><a class="header" href="#contract-boundaries">Contract Boundaries</a></h2>
-<ul>
-<li><code>schema_version</code> is the wire-compatibility gate</li>
-<li><code>linc_version</code> is producer provenance</li>
-<li><code>BindingPackage</code> is the declaration and metadata contract</li>
-<li><code>ValidationReport</code> is evidence, not an exception channel</li>
-<li>diagnostics are part of the data contract, not incidental logs</li>
-</ul>
-<h2 id="minimal-durable-contract"><a class="header" href="#minimal-durable-contract">Minimal Durable Contract</a></h2>
-<p>The shortest durable <code>fol</code> contract is:</p>
-<ol>
-<li>a serialized <code>BindingPackage</code></li>
-<li>optional <code>SymbolInventory</code> values</li>
-<li>optional <code>ValidationReport</code></li>
-<li>explicit consumer policy over diagnostics, layout evidence, and link
-evidence</li>
-</ol>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="macro-semantics"><a class="header" href="#macro-semantics">Macro Semantics</a></h1>
-<p><code>MacroBinding</code> is the normalized macro representation in the package.</p>
-<h2 id="intended-semantics-by-category"><a class="header" href="#intended-semantics-by-category">Intended Semantics By Category</a></h2>
-<ul>
-<li><code>BindableConstant</code>: safe candidates for generated constants</li>
-<li><code>ConfigurationFlag</code>: environment and availability signals</li>
-<li><code>AbiAffecting</code>: macros that may influence layout or calling behavior</li>
-<li><code>Unsupported</code>: capture and report, but do not assume a safe lowering path</li>
-</ul>
-<h2 id="function-like-vs-object-like"><a class="header" href="#function-like-vs-object-like">Function-Like vs Object-Like</a></h2>
-<p><code>MacroForm</code> preserves whether the macro was object-like or function-like.
-That distinction matters because function-like macros are often not safe to
-lower automatically.</p>
-<h2 id="consumer-guidance"><a class="header" href="#consumer-guidance">Consumer Guidance</a></h2>
-<p>Consumers should treat macro evidence as policy input, not as a promise that
-every captured macro should become a generated constant.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="support-tiers"><a class="header" href="#support-tiers">Support Tiers</a></h1>
-<p>This chapter groups the platform and feature posture into rough tiers.</p>
-<h2 id="tier-definitions"><a class="header" href="#tier-definitions">Tier Definitions</a></h2>
-<ul>
-<li>Tier 1: preferred and well-tested</li>
-<li>Tier 2: supported but still maturing</li>
-<li>Tier 3: experimental or incomplete</li>
-</ul>
-<h2 id="current-tier-assignment"><a class="header" href="#current-tier-assignment">Current Tier Assignment</a></h2>
-<p>ELF-oriented flows are the strongest tier. Mach-O is useful but still
-maturing. Windows-native support is incomplete.</p>
-<h2 id="downstream-guidance"><a class="header" href="#downstream-guidance">Downstream Guidance</a></h2>
-<p>Consumers should encode these tiers explicitly in their own release policy
-instead of assuming uniform maturity across platforms.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="unsupported-cases"><a class="header" href="#unsupported-cases">Unsupported Cases</a></h1>
-<p>This chapter keeps unsupported or incomplete areas explicit.</p>
-<h2 id="native-artifact-formats"><a class="header" href="#native-artifact-formats">Native Artifact Formats</a></h2>
-<p>Windows-native artifact support is still incomplete compared with ELF and
-Mach-O.</p>
-<h2 id="abi-modeling"><a class="header" href="#abi-modeling">ABI Modeling</a></h2>
-<p>LINC does not yet model every ABI detail for every record shape. Layout
-evidence is conservative and partial where needed.</p>
-<h2 id="macro-semantics-1"><a class="header" href="#macro-semantics-1">Macro Semantics</a></h2>
-<p>Not every macro should be lowered automatically. Unsupported macros remain
-visible as evidence.</p>
-<h2 id="validation-depth"><a class="header" href="#validation-depth">Validation Depth</a></h2>
-<p>Validation is evidence, not a full platform linker oracle.</p>
-<h2 id="why-this-chapter-exists"><a class="header" href="#why-this-chapter-exists">Why This Chapter Exists</a></h2>
-<p>Unsupported cases should stay visible so downstream consumers can make policy
-choices explicitly.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="fol-minimal-contract"><a class="header" href="#fol-minimal-contract"><code>fol</code> Minimal Contract</a></h1>
-<p>This chapter defines the smallest durable contract that <code>fol</code> can rely on.</p>
-<h2 id="minimal-required-inputs"><a class="header" href="#minimal-required-inputs">Minimal Required Inputs</a></h2>
-<ul>
-<li>a serialized <code>BindingPackage</code></li>
-<li>diagnostics</li>
-</ul>
-<h2 id="minimal-required-semantics"><a class="header" href="#minimal-required-semantics">Minimal Required Semantics</a></h2>
-<p>The minimal contract lets <code>fol</code> inspect declarations and policy-gate on
-diagnostics.</p>
-<h2 id="what-the-minimal-contract-does-not-promise"><a class="header" href="#what-the-minimal-contract-does-not-promise">What The Minimal Contract Does Not Promise</a></h2>
-<p>It does not promise layout evidence, link resolution, or validation.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="fol-extended-contract"><a class="header" href="#fol-extended-contract"><code>fol</code> Extended Contract</a></h1>
-<p>This chapter defines the optional evidence that makes <code>fol</code> more confident.</p>
-<h2 id="extended-optional-inputs"><a class="header" href="#extended-optional-inputs">Extended Optional Inputs</a></h2>
-<ul>
-<li><code>layouts</code></li>
-<li><code>link</code></li>
-<li><code>SymbolInventory</code></li>
-<li><code>ValidationReport</code></li>
-<li>macros</li>
-</ul>
-<h2 id="why-this-contract-is-optional"><a class="header" href="#why-this-contract-is-optional">Why This Contract Is Optional</a></h2>
-<p>Some generation tasks only need declarations. ABI-sensitive or publication
-quality workflows usually need more evidence.</p>
-<h2 id="consumer-rule-2"><a class="header" href="#consumer-rule-2">Consumer Rule</a></h2>
-<p>Use the extended contract when the downstream decision really depends on
-layout, link, or validation evidence.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="cross-repo-versioning"><a class="header" href="#cross-repo-versioning">Cross-Repo Versioning</a></h1>
-<p>This chapter describes how producers and consumers should think about versioned
-artifacts across repository boundaries.</p>
-<h2 id="artifact-keys"><a class="header" href="#artifact-keys">Artifact Keys</a></h2>
-<p>Use <code>schema_version</code> as the artifact gate and <code>linc_version</code> as provenance.</p>
-<h2 id="coordination-rules"><a class="header" href="#coordination-rules">Coordination Rules</a></h2>
-<p>Cross-repo consumers should pin the artifact shape they understand and reject
-future shapes instead of guessing.</p>
-<h2 id="additive-changes"><a class="header" href="#additive-changes">Additive Changes</a></h2>
-<p>Additive changes should be documented and fixture-tested.</p>
-<h2 id="breaking-contract-changes"><a class="header" href="#breaking-contract-changes">Breaking Contract Changes</a></h2>
-<p>Breaking changes require explicit review and a schema bump when older
-consumers would misread the payload.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="reproducibility"><a class="header" href="#reproducibility">Reproducibility</a></h1>
-<p>This chapter describes what must be reproducible for LINC to be trustworthy.</p>
-<h2 id="reproducibility-requirements"><a class="header" href="#reproducibility-requirements">Reproducibility Requirements</a></h2>
-<ul>
-<li>checked-in JSON contract fixtures must be deterministic</li>
-<li>library-only unit tests should be deterministic without requiring internet
-access</li>
-<li>toolchain-dependent tests should be explicit about their assumptions</li>
-</ul>
-<h2 id="fixture-rules"><a class="header" href="#fixture-rules">Fixture Rules</a></h2>
-<p>Prefer checked-in headers, JSON payloads, and small native test artifacts where
-practical.</p>
-<h2 id="contract-tests"><a class="header" href="#contract-tests">Contract Tests</a></h2>
-<p>The main contract tests should prove that source intake, validation, and link
-planning stay explainable and stable.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="link-resolution-boundary"><a class="header" href="#link-resolution-boundary">Link Resolution Boundary</a></h1>
-<p>This chapter defines the boundary between LINC link metadata and downstream
-build-system work.</p>
-<h2 id="what-linc-resolves-today"><a class="header" href="#what-linc-resolves-today">What LINC Resolves Today</a></h2>
-<p>LINC preserves declared native link intent, normalized native link metadata,
-ordered inputs, requirement provenance, platform hints, symbol inventories, and
-validation evidence.</p>
-<h2 id="what-linc-does-not-resolve-today"><a class="header" href="#what-linc-does-not-resolve-today">What LINC Does Not Resolve Today</a></h2>
-<p>LINC does not promise final linker invocation, full search-path expansion, or
-runtime loader behavior.</p>
-<h2 id="practical-rule-for-consumers"><a class="header" href="#practical-rule-for-consumers">Practical Rule For Consumers</a></h2>
-<p>Treat <code>BindingPackage.link</code> as normalized requirement metadata and keep final
-linker invocation in downstream tooling.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="release-checklist"><a class="header" href="#release-checklist">Release Checklist</a></h1>
-<p>Use this checklist before cutting a release candidate.</p>
-<h2 id="build-and-test"><a class="header" href="#build-and-test">Build And Test</a></h2>
-<ul>
-<li>run <code>make build</code></li>
-<li>run <code>make test</code></li>
-</ul>
-<h2 id="canonical-hardening-gates"><a class="header" href="#canonical-hardening-gates">Canonical Hardening Gates</a></h2>
-<ul>
-<li>confirm hermetic baselines still pass
-<ul>
-<li>vendored zlib</li>
-<li>vendored libpng</li>
-<li>plugin ABI</li>
-<li>combined daemon fixture</li>
-</ul>
-</li>
-<li>confirm at least one host-dependent large-evidence ladder still passes where
-available
-<ul>
-<li>OpenSSL</li>
-<li>Linux event-loop stack</li>
-</ul>
-</li>
-<li>confirm failure suites still reject duplicate, unresolved, hidden, decorated,
-and ABI-questionable cases conservatively</li>
-<li>confirm plugin-style <code>dl</code> surfaces still produce explicit runtime-boundary
-notes instead of over-claiming runtime truth</li>
-<li>confirm the hermetic ELF static, Mach-O framework, and Windows PE fixture
-suite still passes</li>
-<li>confirm determinism anchors still hold on the canonical large surfaces</li>
-</ul>
-<h2 id="contract-surfaces"><a class="header" href="#contract-surfaces">Contract Surfaces</a></h2>
-<ul>
-<li>confirm the documented JSON artifact shapes remain consumable by the current
-schema version</li>
-<li>confirm <code>ValidationReport</code> fixture coverage still matches current structured
-fields</li>
-</ul>
-<h2 id="documentation"><a class="header" href="#documentation">Documentation</a></h2>
-<ul>
-<li>confirm README wording matches tested behavior</li>
-<li>confirm the book reflects current API entry points and platform scope</li>
-</ul>
-<h2 id="consumer-boundary"><a class="header" href="#consumer-boundary">Consumer Boundary</a></h2>
-<ul>
-<li>confirm the generic library contract stays primary</li>
-<li>confirm cross-package composition is still described as tests/examples/
-harness work, not crate-to-crate library coupling</li>
-</ul>
-<h2 id="release-decision"><a class="header" href="#release-decision">Release Decision</a></h2>
-<p>Do not treat “builds successfully” as sufficient. The code, docs, and fixtures
-all need to match the same boundary.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="hermeticity-matrix"><a class="header" href="#hermeticity-matrix">Hermeticity Matrix</a></h1>
-<p>This chapter turns the large LINC evidence suite into an explicit hermeticity
-ladder.</p>
-<p>The central question is not just “does a test pass”. The central question is
-“what kind of evidence confidence does this surface buy us”.</p>
-<h2 id="tier-1-always-on-hermetic-baselines"><a class="header" href="#tier-1-always-on-hermetic-baselines">Tier 1: Always-On Hermetic Baselines</a></h2>
-<p>These are the first confidence anchors and should remain green everywhere:</p>
-<ul>
-<li>vendored zlib</li>
-<li>vendored libpng</li>
-<li>plugin ABI fixtures</li>
-<li>combined daemon and max-pain fixtures</li>
-<li>explicit ELF / Mach-O / Windows inventory confidence-floor fixtures</li>
-</ul>
-<p>These surfaces prove that LINC can:</p>
-<ul>
-<li>consume source-shaped input</li>
-<li>derive declared link surface</li>
-<li>resolve providers on controlled artifacts</li>
-<li>emit stable evidence and validation products</li>
-</ul>
-<h2 id="tier-2-host-dependent-high-value-ladders"><a class="header" href="#tier-2-host-dependent-high-value-ladders">Tier 2: Host-Dependent High-Value Ladders</a></h2>
-<p>These add confidence on real native environments when the libraries and headers
-exist:</p>
-<ul>
-<li>OpenSSL</li>
-<li>Linux event-loop stack</li>
-<li>epoll and socketcan examples</li>
-<li>other real system-library probes in the stress suites</li>
-</ul>
-<p>These surfaces matter because they are closer to the real deployment problem
-than vendored toy cases.</p>
-<h2 id="tier-3-failure-and-conservative-evidence-surfaces"><a class="header" href="#tier-3-failure-and-conservative-evidence-surfaces">Tier 3: Failure And Conservative-Evidence Surfaces</a></h2>
-<p>These prove that LINC is refusing or degrading honestly:</p>
-<ul>
-<li>duplicate provider cases</li>
-<li>unresolved provider cases</li>
-<li>hidden or decorated symbol mismatches</li>
-<li>ABI-questionable fixtures</li>
-<li>partial or missing layout evidence</li>
-<li>typed operational errors for unreadable artifacts, unsupported formats, and
-malformed serialized input</li>
-<li>explicit Mach-O framework and dylib provider-policy checks</li>
-</ul>
-<p>Those are release-positive tests when they stay:</p>
-<ul>
-<li>deterministic</li>
-<li>diagnostic</li>
-<li>intentionally conservative</li>
-</ul>
-<h2 id="determinism-anchors"><a class="header" href="#determinism-anchors">Determinism Anchors</a></h2>
-<p>The most important repeat-run anchors right now are:</p>
-<ul>
-<li>vendored zlib</li>
-<li>vendored libpng</li>
-<li>combined daemon fixture</li>
-<li>confidence-floor inventory fixtures</li>
-<li>OpenSSL when available</li>
-<li>Linux event-loop analysis</li>
-</ul>
-<p>If any of those become unstable, the evidence story should be treated as
-weaker, even if many unit tests still pass.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="readiness-scorecard"><a class="header" href="#readiness-scorecard">Readiness Scorecard</a></h1>
-<p>This chapter summarizes current release readiness by subsystem and ties the
-score directly to the current hardening ladder.</p>
-<h2 id="overall-readiness"><a class="header" href="#overall-readiness">Overall Readiness</a></h2>
-<p>LINC should currently be read as:</p>
-<ul>
-<li>strong on hermetic evidence production</li>
-<li>strong on ELF-first symbol and validation workflows</li>
-<li>useful but more conservative on Mach-O and Windows import-library paths</li>
-<li>meaningfully hardened on vendored and daemon-style fixtures</li>
-<li>still dependent on host availability for the largest OpenSSL and Linux-system
-ladders</li>
-</ul>
-<p>For whole-pipeline claims, this score is also capped by downstream <code>gerc</code>
-anchors that ingest <code>linc</code> evidence in tests/examples.</p>
-<p>For Level 1 production, this score should be read as Linux/ELF-first. Apple
-and Windows readiness should raise confidence, not redefine the primary
-production envelope.</p>
-<h2 id="subsystem-scorecard"><a class="header" href="#subsystem-scorecard">Subsystem Scorecard</a></h2>
-<ul>
-<li>source-shaped intake: high</li>
-<li>JSON artifact stability: high</li>
-<li>ABI layout evidence: medium-high</li>
-<li>symbol inventories: high for ELF, medium-high for Mach-O, medium for Windows</li>
-<li>validation: medium-high</li>
-<li>link planning: medium-high</li>
-<li>hermetic large-surface confidence: high</li>
-<li>host-dependent large-surface confidence: medium-high</li>
-<li>consumer integration on the documented artifact boundary: high</li>
-</ul>
-<h2 id="canonical-readiness-anchors"><a class="header" href="#canonical-readiness-anchors">Canonical Readiness Anchors</a></h2>
-<p>The release posture should be judged against these anchors first:</p>
-<ul>
-<li>vendored zlib</li>
-<li>vendored libpng</li>
-<li>plugin ABI fixture</li>
-<li>combined daemon fixture</li>
-<li>difficult-record evidence fixtures</li>
-<li>OpenSSL when available</li>
-<li>Linux event-loop analysis when available</li>
-</ul>
-<p>If those anchors drift, the scorecard should drop even if many smaller unit
-tests still pass.</p>
-<h2 id="how-to-read-this-scorecard"><a class="header" href="#how-to-read-this-scorecard">How To Read This Scorecard</a></h2>
-<p>High means the subsystem is a reliable contract surface for normal downstream
-use. Medium-high means consumers should still respect the documented limits and
-expect some host/platform asymmetry. Medium means the subsystem is useful but
-should not be oversold as equally mature across all supported environments.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="contract-change-checklist"><a class="header" href="#contract-change-checklist">Contract Change Checklist</a></h1>
-<p>Use this checklist whenever a release includes changes to schema, public API,
-or checked-in contract fixtures.</p>
-<h2 id="schema-changes"><a class="header" href="#schema-changes">Schema Changes</a></h2>
-<ul>
-<li>confirm whether the change is additive, behavioral, or breaking</li>
-<li>keep <code>schema_version</code> unchanged for additive/defaulted changes</li>
-<li>bump <code>schema_version</code> only when older consumers can no longer deserialize or
-safely interpret the payload</li>
-</ul>
-<h2 id="public-api-changes"><a class="header" href="#public-api-changes">Public API Changes</a></h2>
-<ul>
-<li>confirm whether the root-level API contract changed or only lower-level
-modules changed</li>
-<li>update crate-level docs and book chapters when recommended usage changes</li>
-</ul>
-<h2 id="fixture-changes"><a class="header" href="#fixture-changes">Fixture Changes</a></h2>
-<ul>
-<li>confirm the fixture still represents a real supported or intentionally
-unsupported scenario</li>
-<li>confirm the corresponding regression test explains why the fixture exists</li>
-</ul>
-<h2 id="consumer-guidance-changes"><a class="header" href="#consumer-guidance-changes">Consumer Guidance Changes</a></h2>
-<ul>
-<li>confirm generic library guidance stays separate from consumer-specific
-guidance</li>
-<li>confirm consumer guidance remains an example profile rather than universal
-crate policy</li>
-</ul>
-<h2 id="final-questions"><a class="header" href="#final-questions">Final Questions</a></h2>
-<p>Ask whether the change altered what downstream code can safely rely on, whether
-fixture coverage changed to prove the new boundary, and whether the docs now
-describe the same boundary.</p>
+<p>The target refuses detached, dirty, untracked, non-upstream, already-tagged,
+registry-publishable, or wrong-PARC state, then runs the full <code>make verify</code>
+gate. It is non-mutating: it does not fetch, edit a version, commit, tag, push,
+upload, or publish.</p>
+<p>The full gate proves:</p>
+<ul>
+<li>formatting, Clippy, feature combinations, tests, and doctests;</li>
+<li>frozen schema-v2 corpus preservation;</li>
+<li>required Linux ELF and compiler evidence with no zero-test filter;</li>
+<li>extracted PARC/LINC archives and a clean packaged consumer;</li>
+<li>mdBook and Rust API documentation; and</li>
+<li>no worktree change during verification.</li>
+</ul>
+<h2 id="dependency-order"><a class="header" href="#dependency-order">Dependency order</a></h2>
+<p>Record the full PARC tag commit, package version, and source-schema version
+before LINC tagging. Then tag LINC against that exact state, GERC against exact
+PARC and LINC states, and finally update FOL’s lock. Never tag a downstream
+crate against uncommitted or local-only upstream state.</p>
 
                     </main>
 
@@ -2159,11 +391,11 @@ describe the same boundary.</p>
 
         <script src="elasticlunr-ef4e11c1.min.js"></script>
         <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-c2a407aa.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
         <script src="clipboard-1626706a.min.js"></script>
         <script src="highlight-abc7f01d.js"></script>
-        <script src="book-a0b12cfe.js"></script>
+        <script src="book-c22b7243.js"></script>
 
         <!-- Custom JS scripts -->
 

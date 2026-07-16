@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>fol Integration Guide - LINC Reference</title>
+        <title>Release policy and checklist - LINC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -15,8 +15,8 @@
         <link rel="icon" href="favicon-de23e50b.svg">
         <link rel="shortcut icon" href="favicon-8114d1fc.png">
         <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-2459343d.css">
-        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
         <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-96ee6983.js";
+            window.path_to_searchindex_js = "searchindex-87ace6eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-cb0f06eb.js"></script>
+        <script src="toc-95105af9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,63 +174,67 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="fol-integration-guide"><a class="header" href="#fol-integration-guide"><code>fol</code> Integration Guide</a></h1>
-<p>This chapter describes the intended producer/consumer contract between LINC
-and <code>fol</code>.</p>
-<h2 id="division-of-responsibility"><a class="header" href="#division-of-responsibility">Division Of Responsibility</a></h2>
+                        <h1 id="release-policy-and-checklist"><a class="header" href="#release-policy-and-checklist">Release policy and checklist</a></h1>
+<p>The root <code>RELEASE.md</code>, which is included in the package archive, is the
+normative distribution policy. This chapter summarizes the repository checks.</p>
+<h2 id="identity-and-compatibility"><a class="header" href="#identity-and-compatibility">Identity and compatibility</a></h2>
+<p>The current identities are:</p>
 <ul>
-<li>LINC extracts declarations, metadata, diagnostics, layouts, and native
-evidence</li>
-<li><code>fol</code> consumes that evidence to generate bindings and apply policy</li>
+<li>package <code>follang-linc</code> 0.1.0, imported as <code>linc</code>;</li>
+<li>MSRV Rust 1.89;</li>
+<li>link-analysis schema <code>follang.linc.link-analysis</code> version 2;</li>
+<li>H5 implementation baseline
+<code>4a2e0fba3aa528b7ba55626fd1ea9c75d153f7b1</code>; and</li>
+<li>exact upstream <code>follang-parc</code> 0.16.0 revision
+<code>ba603cdccc9375473eca0c42e5462cf90b6da249</code>.</li>
 </ul>
-<h2 id="what-fol-should-expect"><a class="header" href="#what-fol-should-expect">What <code>fol</code> Should Expect</a></h2>
+<p>Registry publication is disabled. The project does not claim crates.io name
+ownership or availability. Distribution uses an exact Git tag and its tested
+self-contained Cargo archive.</p>
+<p>Rust API and behavior changes follow SemVer. Before 1.0, breaking changes
+require a minor bump. Frozen schema v2 is never changed in place: incompatible
+artifact shape, meaning, canonicalization, or fingerprint changes require a
+new schema and corpus plus a breaking SemVer bump. A patch release does not
+raise the MSRV. Detailed rules are in <code>RELEASE.md</code>.</p>
+<h2 id="certified-boundary"><a class="header" href="#certified-boundary">Certified boundary</a></h2>
+<p>The production certifier covers the explicitly checked C17 GNU x86-64 Linux
+ELF LP64/SysV profile with GCC or Clang, exact native inputs, measured layouts,
+and the source-type subset accepted by <code>NativeAnalyzer::certify</code>. Unsupported
+targets, ABIs, source types, provider states, and compiler observations fail at
+the owning boundary. No distribution metadata broadens that tested matrix.</p>
+<h2 id="candidate-gate"><a class="header" href="#candidate-gate">Candidate gate</a></h2>
+<p>The operator must first fetch and review the tracked upstream and tags in both
+LINC and PARC. On clean branches whose <code>HEAD</code>s exactly equal their tracked
+upstreams, run:</p>
+<pre><code class="language-sh">make release-check
+</code></pre>
+<p>The target refuses detached, dirty, untracked, non-upstream, already-tagged,
+registry-publishable, or wrong-PARC state, then runs the full <code>make verify</code>
+gate. It is non-mutating: it does not fetch, edit a version, commit, tag, push,
+upload, or publish.</p>
+<p>The full gate proves:</p>
 <ul>
-<li><code>BindingPackage</code> as the primary declaration and metadata contract</li>
-<li><code>BindingPackage.diagnostics</code> as explicit extraction warnings and
-partial-fidelity signals</li>
-<li><code>BindingPackage.layouts</code> when ABI-sensitive types need compiler-probed
-evidence</li>
-<li><code>BindingPackage.link</code> as the normalized native dependency surface</li>
-<li><code>SymbolInventory</code> and <code>ValidationReport</code> when native artifact matching matters</li>
+<li>formatting, Clippy, feature combinations, tests, and doctests;</li>
+<li>frozen schema-v2 corpus preservation;</li>
+<li>required Linux ELF and compiler evidence with no zero-test filter;</li>
+<li>extracted PARC/LINC archives and a clean packaged consumer;</li>
+<li>mdBook and Rust API documentation; and</li>
+<li>no worktree change during verification.</li>
 </ul>
-<h2 id="recommended-end-to-end-flow"><a class="header" href="#recommended-end-to-end-flow">Recommended End-To-End Flow</a></h2>
-<ol>
-<li>run LINC header scanning or source analysis</li>
-<li>inspect <code>BindingPackage.diagnostics</code></li>
-<li>require layout probes for ABI-sensitive types</li>
-<li>inspect native artifacts and run validation when linkable symbols matter</li>
-<li>pass the resulting structured values to <code>fol</code></li>
-<li>let <code>fol</code> decide what to generate, reject, or gate behind policy</li>
-</ol>
-<h2 id="contract-boundaries"><a class="header" href="#contract-boundaries">Contract Boundaries</a></h2>
-<ul>
-<li><code>schema_version</code> is the wire-compatibility gate</li>
-<li><code>linc_version</code> is producer provenance</li>
-<li><code>BindingPackage</code> is the declaration and metadata contract</li>
-<li><code>ValidationReport</code> is evidence, not an exception channel</li>
-<li>diagnostics are part of the data contract, not incidental logs</li>
-</ul>
-<h2 id="minimal-durable-contract"><a class="header" href="#minimal-durable-contract">Minimal Durable Contract</a></h2>
-<p>The shortest durable <code>fol</code> contract is:</p>
-<ol>
-<li>a serialized <code>BindingPackage</code></li>
-<li>optional <code>SymbolInventory</code> values</li>
-<li>optional <code>ValidationReport</code></li>
-<li>explicit consumer policy over diagnostics, layout evidence, and link
-evidence</li>
-</ol>
+<h2 id="dependency-order"><a class="header" href="#dependency-order">Dependency order</a></h2>
+<p>Record the full PARC tag commit, package version, and source-schema version
+before LINC tagging. Then tag LINC against that exact state, GERC against exact
+PARC and LINC states, and finally update FOL’s lock. Never tag a downstream
+crate against uncommitted or local-only upstream state.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="180_platform_support.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="corpus.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="210_macro_semantics.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -238,13 +242,10 @@ evidence</li>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="180_platform_support.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="corpus.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="210_macro_semantics.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                    </a>
             </nav>
 
         </div>
@@ -264,11 +265,11 @@ evidence</li>
 
         <script src="elasticlunr-ef4e11c1.min.js"></script>
         <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-c2a407aa.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
         <script src="clipboard-1626706a.min.js"></script>
         <script src="highlight-abc7f01d.js"></script>
-        <script src="book-a0b12cfe.js"></script>
+        <script src="book-c22b7243.js"></script>
 
         <!-- Custom JS scripts -->
 

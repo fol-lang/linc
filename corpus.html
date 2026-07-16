@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Macros And Layouts - LINC Reference</title>
+        <title>Preservation corpus - LINC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -15,8 +15,8 @@
         <link rel="icon" href="favicon-de23e50b.svg">
         <link rel="shortcut icon" href="favicon-8114d1fc.png">
         <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-2459343d.css">
-        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
         <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-96ee6983.js";
+            window.path_to_searchindex_js = "searchindex-87ace6eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-cb0f06eb.js"></script>
+        <script src="toc-95105af9.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,143 +174,29 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="macros-and-layouts"><a class="header" href="#macros-and-layouts">Macros And Layouts</a></h1>
-<p>Two of the most important “not just declarations” surfaces in LINC are macro
-inventory and compiler-probed type layouts.</p>
-<p>Together they close a large part of the gap between syntax-only header
-extraction and ABI-aware analysis.</p>
-<h2 id="macro-inventory"><a class="header" href="#macro-inventory">Macro Inventory</a></h2>
-<p><code>BindingPackage.macros</code> captures macro definitions seen during raw-header or
-bootstrap scans.</p>
-<p>Each <code>MacroBinding</code> carries:</p>
-<ul>
-<li><code>name</code></li>
-<li><code>body</code></li>
-<li><code>function_like</code></li>
-<li><code>form</code></li>
-<li><code>kind</code></li>
-<li><code>category</code></li>
-<li>optional parsed <code>value</code> for bindable integer/string constants</li>
-</ul>
-<p><code>BindingPackage.macro_provenance</code> carries package-level provenance entries for
-captured macros, including origin classification and source location where
-line-marker evidence is available.</p>
-<h3 id="macro-kind"><a class="header" href="#macro-kind">Macro Kind</a></h3>
-<p>Current kinds are:</p>
-<ul>
-<li><code>Integer</code></li>
-<li><code>String</code></li>
-<li><code>Expression</code></li>
-<li><code>Other</code></li>
-</ul>
-<p>This is a structural classification of the macro body.</p>
-<h3 id="macro-category"><a class="header" href="#macro-category">Macro Category</a></h3>
-<p>Current categories are:</p>
-<ul>
-<li><code>BindableConstant</code></li>
-<li><code>ConfigurationFlag</code></li>
-<li><code>AbiAffecting</code></li>
-<li><code>Unsupported</code></li>
-</ul>
-<p>This is a higher-level classification intended to help downstream consumers
-decide which macros are relevant.</p>
-<h2 id="why-macro-capture-matters"><a class="header" href="#why-macro-capture-matters">Why Macro Capture Matters</a></h2>
-<p>Many real C APIs encode essential information in macros:</p>
-<ul>
-<li>integer constants</li>
-<li>version identifiers</li>
-<li>feature toggles</li>
-<li>calling-convention selectors</li>
-<li>export/import annotations</li>
-<li>ABI-affecting packing or configuration knobs</li>
-</ul>
-<p>Without macros, a binding package is often incomplete even if declaration
-extraction succeeded.</p>
-<h2 id="practical-macro-interpretation"><a class="header" href="#practical-macro-interpretation">Practical Macro Interpretation</a></h2>
-<p>Downstream tools should usually treat categories differently:</p>
-<ul>
-<li><code>BindableConstant</code>: good candidates for generated constants</li>
-<li><code>ConfigurationFlag</code>: environment and availability signals</li>
-<li><code>AbiAffecting</code>: do not ignore; these may change layout or calling behavior</li>
-<li><code>Unsupported</code>: evidence worth reporting, not blindly generating</li>
-</ul>
-<h2 id="layout-probing"><a class="header" href="#layout-probing">Layout Probing</a></h2>
-<p><code>TypeLayout</code> currently stores:</p>
-<ul>
-<li><code>name</code></li>
-<li><code>size</code></li>
-<li><code>align</code></li>
-</ul>
-<p>The layouts are produced by compiler-assisted probing. That means they reflect
-the configured compiler environment rather than guessed sizes.</p>
-<p><code>AbiProbeReport</code> also preserves target/compiler identity metadata alongside the
-layouts. That makes probe evidence auditable and safer to hand across process
-or repo boundaries.</p>
-<h2 id="probe-subjects"><a class="header" href="#probe-subjects">Probe Subjects</a></h2>
-<p>The report also carries <code>subjects</code>. Each <code>ProbeSubjectReport</code> keeps:</p>
-<ul>
-<li>the requested subject name</li>
-<li>its broad subject kind (<code>Type</code>, <code>Record</code>, or <code>Enum</code>)</li>
-<li>probe confidence</li>
-<li>record completeness when the subject is a record</li>
-<li>the measured <code>TypeLayout</code></li>
-</ul>
-<p>For record subjects, <code>fields</code> may also preserve named field offsets as
-compiler-measured evidence.</p>
-<p>For bitfields, the current probe surface is intentionally partial:</p>
-<ul>
-<li><code>bit_width</code> may be present</li>
-<li><code>offset_bytes</code> may remain absent</li>
-</ul>
-<p>That is deliberate. LINC preserves width evidence where it can, but does not
-guess a byte offset for bitfields when the probe path cannot establish one
-safely.</p>
-<h2 id="probe-degradation-semantics"><a class="header" href="#probe-degradation-semantics">Probe Degradation Semantics</a></h2>
-<p>Probe requests do not all fail for the same reason.</p>
-<ul>
-<li><code>ProbeUnavailable</code> means the requested subject did not have a safely
-probeable layout in the current compilation model</li>
-<li><code>ProbeFailed</code> means the probe mechanism itself failed operationally or
-compiled invalid probe input</li>
-</ul>
-<p>That split lets a downstream generator apply a policy such as:</p>
-<ul>
-<li>tolerate <code>ProbeUnavailable</code> for explicitly opaque inputs</li>
-<li>require layouts for by-value ABI-sensitive records and typedef-backed value
-types</li>
-<li>treat any <code>ProbeFailed</code> result as suspicious until the probe path is fixed or
-explicitly waived</li>
-</ul>
-<p>Enum subjects also preserve:</p>
-<ul>
-<li><code>enum_underlying_size</code></li>
-<li><code>enum_is_signed</code></li>
-</ul>
-<p>This gives downstream generators a concrete representation hint even before
-field-level enum analysis exists in the declaration IR.</p>
-<h2 id="what-layouts-solve"><a class="header" href="#what-layouts-solve">What Layouts Solve</a></h2>
-<p>Compiler-probed layouts are especially useful for:</p>
-<ul>
-<li>checking that opaque vs non-opaque modeling matches reality</li>
-<li>proving <code>sizeof</code> and <code>alignof</code> for important structs</li>
-<li>gating generation on ABI-sensitive records</li>
-<li>preserving ABI evidence in a transportable JSON package</li>
-</ul>
-<h2 id="what-layouts-do-not-yet-solve"><a class="header" href="#what-layouts-do-not-yet-solve">What Layouts Do Not Yet Solve</a></h2>
-<p>Current layout data is intentionally small. It does not yet provide a full
-field-offset or bitfield-layout model.</p>
-<p>So treat <code>TypeLayout</code> as stronger than guessing, but not yet a complete ABI
-proof for all record shapes.</p>
+                        <h1 id="preservation-corpus"><a class="header" href="#preservation-corpus">Preservation corpus</a></h1>
+<p><code>linc::contract::corpus</code> embeds the checked schema-v2 link-analysis artifact
+paired with PARC’s complete preservation source package.</p>
+<p>The normal downstream flow is:</p>
+<ol>
+<li>decode <code>parc::contract::corpus::COMPLETE_SOURCE_PACKAGE_JSON</code>;</li>
+<li>complete it with <code>linc::contract::corpus::preservation_selection()</code>;</li>
+<li>call <code>validated_preservation_link_analysis()</code>;</li>
+<li>consume the validated package and its ordered, repeated resolved link plan.</li>
+</ol>
+<p>The frozen link-analysis identity is available through
+<code>preservation_link_analysis_fingerprint()</code>. The package test extracts both PARC
+and LINC archives and verifies this flow from a clean contract-only consumer.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="060_filtering.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="native.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="095_native_evidence.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="release.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -320,11 +206,11 @@ proof for all record shapes.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="060_filtering.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="native.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="095_native_evidence.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="release.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -346,11 +232,11 @@ proof for all record shapes.</p>
 
         <script src="elasticlunr-ef4e11c1.min.js"></script>
         <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-c2a407aa.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
         <script src="clipboard-1626706a.min.js"></script>
         <script src="highlight-abc7f01d.js"></script>
-        <script src="book-a0b12cfe.js"></script>
+        <script src="book-c22b7243.js"></script>
 
         <!-- Custom JS scripts -->
 
