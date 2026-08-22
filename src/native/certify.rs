@@ -142,10 +142,16 @@ pub(super) fn validate_certification_request(request: &AnalysisRequest<'_>) -> N
 }
 
 fn validate_certified_target(target: &TargetSpec) -> NativeResult<()> {
-    let profile = target.triple() == "x86_64-unknown-linux-gnu"
+    // glibc and musl are the same SysV AMD64 ABI; only the libc differs, and
+    // layouts are measured with the caller's own compiler either way.
+    let supported_libc = matches!(
+        (target.triple(), target.environment()),
+        ("x86_64-unknown-linux-gnu", Environment::Gnu)
+            | ("x86_64-unknown-linux-musl", Environment::Musl)
+    );
+    let profile = supported_libc
         && target.architecture() == Architecture::X86_64
         && target.operating_system() == OperatingSystem::Linux
-        && target.environment() == Environment::Gnu
         && target.object_format() == ObjectFormat::Elf
         && target.endian() == Endian::Little
         && target.pointer_width() == 64
@@ -165,7 +171,7 @@ fn validate_certified_target(target: &TargetSpec) -> NativeResult<()> {
         && target.c_data_model().pointer_layout.alignment_bits == 64;
     if !profile {
         return Err(NativeError::UnsupportedProbeType {
-            detail: "the initial certification profile is exactly C17 GNU x86_64-unknown-linux-gnu ELF LP64 with -m64 and no sysroot".to_owned(),
+            detail: "the certification profile is exactly C17 GNU x86_64 linux-gnu or linux-musl ELF LP64 with -m64 and no sysroot".to_owned(),
         });
     }
     Ok(())

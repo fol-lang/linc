@@ -789,16 +789,23 @@ struct Recursion {
 
 fn validate_target(source: &CompleteSourcePackage) -> NativeResult<()> {
     let target = source.source().target();
-    if target.triple() != "x86_64-unknown-linux-gnu"
+    // glibc and musl share the System V AMD64 ABI: the libc differs, the
+    // calling convention and layout rules do not. The classifier therefore
+    // keys on architecture and object format, not on which libc is in use.
+    let supported_libc = matches!(
+        (target.triple(), target.environment()),
+        ("x86_64-unknown-linux-gnu", Environment::Gnu)
+            | ("x86_64-unknown-linux-musl", Environment::Musl)
+    );
+    if !supported_libc
         || target.architecture() != Architecture::X86_64
         || target.operating_system() != OperatingSystem::Linux
-        || target.environment() != Environment::Gnu
         || target.object_format() != ObjectFormat::Elf
         || target.endian() != Endian::Little
         || target.pointer_width() != 64
     {
         return Err(invalid(
-            "the initial SysV64 classifier accepts only x86_64-unknown-linux-gnu ELF",
+            "the SysV64 classifier accepts only x86_64 linux-gnu or linux-musl ELF",
         ));
     }
     let model = target.c_data_model();
