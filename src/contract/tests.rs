@@ -203,7 +203,12 @@ fn corpus_is_required_and_ledger_fingerprints_bind_evidence() {
         complete.target_fingerprint().to_string(),
         CORPUS_TARGET_FINGERPRINT
     );
-    assert!(partial.into_complete(&Selection::all_supported()).is_err());
+    // A construct PARC cannot model poisons itself, not the package, so the
+    // partial corpus still completes for a selection that avoids it.
+    // `all_supported` is exactly such a selection.
+    partial
+        .into_complete(&Selection::all_supported())
+        .expect("the supported closure of a partial package is complete");
 
     let seed = evidence_seed();
     assert_eq!(seed.source_fingerprint, complete.fingerprint());
