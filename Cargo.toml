@@ -36,7 +36,7 @@ native-inspection = ["contracts", "dep:object", "dep:tempfile"]
 [dependencies]
 blake3 = "1"
 object = { version = "=0.37.3", default-features = false, features = ["read", "std"], optional = true }
-parc = { package = "follang-parc", version = "=0.16.0", git = "https://github.com/fol-lang/parc", rev = "d2e6a4bbff4b3e4143ba5830a30b70b6bc1e01e3" }
+parc = { package = "follang-parc", version = "=0.16.0", git = "https://github.com/fol-lang/parc", rev = "fffe6a2f7191b3618231a7603664fe18eceba4c1" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "=1.0.145", features = ["raw_value"] }
 tempfile = { version = "=3.27.0", optional = true }
