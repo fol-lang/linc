@@ -297,7 +297,8 @@ impl StrictEvidenceValidator {
                     .symbols()
                     .iter()
                     .filter(|symbol| {
-                        symbol.name() == actual && symbol.decoration() == &request.decoration
+                        symbol.name() == actual
+                            && request.decoration.satisfied_by(symbol.decoration())
                     })
                     .map(|symbol| (inventory, symbol.id())),
             );

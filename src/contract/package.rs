@@ -586,7 +586,7 @@ fn validate_declaration_references(
                 })?;
         if record.name() != actual_name
             || record.kind() != *kind
-            || record.decoration() != decoration
+            || !decoration.satisfied_by(record.decoration())
         {
             return Err(ContractError::SymbolEvidenceMismatch {
                 declaration: evidence.declaration(),
@@ -1099,7 +1099,7 @@ fn validate_linked_declaration(
             actual: record.kind(),
         });
     }
-    if record.name() != canonical_actual || record.decoration() != decoration {
+    if record.name() != canonical_actual || !decoration.satisfied_by(record.decoration()) {
         return Err(ContractError::SymbolEvidenceMismatch { declaration });
     }
 
@@ -1113,7 +1113,7 @@ fn validate_linked_declaration(
                 .filter(|symbol| {
                     symbol.name() == canonical_actual
                         && symbol.kind() == expected_kind
-                        && symbol.decoration() == decoration
+                        && decoration.satisfied_by(symbol.decoration())
                         && symbol.is_visible_export()
                 })
                 .count()

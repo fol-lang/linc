@@ -457,6 +457,33 @@ pub enum SymbolDecoration {
     Other { spelling: Vec<u8> },
 }
 
+impl SymbolDecoration {
+    /// Whether a provider symbol carrying `actual` satisfies a declaration that
+    /// asks for `self`.
+    ///
+    /// An exact match always does. Beyond that, an undecorated reference binds
+    /// to the *default* version of a versioned symbol, which is what the
+    /// dynamic linker does: `json_delete` resolves to `json_delete@@JANSSON_4`
+    /// because that version is the default. Refusing it would reject every
+    /// symbol-versioned shared library, which is most of them -- glibc and any
+    /// library built with a version script.
+    pub fn satisfied_by(&self, actual: &SymbolDecoration) -> bool {
+        if self == actual {
+            return true;
+        }
+        matches!(
+            (self, actual),
+            (
+                SymbolDecoration::None,
+                SymbolDecoration::Versioned {
+                    is_default: true,
+                    ..
+                }
+            )
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SymbolRecordInput {
     pub id: ArtifactSymbolId,

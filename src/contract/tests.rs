@@ -2462,3 +2462,25 @@ fn ledger_target_fingerprint() -> TargetFingerprint {
         .parse()
         .expect("canonical ledger target fingerprint")
 }
+
+/// An unversioned reference binds to the default version of a versioned
+/// symbol, the way the dynamic linker resolves `json_delete` to
+/// `json_delete@@JANSSON_4`. A non-default version, or any other decoration,
+/// does not satisfy an unversioned request.
+#[test]
+fn a_default_versioned_symbol_satisfies_an_unversioned_reference() {
+    let default_version = SymbolDecoration::Versioned {
+        version: b"JANSSON_4".to_vec(),
+        is_default: true,
+    };
+    let non_default = SymbolDecoration::Versioned {
+        version: b"JANSSON_4".to_vec(),
+        is_default: false,
+    };
+
+    assert!(SymbolDecoration::None.satisfied_by(&default_version));
+    assert!(!SymbolDecoration::None.satisfied_by(&non_default));
+    assert!(default_version.satisfied_by(&default_version));
+    assert!(!SymbolDecoration::None.satisfied_by(&SymbolDecoration::LeadingUnderscore));
+    assert!(!default_version.satisfied_by(&SymbolDecoration::None));
+}
