@@ -1008,12 +1008,17 @@ extern linc_payload linc_state;
 linc_payload linc_transform(linc_payload value, enum linc_mode mode);
 linc_nothing linc_notify(int value);
 int linc_sum(int count, const int values[]);
+typedef struct linc_signal linc_signal;
+typedef void (*linc_signal_cb)(linc_signal *self);
+struct linc_signal { linc_signal_cb cb; int count; };
+typedef struct linc_loop { linc_signal watcher; int live; } linc_loop;
+int linc_loop_count(linc_loop loop);
 "#;
     fs::write(&header, declaration_source).unwrap();
     fs::write(
         &provider_source,
         format!(
-            "{declaration_source}\nlinc_payload linc_state;\nlinc_payload linc_transform(linc_payload value, enum linc_mode mode) {{ (void)mode; return value; }}\nlinc_nothing linc_notify(int value) {{ (void)value; }}\nint linc_sum(int count, const int values[]) {{ return count ? values[0] : 0; }}\n"
+            "{declaration_source}\nlinc_payload linc_state;\nlinc_payload linc_transform(linc_payload value, enum linc_mode mode) {{ (void)mode; return value; }}\nlinc_nothing linc_notify(int value) {{ (void)value; }}\nint linc_sum(int count, const int values[]) {{ return count ? values[0] : 0; }}\nint linc_loop_count(linc_loop loop) {{ return loop.watcher.count + loop.live; }}\n"
         ),
     )
     .unwrap();
@@ -1055,7 +1060,7 @@ int linc_sum(int count, const int values[]);
         .certify(&request, &toolchain)
         .expect("aggregate certification must be fully LINC-owned");
 
-    assert_eq!(validated.package().layouts().len(), 5);
+    assert_eq!(validated.package().layouts().len(), 7);
     assert!(validated.package().abi_probes()[0]
         .subjects()
         .iter()

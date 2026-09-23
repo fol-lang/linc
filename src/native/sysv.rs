@@ -567,7 +567,13 @@ impl<'a> Classifier<'a> {
                 "by-value record cycle reached SysV64 classification",
             ));
         }
+        // A record starts a fresh alias context: a typedef cycle never passes
+        // through one, while libuv's `uv_signal_t` -- a record whose callback
+        // field takes a `uv_signal_t *` -- meets its own alias one record down.
+        // Record recursion keeps its own guard above.
+        let outer_aliases = std::mem::take(&mut recursion.aliases);
         let result = self.classify_record_inner(declaration, base_bits, eightbytes, recursion);
+        recursion.aliases = outer_aliases;
         recursion.records.remove(&declaration);
         result
     }
