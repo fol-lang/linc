@@ -786,10 +786,7 @@ impl CertificationPlan<'_> {
                 } else {
                     format!("*{pointer_qualifiers} {declarator}")
                 };
-                if matches!(
-                    pointee.kind,
-                    CTypeKind::Array { .. } | CTypeKind::Function(_)
-                ) {
+                if self.binds_tighter_than_pointer(pointee) {
                     nested = format!("({nested})");
                 }
                 self.render_declaration_inner(pointee, &nested, aliases)
@@ -875,6 +872,30 @@ impl CertificationPlan<'_> {
                 } else {
                     Ok(format!("{qualifiers} {base} {declarator}"))
                 }
+            }
+        }
+    }
+
+    /// An array or function pointee, directly or through aliases, renders as
+    /// a declarator suffix, so the pointer before it must be parenthesized.
+    fn binds_tighter_than_pointer<'s>(&'s self, ty: &'s CType) -> bool {
+        let mut seen = BTreeSet::new();
+        let mut current = ty;
+        loop {
+            match &current.kind {
+                CTypeKind::Array { .. } | CTypeKind::Function(_) => return true,
+                CTypeKind::AliasRef(id) if seen.insert(*id) => {
+                    match self
+                        .source
+                        .source()
+                        .declaration(*id)
+                        .map(|found| &found.kind)
+                    {
+                        Some(SourceDeclarationKind::TypeAlias(alias)) => current = &alias.target,
+                        _ => return false,
+                    }
+                }
+                _ => return false,
             }
         }
     }

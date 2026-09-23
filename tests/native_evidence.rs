@@ -989,11 +989,15 @@ struct linc_inner { int x; double y; };
 union linc_word { unsigned long long u; double d; };
 enum linc_mode { LINC_MODE_LOW = -1, LINC_MODE_HIGH = 7 };
 typedef int (*linc_callback)(int value);
+typedef int linc_handler(int value);
+typedef int linc_row[2];
 struct linc_aggregate {
     int values[3];
     struct linc_inner inner;
     union linc_word word;
     linc_callback callback;
+    linc_handler *handler;
+    linc_row *rows;
 };
 typedef struct linc_aggregate linc_payload;
 typedef void linc_nothing;
