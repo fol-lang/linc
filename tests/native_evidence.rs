@@ -1013,12 +1013,14 @@ typedef void (*linc_signal_cb)(linc_signal *self);
 struct linc_signal { linc_signal_cb cb; int count; };
 typedef struct linc_loop { linc_signal watcher; int live; } linc_loop;
 int linc_loop_count(linc_loop loop);
+typedef struct __attribute__((aligned(64))) linc_hash_state { unsigned char opaque[96]; } linc_hash_state;
+int linc_hash_init(linc_hash_state *state);
 "#;
     fs::write(&header, declaration_source).unwrap();
     fs::write(
         &provider_source,
         format!(
-            "{declaration_source}\nlinc_payload linc_state;\nlinc_payload linc_transform(linc_payload value, enum linc_mode mode) {{ (void)mode; return value; }}\nlinc_nothing linc_notify(int value) {{ (void)value; }}\nint linc_sum(int count, const int values[]) {{ return count ? values[0] : 0; }}\nint linc_loop_count(linc_loop loop) {{ return loop.watcher.count + loop.live; }}\n"
+            "{declaration_source}\nlinc_payload linc_state;\nlinc_payload linc_transform(linc_payload value, enum linc_mode mode) {{ (void)mode; return value; }}\nlinc_nothing linc_notify(int value) {{ (void)value; }}\nint linc_sum(int count, const int values[]) {{ return count ? values[0] : 0; }}\nint linc_loop_count(linc_loop loop) {{ return loop.watcher.count + loop.live; }}\nint linc_hash_init(linc_hash_state *state) {{ state->opaque[0] = 0; return 0; }}\n"
         ),
     )
     .unwrap();
@@ -1060,7 +1062,11 @@ int linc_loop_count(linc_loop loop);
         .certify(&request, &toolchain)
         .expect("aggregate certification must be fully LINC-owned");
 
-    assert_eq!(validated.package().layouts().len(), 7);
+    assert_eq!(validated.package().layouts().len(), 8);
+    assert!(validated.package().layouts().iter().any(
+        |layout| matches!(layout, linc::contract::LayoutEvidence::Record(record)
+            if record.size_bits() == 1024 && record.alignment_bits() == 512)
+    ));
     assert!(validated.package().abi_probes()[0]
         .subjects()
         .iter()

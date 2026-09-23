@@ -694,7 +694,15 @@ impl CertificationPlan<'_> {
             }
         }
         let keyword = record_keyword(plan.record.kind);
-        source.push_str(&format!("{keyword} linc_record_{} {{\n", plan.ordinal));
+        let alignment = plan
+            .record
+            .alignment_bytes
+            .map(|bytes| format!("__attribute__((aligned({bytes}))) "))
+            .unwrap_or_default();
+        source.push_str(&format!(
+            "{keyword} {alignment}linc_record_{} {{\n",
+            plan.ordinal
+        ));
         for field in &plan.fields {
             let name = match &field.field.bit_width {
                 Some(BitWidth::Known { bits }) => format!("{} : {bits}", field.name),
