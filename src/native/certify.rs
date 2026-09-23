@@ -390,7 +390,10 @@ impl<'a> CertificationPlan<'a> {
             validate_function_profile(function.function)?;
             self.validate_type(&function.function.return_type, &mut BTreeSet::new())?;
             for parameter in &function.function.parameters {
-                self.validate_type(&parameter.ty, &mut BTreeSet::new())?;
+                self.validate_type(
+                    &self.adjusted_parameter(&parameter.ty),
+                    &mut BTreeSet::new(),
+                )?;
             }
         }
         for id in &self.variables {
@@ -401,6 +404,40 @@ impl<'a> CertificationPlan<'a> {
             self.validate_type(&variable.ty, &mut BTreeSet::new())?;
         }
         Ok(())
+    }
+
+    /// A parameter declared as an array, directly or through an alias, is a
+    /// pointer to its element (C17 6.7.6.3p7): `const git_commit *parents[]`
+    /// passes `const git_commit **`, so its bound never reaches the call.
+    fn adjusted_parameter(&self, ty: &CType) -> CType {
+        let mut current = ty;
+        for _ in 0..64 {
+            match &current.kind {
+                CTypeKind::Array {
+                    element,
+                    parameter_qualifiers,
+                    ..
+                } => {
+                    return CType {
+                        qualifiers: *parameter_qualifiers,
+                        nullability: ty.nullability,
+                        kind: CTypeKind::Pointer(element.clone()),
+                        support: ty.support.clone(),
+                    };
+                }
+                CTypeKind::AliasRef(id) => match self
+                    .source
+                    .source()
+                    .declaration(*id)
+                    .map(|found| &found.kind)
+                {
+                    Some(SourceDeclarationKind::TypeAlias(alias)) => current = &alias.target,
+                    _ => break,
+                },
+                _ => break,
+            }
+        }
+        ty.clone()
     }
 
     fn validate_type(&self, ty: &CType, aliases: &mut BTreeSet<DeclarationId>) -> NativeResult<()> {
@@ -434,7 +471,7 @@ impl<'a> CertificationPlan<'a> {
                 validate_function_type_profile(function)?;
                 self.validate_type(&function.return_type, aliases)?;
                 for parameter in &function.parameters {
-                    self.validate_type(&parameter.ty, aliases)?;
+                    self.validate_type(&self.adjusted_parameter(&parameter.ty), aliases)?;
                 }
                 Ok(())
             }
@@ -739,7 +776,10 @@ impl CertificationPlan<'_> {
             .iter()
             .enumerate()
             .map(|(index, parameter)| {
-                self.render_declaration(&parameter.ty, &format!("linc_p_0_{index}"))
+                self.render_declaration(
+                    &self.adjusted_parameter(&parameter.ty),
+                    &format!("linc_p_0_{index}"),
+                )
             })
             .collect::<NativeResult<Vec<_>>>()?;
         // Parameter names must be unique per wrapper, not source-derived.  The
@@ -825,7 +865,7 @@ impl CertificationPlan<'_> {
                     .enumerate()
                     .map(|(index, parameter)| {
                         self.render_declaration_inner(
-                            &parameter.ty,
+                            &self.adjusted_parameter(&parameter.ty),
                             &format!("linc_fp_{index}"),
                             aliases,
                         )

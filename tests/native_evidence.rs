@@ -991,6 +991,7 @@ enum linc_mode { LINC_MODE_LOW = -1, LINC_MODE_HIGH = 7 };
 typedef int (*linc_callback)(int value);
 typedef int linc_handler(int value);
 typedef int linc_row[2];
+typedef int (*linc_visit)(const int *items[], void *payload);
 struct linc_aggregate {
     int values[3];
     struct linc_inner inner;
@@ -998,6 +999,7 @@ struct linc_aggregate {
     linc_callback callback;
     linc_handler *handler;
     linc_row *rows;
+    linc_visit visit;
 };
 typedef struct linc_aggregate linc_payload;
 typedef void linc_nothing;
@@ -1005,12 +1007,13 @@ struct linc_bits { unsigned flags : 3; unsigned ready : 1; };
 extern linc_payload linc_state;
 linc_payload linc_transform(linc_payload value, enum linc_mode mode);
 linc_nothing linc_notify(int value);
+int linc_sum(int count, const int values[]);
 "#;
     fs::write(&header, declaration_source).unwrap();
     fs::write(
         &provider_source,
         format!(
-            "{declaration_source}\nlinc_payload linc_state;\nlinc_payload linc_transform(linc_payload value, enum linc_mode mode) {{ (void)mode; return value; }}\nlinc_nothing linc_notify(int value) {{ (void)value; }}\n"
+            "{declaration_source}\nlinc_payload linc_state;\nlinc_payload linc_transform(linc_payload value, enum linc_mode mode) {{ (void)mode; return value; }}\nlinc_nothing linc_notify(int value) {{ (void)value; }}\nint linc_sum(int count, const int values[]) {{ return count ? values[0] : 0; }}\n"
         ),
     )
     .unwrap();
