@@ -699,6 +699,9 @@ impl CertificationPlan<'_> {
             .alignment_bytes
             .map(|bytes| format!("__attribute__((aligned({bytes}))) "))
             .unwrap_or_default();
+        if let Some(bytes) = plan.record.packing_bytes {
+            source.push_str(&format!("#pragma pack(push, {bytes})\n"));
+        }
         source.push_str(&format!(
             "{keyword} {alignment}linc_record_{} {{\n",
             plan.ordinal
@@ -714,6 +717,9 @@ impl CertificationPlan<'_> {
             source.push_str(";\n");
         }
         source.push_str("};\n");
+        if plan.record.packing_bytes.is_some() {
+            source.push_str("#pragma pack(pop)\n");
+        }
         Ok(())
     }
 
